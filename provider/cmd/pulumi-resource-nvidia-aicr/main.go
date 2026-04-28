@@ -6,8 +6,8 @@ import (
 	"os"
 
 	p "github.com/pulumi/pulumi-go-provider"
-	"github.com/pulumi/pulumi-nvidia-aicr/provider/pkg/provider"
-	"github.com/pulumi/pulumi-nvidia-aicr/provider/pkg/version"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/provider"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/version"
 )
 
 func main() {

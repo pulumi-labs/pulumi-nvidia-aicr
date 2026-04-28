@@ -12,7 +12,7 @@
 package main
 
 import (
-	aicr "github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
+	aicr "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )

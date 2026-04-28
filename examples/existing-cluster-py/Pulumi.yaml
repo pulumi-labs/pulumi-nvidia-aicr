@@ -8,7 +8,7 @@ config:
     description: GPU accelerator type (h100, gb200)
     default: h100
   service:
-    description: Kubernetes service (eks, gke, aks, self-managed)
+    description: Kubernetes service (aks, eks, gke, kind, oke)
     default: eks
   intent:
     description: Workload intent (training, inference)

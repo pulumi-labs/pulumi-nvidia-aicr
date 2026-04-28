@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pulumi/pulumi-nvidia-aicr/provider/pkg/recipes"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipes"
 )
 
 const recipeVersion = "0.1.0"
@@ -268,12 +268,14 @@ func resolveComponents(refs []ComponentRef, registry *ComponentRegistry) ([]Reso
 		var baseValues map[string]interface{}
 		if ref.ValuesFile != "" {
 			data, err := recipes.FS.ReadFile(ref.ValuesFile)
-			if err == nil {
-				var vals map[string]interface{}
-				if yamlErr := yaml.Unmarshal(data, &vals); yamlErr == nil {
-					baseValues = vals
-				}
+			if err != nil {
+				return nil, fmt.Errorf("reading values file %s for component %s: %w", ref.ValuesFile, ref.Name, err)
 			}
+			var vals map[string]interface{}
+			if yamlErr := yaml.Unmarshal(data, &vals); yamlErr != nil {
+				return nil, fmt.Errorf("parsing values file %s for component %s: %w", ref.ValuesFile, ref.Name, yamlErr)
+			}
+			baseValues = vals
 		}
 
 		// Merge: base values → recipe overrides (overrides win)

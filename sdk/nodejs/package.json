@@ -1,6 +1,7 @@
 {
     "name": "@pulumi/nvidia-aicr",
-    "version": "${VERSION}",
+    "version": "0.0.1-dev",
+    "description": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
     "keywords": [
         "pulumi",
         "nvidia",
@@ -9,8 +10,8 @@
         "kubernetes",
         "category/cloud"
     ],
-    "homepage": "https://github.com/pulumi/pulumi-nvidia-aicr",
-    "repository": "https://github.com/pulumi/pulumi-nvidia-aicr",
+    "homepage": "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
+    "repository": "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
     "license": "Apache-2.0",
     "scripts": {
         "build": "tsc"
@@ -24,6 +25,7 @@
     },
     "pulumi": {
         "resource": true,
-        "name": "nvidia-aicr"
+        "name": "nvidia-aicr",
+        "version": "0.0.1-dev"
     }
 }

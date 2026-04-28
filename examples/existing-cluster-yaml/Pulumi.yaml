@@ -1,0 +1,38 @@
+name: aicr-quickstart
+runtime: yaml
+description: |
+  Quickstart: Deploy NVIDIA AICR on an existing Kubernetes cluster, in YAML.
+  The simplest way to get started with AICR and Pulumi.
+
+config:
+  accelerator:
+    type: string
+    default: h100
+  service:
+    type: string
+    default: eks
+  intent:
+    type: string
+    default: training
+  platform:
+    type: string
+    default: ""
+  os:
+    type: string
+    default: ubuntu
+
+resources:
+  aicr:
+    type: nvidia-aicr:index:ClusterStack
+    properties:
+      accelerator: ${accelerator}
+      service: ${service}
+      intent: ${intent}
+      platform: ${platform}
+      os: ${os}
+
+outputs:
+  recipeName: ${aicr.recipeName}
+  recipeVersion: ${aicr.recipeVersion}
+  deployedComponents: ${aicr.deployedComponents}
+  componentCount: ${aicr.componentCount}

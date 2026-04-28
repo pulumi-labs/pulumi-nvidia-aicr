@@ -33,6 +33,42 @@ class ClusterStackArgs:
                  skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None):
         """
         The set of arguments for constructing a ClusterStack resource.
+
+        :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
+               
+               Supported values: "h100", "gb200", "b200".
+        :param _builtins.str intent: Workload intent. Selects between training-oriented and inference-oriented
+               component sets.
+               
+               Supported values: "training", "inference".
+        :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
+               
+               Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+               hardware-free development of the deployment pipeline.
+        :param pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]] component_overrides: Per-component overrides. Map of AICR component name to override settings
+               (version, namespace, Helm values). Values are deep-merged with the recipe
+               defaults; only the keys you specify are changed.
+        :param _builtins.str context: Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
+        :param pulumi.Input[_builtins.str] kubeconfig: Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+               Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+               KubeconfigJson). Mutually exclusive with `kubeconfigPath`.
+               
+               If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
+               (KUBECONFIG env var or ~/.kube/config) is used.
+        :param _builtins.str kubeconfig_path: Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
+               Prefer `kubeconfig` when chaining off a cluster resource's output.
+        :param _builtins.str os: Operating system flavor.
+               
+               Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+        :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
+               
+               Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+               Leave unset for a base recipe with no platform components.
+        :param _builtins.bool skip_await: If true, do not wait for each Helm release to become ready before continuing.
+               Faster previews/updates at the cost of losing readiness signal. Default: false.
+        :param pulumi.Input[Sequence[_builtins.str]] skip_components: Component names to exclude from the deployment. Useful for swapping in your
+               own installation of a component (e.g., bring-your-own cert-manager) or for
+               deploying onto bare-metal where cloud-specific operators are not relevant.
         """
         pulumi.set(__self__, "accelerator", accelerator)
         pulumi.set(__self__, "intent", intent)
@@ -45,10 +81,14 @@ class ClusterStackArgs:
             pulumi.set(__self__, "kubeconfig", kubeconfig)
         if kubeconfig_path is not None:
             pulumi.set(__self__, "kubeconfig_path", kubeconfig_path)
+        if os is None:
+            os = 'ubuntu'
         if os is not None:
             pulumi.set(__self__, "os", os)
         if platform is not None:
             pulumi.set(__self__, "platform", platform)
+        if skip_await is None:
+            skip_await = False
         if skip_await is not None:
             pulumi.set(__self__, "skip_await", skip_await)
         if skip_components is not None:
@@ -57,6 +97,11 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def accelerator(self) -> _builtins.str:
+        """
+        GPU accelerator type. Selects the AICR recipe family.
+
+        Supported values: "h100", "gb200", "b200".
+        """
         return pulumi.get(self, "accelerator")
 
     @accelerator.setter
@@ -66,6 +111,12 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def intent(self) -> _builtins.str:
+        """
+        Workload intent. Selects between training-oriented and inference-oriented
+        component sets.
+
+        Supported values: "training", "inference".
+        """
         return pulumi.get(self, "intent")
 
     @intent.setter
@@ -75,6 +126,12 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def service(self) -> _builtins.str:
+        """
+        Kubernetes service. Selects cloud-specific operators and storage drivers.
+
+        Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+        hardware-free development of the deployment pipeline.
+        """
         return pulumi.get(self, "service")
 
     @service.setter
@@ -84,6 +141,11 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter(name="componentOverrides")
     def component_overrides(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]:
+        """
+        Per-component overrides. Map of AICR component name to override settings
+        (version, namespace, Helm values). Values are deep-merged with the recipe
+        defaults; only the keys you specify are changed.
+        """
         return pulumi.get(self, "component_overrides")
 
     @component_overrides.setter
@@ -93,6 +155,9 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def context(self) -> Optional[_builtins.str]:
+        """
+        Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
+        """
         return pulumi.get(self, "context")
 
     @context.setter
@@ -102,6 +167,14 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def kubeconfig(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+        Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+        KubeconfigJson). Mutually exclusive with `kubeconfigPath`.
+
+        If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
+        (KUBECONFIG env var or ~/.kube/config) is used.
+        """
         return pulumi.get(self, "kubeconfig")
 
     @kubeconfig.setter
@@ -111,6 +184,10 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter(name="kubeconfigPath")
     def kubeconfig_path(self) -> Optional[_builtins.str]:
+        """
+        Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
+        Prefer `kubeconfig` when chaining off a cluster resource's output.
+        """
         return pulumi.get(self, "kubeconfig_path")
 
     @kubeconfig_path.setter
@@ -120,6 +197,11 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def os(self) -> Optional[_builtins.str]:
+        """
+        Operating system flavor.
+
+        Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+        """
         return pulumi.get(self, "os")
 
     @os.setter
@@ -129,6 +211,12 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter
     def platform(self) -> Optional[_builtins.str]:
+        """
+        ML platform/framework to layer on top of the base recipe.
+
+        Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        Leave unset for a base recipe with no platform components.
+        """
         return pulumi.get(self, "platform")
 
     @platform.setter
@@ -138,6 +226,10 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter(name="skipAwait")
     def skip_await(self) -> Optional[_builtins.bool]:
+        """
+        If true, do not wait for each Helm release to become ready before continuing.
+        Faster previews/updates at the cost of losing readiness signal. Default: false.
+        """
         return pulumi.get(self, "skip_await")
 
     @skip_await.setter
@@ -147,6 +239,11 @@ class ClusterStackArgs:
     @_builtins.property
     @pulumi.getter(name="skipComponents")
     def skip_components(self) -> Optional[pulumi.Input[Sequence[_builtins.str]]]:
+        """
+        Component names to exclude from the deployment. Useful for swapping in your
+        own installation of a component (e.g., bring-your-own cert-manager) or for
+        deploying onto bare-metal where cloud-specific operators are not relevant.
+        """
         return pulumi.get(self, "skip_components")
 
     @skip_components.setter
@@ -177,6 +274,41 @@ class ClusterStack(pulumi.ComponentResource):
 
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
+        :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
+               
+               Supported values: "h100", "gb200", "b200".
+        :param pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]] component_overrides: Per-component overrides. Map of AICR component name to override settings
+               (version, namespace, Helm values). Values are deep-merged with the recipe
+               defaults; only the keys you specify are changed.
+        :param _builtins.str context: Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
+        :param _builtins.str intent: Workload intent. Selects between training-oriented and inference-oriented
+               component sets.
+               
+               Supported values: "training", "inference".
+        :param pulumi.Input[_builtins.str] kubeconfig: Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+               Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+               KubeconfigJson). Mutually exclusive with `kubeconfigPath`.
+               
+               If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
+               (KUBECONFIG env var or ~/.kube/config) is used.
+        :param _builtins.str kubeconfig_path: Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
+               Prefer `kubeconfig` when chaining off a cluster resource's output.
+        :param _builtins.str os: Operating system flavor.
+               
+               Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+        :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
+               
+               Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+               Leave unset for a base recipe with no platform components.
+        :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
+               
+               Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+               hardware-free development of the deployment pipeline.
+        :param _builtins.bool skip_await: If true, do not wait for each Helm release to become ready before continuing.
+               Faster previews/updates at the cost of losing readiness signal. Default: false.
+        :param pulumi.Input[Sequence[_builtins.str]] skip_components: Component names to exclude from the deployment. Useful for swapping in your
+               own installation of a component (e.g., bring-your-own cert-manager) or for
+               deploying onto bare-metal where cloud-specific operators are not relevant.
         """
         ...
     @overload
@@ -234,11 +366,15 @@ class ClusterStack(pulumi.ComponentResource):
             __props__.__dict__["intent"] = intent
             __props__.__dict__["kubeconfig"] = kubeconfig
             __props__.__dict__["kubeconfig_path"] = kubeconfig_path
+            if os is None:
+                os = 'ubuntu'
             __props__.__dict__["os"] = os
             __props__.__dict__["platform"] = platform
             if service is None and not opts.urn:
                 raise TypeError("Missing required property 'service'")
             __props__.__dict__["service"] = service
+            if skip_await is None:
+                skip_await = False
             __props__.__dict__["skip_await"] = skip_await
             __props__.__dict__["skip_components"] = skip_components
             __props__.__dict__["component_count"] = None
@@ -255,20 +391,32 @@ class ClusterStack(pulumi.ComponentResource):
     @_builtins.property
     @pulumi.getter(name="componentCount")
     def component_count(self) -> pulumi.Output[_builtins.int]:
+        """
+        Number of components deployed.
+        """
         return pulumi.get(self, "component_count")
 
     @_builtins.property
     @pulumi.getter(name="deployedComponents")
     def deployed_components(self) -> pulumi.Output[Sequence[_builtins.str]]:
+        """
+        Names of all components deployed as part of this stack, in topological order.
+        """
         return pulumi.get(self, "deployed_components")
 
     @_builtins.property
     @pulumi.getter(name="recipeName")
     def recipe_name(self) -> pulumi.Output[_builtins.str]:
+        """
+        The resolved AICR recipe name (e.g., "h100-eks-ubuntu-training-kubeflow").
+        """
         return pulumi.get(self, "recipe_name")
 
     @_builtins.property
     @pulumi.getter(name="recipeVersion")
     def recipe_version(self) -> pulumi.Output[_builtins.str]:
+        """
+        The AICR recipe data version embedded in this provider build.
+        """
         return pulumi.get(self, "recipe_version")
 

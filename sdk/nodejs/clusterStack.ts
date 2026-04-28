@@ -21,9 +21,21 @@ export class ClusterStack extends pulumi.ComponentResource {
         return obj['__pulumiType'] === ClusterStack.__pulumiType;
     }
 
+    /**
+     * Number of components deployed.
+     */
     declare public /*out*/ readonly componentCount: pulumi.Output<number>;
+    /**
+     * Names of all components deployed as part of this stack, in topological order.
+     */
     declare public /*out*/ readonly deployedComponents: pulumi.Output<string[]>;
+    /**
+     * The resolved AICR recipe name (e.g., "h100-eks-ubuntu-training-kubeflow").
+     */
     declare public /*out*/ readonly recipeName: pulumi.Output<string>;
+    /**
+     * The AICR recipe data version embedded in this provider build.
+     */
     declare public /*out*/ readonly recipeVersion: pulumi.Output<string>;
 
     /**
@@ -52,10 +64,10 @@ export class ClusterStack extends pulumi.ComponentResource {
             resourceInputs["intent"] = args?.intent;
             resourceInputs["kubeconfig"] = args?.kubeconfig;
             resourceInputs["kubeconfigPath"] = args?.kubeconfigPath;
-            resourceInputs["os"] = args?.os;
+            resourceInputs["os"] = (args?.os) ?? "ubuntu";
             resourceInputs["platform"] = args?.platform;
             resourceInputs["service"] = args?.service;
-            resourceInputs["skipAwait"] = args?.skipAwait;
+            resourceInputs["skipAwait"] = (args?.skipAwait) ?? false;
             resourceInputs["skipComponents"] = args?.skipComponents;
             resourceInputs["componentCount"] = undefined /*out*/;
             resourceInputs["deployedComponents"] = undefined /*out*/;
@@ -76,15 +88,72 @@ export class ClusterStack extends pulumi.ComponentResource {
  * The set of arguments for constructing a ClusterStack resource.
  */
 export interface ClusterStackArgs {
+    /**
+     * GPU accelerator type. Selects the AICR recipe family.
+     *
+     * Supported values: "h100", "gb200", "b200".
+     */
     accelerator: string;
+    /**
+     * Per-component overrides. Map of AICR component name to override settings
+     * (version, namespace, Helm values). Values are deep-merged with the recipe
+     * defaults; only the keys you specify are changed.
+     */
     componentOverrides?: pulumi.Input<{[key: string]: pulumi.Input<inputs.ComponentOverrideArgs>}>;
+    /**
+     * Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
+     */
     context?: string;
+    /**
+     * Workload intent. Selects between training-oriented and inference-oriented
+     * component sets.
+     *
+     * Supported values: "training", "inference".
+     */
     intent: string;
+    /**
+     * Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+     * Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+     * KubeconfigJson). Mutually exclusive with `kubeconfigPath`.
+     *
+     * If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
+     * (KUBECONFIG env var or ~/.kube/config) is used.
+     */
     kubeconfig?: pulumi.Input<string>;
+    /**
+     * Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
+     * Prefer `kubeconfig` when chaining off a cluster resource's output.
+     */
     kubeconfigPath?: string;
+    /**
+     * Operating system flavor.
+     *
+     * Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+     */
     os?: string;
+    /**
+     * ML platform/framework to layer on top of the base recipe.
+     *
+     * Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+     * Leave unset for a base recipe with no platform components.
+     */
     platform?: string;
+    /**
+     * Kubernetes service. Selects cloud-specific operators and storage drivers.
+     *
+     * Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+     * hardware-free development of the deployment pipeline.
+     */
     service: string;
+    /**
+     * If true, do not wait for each Helm release to become ready before continuing.
+     * Faster previews/updates at the cost of losing readiness signal. Default: false.
+     */
     skipAwait?: boolean;
+    /**
+     * Component names to exclude from the deployment. Useful for swapping in your
+     * own installation of a component (e.g., bring-your-own cert-manager) or for
+     * deploying onto bare-metal where cloud-specific operators are not relevant.
+     */
     skipComponents?: pulumi.Input<string[]>;
 }

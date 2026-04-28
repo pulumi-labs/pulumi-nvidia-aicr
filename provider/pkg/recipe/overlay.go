@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pulumi/pulumi-nvidia-aicr/provider/pkg/recipes"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipes"
 )
 
 var (
@@ -61,11 +61,11 @@ func loadAllRecipes() (map[string]*RecipeMetadata, error) {
 			}
 			data, readErr := recipes.FS.ReadFile(path)
 			if readErr != nil {
-				return nil // skip unreadable files
+				return fmt.Errorf("reading mixin %s: %w", path, readErr)
 			}
 			var r RecipeMetadata
 			if parseErr := yaml.Unmarshal(data, &r); parseErr != nil {
-				return nil // skip unparseable files
+				return fmt.Errorf("parsing mixin %s: %w", path, parseErr)
 			}
 			if r.Metadata.Name == "" {
 				r.Metadata.Name = strings.TrimSuffix(filepath.Base(path), ".yaml")
@@ -73,7 +73,8 @@ func loadAllRecipes() (map[string]*RecipeMetadata, error) {
 			allRecipes[r.Metadata.Name] = &r
 			return nil
 		}); err != nil {
-			// Non-fatal: mixins are optional
+			recipesErr = fmt.Errorf("loading mixins: %w", err)
+			return
 		}
 	})
 	return allRecipes, recipesErr

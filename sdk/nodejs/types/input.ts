@@ -5,8 +5,21 @@ import * as pulumi from "@pulumi/pulumi";
 import * as inputs from "../types/input";
 import * as outputs from "../types/output";
 
+/**
+ * Per-component override settings. Each field is optional; only the fields
+ * you set are applied on top of the recipe defaults.
+ */
 export interface ComponentOverrideArgs {
+    /**
+     * Override the target Kubernetes namespace.
+     */
     namespace?: pulumi.Input<string>;
+    /**
+     * Additional or override Helm values, deep-merged with the recipe defaults.
+     */
     values?: pulumi.Input<{[key: string]: any}>;
+    /**
+     * Override the Helm chart version. If unset, the recipe-pinned version is used.
+     */
     version?: pulumi.Input<string>;
 }

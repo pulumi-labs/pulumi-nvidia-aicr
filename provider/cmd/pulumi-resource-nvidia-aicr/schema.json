@@ -1,7 +1,7 @@
 {
   "name": "nvidia-aicr",
   "displayName": "NVIDIA AI Cluster Runtime",
-  "version": "0.0.1",
+  "version": "0.0.1-dev",
   "description": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
   "keywords": [
     "pulumi",
@@ -11,31 +11,73 @@
     "kubernetes",
     "category/cloud"
   ],
-  "homepage": "https://github.com/pulumi/pulumi-nvidia-aicr",
+  "homepage": "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
   "license": "Apache-2.0",
-  "repository": "https://github.com/pulumi/pulumi-nvidia-aicr",
+  "repository": "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
+  "logoUrl": "https://raw.githubusercontent.com/pulumi-labs/pulumi-nvidia-aicr/main/sdk/dotnet/logo.png",
   "publisher": "Pulumi",
   "language": {
+    "csharp": {
+      "packageReferences": {
+        "Pulumi": "3.*"
+      },
+      "respectSchemaVersion": true,
+      "rootNamespace": "Pulumi"
+    },
     "go": {
       "generateResourceContainerTypes": true,
-      "importBasePath": "github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
+      "importBasePath": "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr",
+      "respectSchemaVersion": true
+    },
+    "java": {
+      "basePackage": "com.pulumi",
+      "dependencies": {
+        "com.pulumi:pulumi": "1.+"
+      },
+      "respectSchemaVersion": true
+    },
+    "nodejs": {
+      "dependencies": {
+        "@pulumi/pulumi": "^3.142.0"
+      },
+      "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^4.3.5"
+      },
+      "packageDescription": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
+      "packageName": "@pulumi/nvidia-aicr",
+      "respectSchemaVersion": true
+    },
+    "python": {
+      "packageName": "pulumi_nvidia_aicr",
+      "pyproject": {
+        "enabled": true
+      },
+      "requires": {
+        "pulumi": "\u003e=3.165.0,\u003c4.0.0"
+      },
+      "respectSchemaVersion": true
     }
   },
   "config": {},
   "types": {
     "nvidia-aicr:index:ComponentOverride": {
+      "description": "Per-component override settings. Each field is optional; only the fields\nyou set are applied on top of the recipe defaults.",
       "properties": {
         "namespace": {
-          "type": "string"
+          "type": "string",
+          "description": "Override the target Kubernetes namespace."
         },
         "values": {
           "type": "object",
           "additionalProperties": {
             "$ref": "pulumi.json#/Any"
-          }
+          },
+          "description": "Additional or override Helm values, deep-merged with the recipe defaults."
         },
         "version": {
-          "type": "string"
+          "type": "string",
+          "description": "Override the Helm chart version. If unset, the recipe-pinned version is used."
         }
       },
       "type": "object"
@@ -46,20 +88,24 @@
     "nvidia-aicr:index:ClusterStack": {
       "properties": {
         "componentCount": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Number of components deployed."
         },
         "deployedComponents": {
           "type": "array",
           "items": {
             "type": "string",
             "plain": true
-          }
+          },
+          "description": "Names of all components deployed as part of this stack, in topological order."
         },
         "recipeName": {
-          "type": "string"
+          "type": "string",
+          "description": "The resolved AICR recipe name (e.g., \"h100-eks-ubuntu-training-kubeflow\")."
         },
         "recipeVersion": {
-          "type": "string"
+          "type": "string",
+          "description": "The AICR recipe data version embedded in this provider build."
         }
       },
       "required": [
@@ -71,51 +117,64 @@
       "inputProperties": {
         "accelerator": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\"."
         },
         "componentOverrides": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/types/nvidia-aicr:index:ComponentOverride"
-          }
+          },
+          "description": "Per-component overrides. Map of AICR component name to override settings\n(version, namespace, Helm values). Values are deep-merged with the recipe\ndefaults; only the keys you specify are changed."
         },
         "context": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "Kubeconfig context to select. Defaults to the current-context in the kubeconfig."
         },
         "intent": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "Workload intent. Selects between training-oriented and inference-oriented\ncomponent sets.\n\nSupported values: \"training\", \"inference\"."
         },
         "kubeconfig": {
-          "type": "string"
+          "type": "string",
+          "description": "Kubeconfig contents (or path to a kubeconfig file) for the target cluster.\nAccepts computed outputs from cluster resources (e.g., an EKS cluster's\nKubeconfigJson). Mutually exclusive with `kubeconfigPath`.\n\nIf neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig\n(KUBECONFIG env var or ~/.kube/config) is used."
         },
         "kubeconfigPath": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.\nPrefer `kubeconfig` when chaining off a cluster resource's output."
         },
         "os": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "Operating system flavor.\n\nSupported values: \"ubuntu\" (default), \"cos\" (Container-Optimized OS, GKE only).",
+          "default": "ubuntu"
         },
         "platform": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\nLeave unset for a base recipe with no platform components."
         },
         "service": {
           "type": "string",
-          "plain": true
+          "plain": true,
+          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\". Use \"kind\" for local\nhardware-free development of the deployment pipeline."
         },
         "skipAwait": {
           "type": "boolean",
-          "plain": true
+          "plain": true,
+          "description": "If true, do not wait for each Helm release to become ready before continuing.\nFaster previews/updates at the cost of losing readiness signal. Default: false.",
+          "default": false
         },
         "skipComponents": {
           "type": "array",
           "items": {
             "type": "string",
             "plain": true
-          }
+          },
+          "description": "Component names to exclude from the deployment. Useful for swapping in your\nown installation of a component (e.g., bring-your-own cert-manager) or for\ndeploying onto bare-metal where cloud-specific operators are not relevant."
         }
       },
       "requiredInputs": [

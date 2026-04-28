@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pulumi/pulumi-nvidia-aicr/provider/pkg/recipes"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipes"
 )
 
 var (

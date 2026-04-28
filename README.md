@@ -79,7 +79,7 @@ package main
 
 import (
     "github.com/pulumi/pulumi-eks/sdk/v3/go/eks"
-    aicr "github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
+    aicr "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
     "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -151,6 +151,42 @@ return await Deployment.RunAsync(() =>
 });
 ```
 
+### Java
+
+```java
+import com.pulumi.Pulumi;
+import com.pulumi.eks.Cluster;
+import com.pulumi.eks.ClusterArgs;
+import com.pulumi.nvidiaaicr.ClusterStack;
+import com.pulumi.nvidiaaicr.ClusterStackArgs;
+
+public class App {
+    public static void main(String[] args) {
+        Pulumi.run(ctx -> {
+            // Create an EKS cluster with H100 GPU nodes
+            var cluster = new Cluster("gpu-cluster", ClusterArgs.builder()
+                .instanceType("p5.48xlarge")
+                .desiredCapacity(2)
+                .build());
+
+            // Deploy the AICR-validated GPU training stack
+            // Installs ~11 Helm charts: GPU Operator, Kubeflow Trainer,
+            // KAI Scheduler, Prometheus, cert-manager, and more.
+            var gpuStack = new ClusterStack("nvidia-aicr", ClusterStackArgs.builder()
+                .kubeconfig(cluster.kubeconfigJson())
+                .accelerator("h100")
+                .service("eks")
+                .intent("training")
+                .platform("kubeflow")
+                .build());
+
+            ctx.export("recipeName", gpuStack.recipeName());
+            ctx.export("components", gpuStack.deployedComponents());
+        });
+    }
+}
+```
+
 ### YAML
 
 ```yaml
@@ -179,10 +215,10 @@ on a Kubernetes cluster.
 | Property | Type | Required | Description |
 |---|---|---|---|
 | `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"` |
-| `service` | `string` | Yes | Cloud service: `"eks"`, `"gke"`, `"aks"`, `"oke"`, `"kind"`, `"self-managed"` |
+| `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"kind"`, `"oke"` |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
-| `os` | `string` | No | OS (default: `"ubuntu"`) |
-| `platform` | `string` | No | ML platform: `"kubeflow"`, `"dynamo"`, `"nim"` |
+| `os` | `string` | No | OS: `"ubuntu"` (default), `"cos"` (gke only) |
+| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only) |
 | `kubeconfig` | `Input<string>` | No | Kubeconfig contents (accepts outputs from cluster resources) |
 | `kubeconfigPath` | `string` | No | Path to kubeconfig file |
 | `context` | `string` | No | Kubeconfig context |
@@ -325,7 +361,7 @@ Exclude components that are already installed or not needed:
 ```typescript
 const stack = new aicr.ClusterStack("aicr", {
     accelerator: "h100",
-    service: "self-managed",
+    service: "eks",
     intent: "inference",
     platform: "dynamo",
     skipComponents: ["cert-manager", "kube-prometheus-stack"],
@@ -340,7 +376,7 @@ const stack = new aicr.ClusterStack("aicr", {
 ```python
 stack = aicr.ClusterStack("aicr",
     accelerator="h100",
-    service="self-managed",
+    service="eks",
     intent="inference",
     platform="dynamo",
     skip_components=["cert-manager", "kube-prometheus-stack"],
@@ -355,7 +391,7 @@ stack = aicr.ClusterStack("aicr",
 ```go
 stack, err := aicr.NewClusterStack(ctx, "aicr", &aicr.ClusterStackArgs{
     Accelerator: "h100",
-    Service:     "self-managed",
+    Service:     "eks",
     Intent:      "inference",
     Platform:    pulumi.StringPtr("dynamo"),
     SkipComponents: pulumi.StringArray{
@@ -374,7 +410,7 @@ stack, err := aicr.NewClusterStack(ctx, "aicr", &aicr.ClusterStackArgs{
 var stack = new ClusterStack("aicr", new ClusterStackArgs
 {
     Accelerator = "h100",
-    Service = "self-managed",
+    Service = "eks",
     Intent = "inference",
     Platform = "dynamo",
     SkipComponents = { "cert-manager", "kube-prometheus-stack" },
@@ -385,13 +421,15 @@ var stack = new ClusterStack("aicr", new ClusterStackArgs
 
 ## Examples
 
-Each example is available in TypeScript, Python, and Go:
+See [examples/README.md](./examples/README.md) for a full guide. Quick
+reference:
 
-| Example | TypeScript | Python | Go |
-|---|---|---|---|
-| AWS EKS Training | [aws-eks-training-ts](./examples/aws-eks-training-ts/) | [aws-eks-training-py](./examples/aws-eks-training-py/) | [aws-eks-training-go](./examples/aws-eks-training-go/) |
-| CoreWeave Inference | [coreweave-inference-ts](./examples/coreweave-inference-ts/) | [coreweave-inference-py](./examples/coreweave-inference-py/) | [coreweave-inference-go](./examples/coreweave-inference-go/) |
-| Existing Cluster | [existing-cluster-ts](./examples/existing-cluster-ts/) | [existing-cluster-py](./examples/existing-cluster-py/) | [existing-cluster-go](./examples/existing-cluster-go/) |
+| Scenario | TypeScript | Python | Go | C# | Java | YAML |
+|---|---|---|---|---|---|---|
+| Existing cluster (quickstart) | [-ts](./examples/existing-cluster-ts/) | [-py](./examples/existing-cluster-py/) | [-go](./examples/existing-cluster-go/) | [-cs](./examples/existing-cluster-cs/) | [-java](./examples/existing-cluster-java/) | [-yaml](./examples/existing-cluster-yaml/) |
+| AWS EKS training | [-ts](./examples/aws-eks-training-ts/) | [-py](./examples/aws-eks-training-py/) | [-go](./examples/aws-eks-training-go/) | [-cs](./examples/aws-eks-training-cs/) | [-java](./examples/aws-eks-training-java/) | -- |
+| CoreWeave inference | [-ts](./examples/coreweave-inference-ts/) | [-py](./examples/coreweave-inference-py/) | [-go](./examples/coreweave-inference-go/) | [-cs](./examples/coreweave-inference-cs/) | [-java](./examples/coreweave-inference-java/) | -- |
+| Local kind dev | [-ts](./examples/kind-local-dev-ts/) | -- | -- | -- | -- | -- |
 
 ## Supported Configurations
 
@@ -399,12 +437,13 @@ Validated recipe overlays shipped by upstream AICR:
 
 | Accelerator | Services | Intents | Platforms |
 |---|---|---|---|
-| H100 | EKS, GKE, AKS, Kind | Training, Inference | Kubeflow, Dynamo, NIM |
+| H100 | EKS, GKE, AKS, Kind | Training, Inference | Kubeflow, Dynamo, NIM (EKS only) |
 | GB200 | EKS, OKE | Training, Inference | Kubeflow, Dynamo |
 | B200 | Any | Training | -- |
 
-The `kind` service overlay deploys a GPU-less variant for local testing of
-the deployment pipeline without real hardware -- useful for development.
+The `kind` service overlay targets local development with [kind](https://kind.sigs.k8s.io/)
+clusters -- useful for exercising the deployment pipeline without provisioning
+real GPU hardware.
 
 ## Development
 

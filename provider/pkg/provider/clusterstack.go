@@ -4,23 +4,33 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pulumi/pulumi-go-provider/infer"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	helmv3 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
-	"github.com/pulumi/pulumi-nvidia-aicr/provider/pkg/recipe"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipe"
+)
+
+// Compile-time interface checks: these types contribute schema metadata via
+// infer.Annotated. Verifying at compile time avoids silent drift.
+var (
+	_ infer.Annotated = (*ClusterStackArgs)(nil)
+	_ infer.Annotated = (*ClusterStack)(nil)
+	_ infer.Annotated = (*ComponentOverride)(nil)
 )
 
 // ClusterStackArgs defines the inputs for the ClusterStack component.
 type ClusterStackArgs struct {
 	// The GPU accelerator type. Required.
-	// Supported values: "h100", "gb200", "b200", "a100", "l40".
+	// Supported values: "h100", "gb200", "b200".
 	Accelerator string `pulumi:"accelerator"`
 
-	// The Kubernetes service/platform. Required.
-	// Supported values: "eks", "gke", "aks", "oke", "self-managed".
+	// The Kubernetes service. Required.
+	// Supported values: "aks", "eks", "gke", "kind", "oke".
+	// Use "kind" for local hardware-free development of the deployment pipeline.
 	Service string `pulumi:"service"`
 
 	// The workload intent. Required.
@@ -28,10 +38,11 @@ type ClusterStackArgs struct {
 	Intent string `pulumi:"intent"`
 
 	// The operating system. Optional, defaults to "ubuntu".
+	// Supported values: "ubuntu", "cos" (cos applies to gke).
 	OS *string `pulumi:"os,optional"`
 
 	// The ML platform/framework. Optional.
-	// Supported values: "kubeflow", "dynamo", "nim".
+	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference).
 	Platform *string `pulumi:"platform,optional"`
 
 	// The kubeconfig contents for the target Kubernetes cluster.
@@ -80,10 +91,77 @@ type ClusterStack struct {
 	ComponentCount pulumi.IntOutput `pulumi:"componentCount"`
 }
 
+// Annotate populates the Pulumi schema with descriptions, defaults, and
+// supported value lists for each input/output property. These annotations
+// surface in the Pulumi Registry resource page and in language-SDK docs.
+func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
+	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
+
+Supported values: "h100", "gb200", "b200".`)
+	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
+
+Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+hardware-free development of the deployment pipeline.`)
+	an.Describe(&a.Intent, `Workload intent. Selects between training-oriented and inference-oriented
+component sets.
+
+Supported values: "training", "inference".`)
+	an.Describe(&a.OS, `Operating system flavor.
+
+Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).`)
+	an.SetDefault(&a.OS, "ubuntu")
+	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
+
+Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+Leave unset for a base recipe with no platform components.`)
+	an.Describe(&a.Kubeconfig, `Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+KubeconfigJson). Mutually exclusive with `+"`kubeconfigPath`"+`.
+
+If neither `+"`kubeconfig`"+` nor `+"`kubeconfigPath`"+` is set, the ambient kubeconfig
+(KUBECONFIG env var or ~/.kube/config) is used.`)
+	an.Describe(&a.KubeconfigPath, `Path to a kubeconfig file on disk. Mutually exclusive with `+"`kubeconfig`"+`.
+Prefer `+"`kubeconfig`"+` when chaining off a cluster resource's output.`)
+	an.Describe(&a.Context, `Kubeconfig context to select. Defaults to the current-context in the kubeconfig.`)
+	an.Describe(&a.ComponentOverrides, `Per-component overrides. Map of AICR component name to override settings
+(version, namespace, Helm values). Values are deep-merged with the recipe
+defaults; only the keys you specify are changed.`)
+	an.Describe(&a.SkipComponents, `Component names to exclude from the deployment. Useful for swapping in your
+own installation of a component (e.g., bring-your-own cert-manager) or for
+deploying onto bare-metal where cloud-specific operators are not relevant.`)
+	an.Describe(&a.SkipAwait, `If true, do not wait for each Helm release to become ready before continuing.
+Faster previews/updates at the cost of losing readiness signal. Default: false.`)
+	an.SetDefault(&a.SkipAwait, false)
+}
+
+// Annotate populates schema metadata for ComponentOverride fields.
+func (c *ComponentOverride) Annotate(an infer.Annotator) {
+	an.Describe(c, `Per-component override settings. Each field is optional; only the fields
+you set are applied on top of the recipe defaults.`)
+	an.Describe(&c.Version, `Override the Helm chart version. If unset, the recipe-pinned version is used.`)
+	an.Describe(&c.Namespace, `Override the target Kubernetes namespace.`)
+	an.Describe(&c.Values, `Additional or override Helm values, deep-merged with the recipe defaults.`)
+}
+
+// Annotate populates schema metadata for the ClusterStack output state.
+func (s *ClusterStack) Annotate(an infer.Annotator) {
+	an.Describe(&s.RecipeName, `The resolved AICR recipe name (e.g., "h100-eks-ubuntu-training-kubeflow").`)
+	an.Describe(&s.RecipeVersion, `The AICR recipe data version embedded in this provider build.`)
+	an.Describe(&s.DeployedComponents, `Names of all components deployed as part of this stack, in topological order.`)
+	an.Describe(&s.ComponentCount, `Number of components deployed.`)
+}
+
 // NewClusterStack creates a new NVIDIA AICR ClusterStack component.
 // It resolves the AICR recipe from the given criteria and deploys each component
 // as a Helm release on the target Kubernetes cluster.
 func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, opts ...pulumi.ResourceOption) (*ClusterStack, error) {
+	if args == nil {
+		return nil, fmt.Errorf("ClusterStackArgs is required")
+	}
+	if err := validateArgs(args); err != nil {
+		return nil, err
+	}
+
 	state := &ClusterStack{}
 	err := ctx.RegisterComponentResource("nvidia-aicr:index:ClusterStack", name, state, opts...)
 	if err != nil {
@@ -131,7 +209,9 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	if args.Kubeconfig != nil {
 		providerArgs.Kubeconfig = args.Kubeconfig.ToStringPtrOutput().Elem()
 	} else if args.KubeconfigPath != nil {
-		// Read kubeconfig from file path and pass as string
+		// The Pulumi Kubernetes provider's Kubeconfig field accepts either
+		// kubeconfig contents or a path on disk; passing the path verbatim
+		// is supported.
 		providerArgs.Kubeconfig = pulumi.String(*args.KubeconfigPath)
 	}
 	if args.Context != nil {
@@ -279,6 +359,24 @@ func toPulumiInput(v interface{}) pulumi.Input {
 	default:
 		return pulumi.String(fmt.Sprintf("%v", v))
 	}
+}
+
+// validateArgs rejects invalid input combinations early with a clear error,
+// rather than letting them surface as cryptic resolver or k8s-provider failures.
+func validateArgs(args *ClusterStackArgs) error {
+	if strings.TrimSpace(args.Accelerator) == "" {
+		return fmt.Errorf("accelerator is required (one of: h100, gb200, b200)")
+	}
+	if strings.TrimSpace(args.Service) == "" {
+		return fmt.Errorf("service is required (one of: aks, eks, gke, kind, oke)")
+	}
+	if strings.TrimSpace(args.Intent) == "" {
+		return fmt.Errorf("intent is required (one of: training, inference)")
+	}
+	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
+		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")
+	}
+	return nil
 }
 
 func derefStr(s *string, def string) string {

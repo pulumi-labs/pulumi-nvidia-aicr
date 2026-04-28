@@ -7,7 +7,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr/internal"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 

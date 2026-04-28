@@ -8,17 +8,21 @@ import (
 	"reflect"
 
 	"errors"
-	"github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr/internal"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 type ClusterStack struct {
 	pulumi.ResourceState
 
-	ComponentCount     pulumi.IntOutput         `pulumi:"componentCount"`
+	// Number of components deployed.
+	ComponentCount pulumi.IntOutput `pulumi:"componentCount"`
+	// Names of all components deployed as part of this stack, in topological order.
 	DeployedComponents pulumi.StringArrayOutput `pulumi:"deployedComponents"`
-	RecipeName         pulumi.StringOutput      `pulumi:"recipeName"`
-	RecipeVersion      pulumi.StringOutput      `pulumi:"recipeVersion"`
+	// The resolved AICR recipe name (e.g., "h100-eks-ubuntu-training-kubeflow").
+	RecipeName pulumi.StringOutput `pulumi:"recipeName"`
+	// The AICR recipe data version embedded in this provider build.
+	RecipeVersion pulumi.StringOutput `pulumi:"recipeVersion"`
 }
 
 // NewClusterStack registers a new resource with the given unique name, arguments, and options.
@@ -28,6 +32,14 @@ func NewClusterStack(ctx *pulumi.Context,
 		return nil, errors.New("missing one or more required arguments")
 	}
 
+	if args.Os == nil {
+		os_ := "ubuntu"
+		args.Os = &os_
+	}
+	if args.SkipAwait == nil {
+		skipAwait_ := false
+		args.SkipAwait = &skipAwait_
+	}
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource ClusterStack
 	err := ctx.RegisterRemoteComponentResource("nvidia-aicr:index:ClusterStack", name, args, &resource, opts...)
@@ -38,32 +50,102 @@ func NewClusterStack(ctx *pulumi.Context,
 }
 
 type clusterStackArgs struct {
-	Accelerator        string                       `pulumi:"accelerator"`
+	// GPU accelerator type. Selects the AICR recipe family.
+	//
+	// Supported values: "h100", "gb200", "b200".
+	Accelerator string `pulumi:"accelerator"`
+	// Per-component overrides. Map of AICR component name to override settings
+	// (version, namespace, Helm values). Values are deep-merged with the recipe
+	// defaults; only the keys you specify are changed.
 	ComponentOverrides map[string]ComponentOverride `pulumi:"componentOverrides"`
-	Context            *string                      `pulumi:"context"`
-	Intent             string                       `pulumi:"intent"`
-	Kubeconfig         *string                      `pulumi:"kubeconfig"`
-	KubeconfigPath     *string                      `pulumi:"kubeconfigPath"`
-	Os                 *string                      `pulumi:"os"`
-	Platform           *string                      `pulumi:"platform"`
-	Service            string                       `pulumi:"service"`
-	SkipAwait          *bool                        `pulumi:"skipAwait"`
-	SkipComponents     []string                     `pulumi:"skipComponents"`
+	// Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
+	Context *string `pulumi:"context"`
+	// Workload intent. Selects between training-oriented and inference-oriented
+	// component sets.
+	//
+	// Supported values: "training", "inference".
+	Intent string `pulumi:"intent"`
+	// Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+	// Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+	// KubeconfigJson). Mutually exclusive with `kubeconfigPath`.
+	//
+	// If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
+	// (KUBECONFIG env var or ~/.kube/config) is used.
+	Kubeconfig *string `pulumi:"kubeconfig"`
+	// Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
+	// Prefer `kubeconfig` when chaining off a cluster resource's output.
+	KubeconfigPath *string `pulumi:"kubeconfigPath"`
+	// Operating system flavor.
+	//
+	// Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+	Os *string `pulumi:"os"`
+	// ML platform/framework to layer on top of the base recipe.
+	//
+	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	// Leave unset for a base recipe with no platform components.
+	Platform *string `pulumi:"platform"`
+	// Kubernetes service. Selects cloud-specific operators and storage drivers.
+	//
+	// Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+	// hardware-free development of the deployment pipeline.
+	Service string `pulumi:"service"`
+	// If true, do not wait for each Helm release to become ready before continuing.
+	// Faster previews/updates at the cost of losing readiness signal. Default: false.
+	SkipAwait *bool `pulumi:"skipAwait"`
+	// Component names to exclude from the deployment. Useful for swapping in your
+	// own installation of a component (e.g., bring-your-own cert-manager) or for
+	// deploying onto bare-metal where cloud-specific operators are not relevant.
+	SkipComponents []string `pulumi:"skipComponents"`
 }
 
 // The set of arguments for constructing a ClusterStack resource.
 type ClusterStackArgs struct {
-	Accelerator        string
+	// GPU accelerator type. Selects the AICR recipe family.
+	//
+	// Supported values: "h100", "gb200", "b200".
+	Accelerator string
+	// Per-component overrides. Map of AICR component name to override settings
+	// (version, namespace, Helm values). Values are deep-merged with the recipe
+	// defaults; only the keys you specify are changed.
 	ComponentOverrides ComponentOverrideMapInput
-	Context            *string
-	Intent             string
-	Kubeconfig         pulumi.StringPtrInput
-	KubeconfigPath     *string
-	Os                 *string
-	Platform           *string
-	Service            string
-	SkipAwait          *bool
-	SkipComponents     pulumi.StringArrayInput
+	// Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
+	Context *string
+	// Workload intent. Selects between training-oriented and inference-oriented
+	// component sets.
+	//
+	// Supported values: "training", "inference".
+	Intent string
+	// Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
+	// Accepts computed outputs from cluster resources (e.g., an EKS cluster's
+	// KubeconfigJson). Mutually exclusive with `kubeconfigPath`.
+	//
+	// If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
+	// (KUBECONFIG env var or ~/.kube/config) is used.
+	Kubeconfig pulumi.StringPtrInput
+	// Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
+	// Prefer `kubeconfig` when chaining off a cluster resource's output.
+	KubeconfigPath *string
+	// Operating system flavor.
+	//
+	// Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+	Os *string
+	// ML platform/framework to layer on top of the base recipe.
+	//
+	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	// Leave unset for a base recipe with no platform components.
+	Platform *string
+	// Kubernetes service. Selects cloud-specific operators and storage drivers.
+	//
+	// Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+	// hardware-free development of the deployment pipeline.
+	Service string
+	// If true, do not wait for each Helm release to become ready before continuing.
+	// Faster previews/updates at the cost of losing readiness signal. Default: false.
+	SkipAwait *bool
+	// Component names to exclude from the deployment. Useful for swapping in your
+	// own installation of a component (e.g., bring-your-own cert-manager) or for
+	// deploying onto bare-metal where cloud-specific operators are not relevant.
+	SkipComponents pulumi.StringArrayInput
 }
 
 func (ClusterStackArgs) ElementType() reflect.Type {
@@ -153,18 +235,22 @@ func (o ClusterStackOutput) ToClusterStackOutputWithContext(ctx context.Context)
 	return o
 }
 
+// Number of components deployed.
 func (o ClusterStackOutput) ComponentCount() pulumi.IntOutput {
 	return o.ApplyT(func(v *ClusterStack) pulumi.IntOutput { return v.ComponentCount }).(pulumi.IntOutput)
 }
 
+// Names of all components deployed as part of this stack, in topological order.
 func (o ClusterStackOutput) DeployedComponents() pulumi.StringArrayOutput {
 	return o.ApplyT(func(v *ClusterStack) pulumi.StringArrayOutput { return v.DeployedComponents }).(pulumi.StringArrayOutput)
 }
 
+// The resolved AICR recipe name (e.g., "h100-eks-ubuntu-training-kubeflow").
 func (o ClusterStackOutput) RecipeName() pulumi.StringOutput {
 	return o.ApplyT(func(v *ClusterStack) pulumi.StringOutput { return v.RecipeName }).(pulumi.StringOutput)
 }
 
+// The AICR recipe data version embedded in this provider build.
 func (o ClusterStackOutput) RecipeVersion() pulumi.StringOutput {
 	return o.ApplyT(func(v *ClusterStack) pulumi.StringOutput { return v.RecipeVersion }).(pulumi.StringOutput)
 }

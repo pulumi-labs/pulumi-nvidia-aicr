@@ -8,15 +8,16 @@
 //   - A CoreWeave Kubernetes cluster with H100 GPU nodes
 //   - kubeconfig configured for the cluster
 //
-// The "self-managed" service type uses the base AICR recipe without
-// cloud-specific operators (no aws-efa, aws-ebs-csi-driver, etc.),
-// which is appropriate for CoreWeave's bare-metal environment.
+// AICR doesn't ship a dedicated CoreWeave overlay yet, so this example uses
+// the EKS H100 inference recipe as the closest match (standard GPU operator
+// config that installs drivers, with cloud-specific add-ons skipped via
+// `SkipComponents`).
 //
-// CoreWeave H100 pricing: ~$2.49/GPU/hr ($19.92/node with 8 GPUs)
+// CoreWeave H100 pricing: ~$2.49/GPU/hr ($19.92/node with 8 GPUs).
 package main
 
 import (
-	aicr "github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
+	aicr "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -40,7 +41,7 @@ func main() {
 		inferenceStack, err := aicr.NewClusterStack(ctx, "nvidia-inference", &aicr.ClusterStackArgs{
 			KubeconfigPath: pulumi.StringPtr(kubeconfigPath),
 			Accelerator:    "h100",
-			Service:        "self-managed", // CoreWeave = self-managed K8s
+			Service:        "eks", // closest match; cloud-specific add-ons skipped below
 			Intent:         "inference",
 			Platform:       pulumi.StringPtr("dynamo"),
 			// Skip cloud-specific components not needed on CoreWeave

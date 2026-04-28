@@ -1,0 +1,12 @@
+{
+    "name": "kind-local-dev",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^4.0.0"
+    },
+    "dependencies": {
+        "@pulumi/nvidia-aicr": "^0.0.1",
+        "@pulumi/pulumi": "^3.142.0"
+    }
+}

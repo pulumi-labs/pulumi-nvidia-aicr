@@ -8,6 +8,6 @@
         "@pulumi/pulumi": "^3.142.0",
         "@pulumi/aws": "^6.0.0",
         "@pulumi/eks": "^3.0.0",
-        "@pulumi/nvidia-aicr": "0.0.1"
+        "@pulumi/nvidia-aicr": "^0.0.1"
     }
 }

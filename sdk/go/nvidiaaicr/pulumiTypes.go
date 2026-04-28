@@ -7,16 +7,21 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr/internal"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr/internal"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 var _ = internal.GetEnvOrDefault
 
+// Per-component override settings. Each field is optional; only the fields
+// you set are applied on top of the recipe defaults.
 type ComponentOverride struct {
-	Namespace *string                `pulumi:"namespace"`
-	Values    map[string]interface{} `pulumi:"values"`
-	Version   *string                `pulumi:"version"`
+	// Override the target Kubernetes namespace.
+	Namespace *string `pulumi:"namespace"`
+	// Additional or override Helm values, deep-merged with the recipe defaults.
+	Values map[string]interface{} `pulumi:"values"`
+	// Override the Helm chart version. If unset, the recipe-pinned version is used.
+	Version *string `pulumi:"version"`
 }
 
 // ComponentOverrideInput is an input type that accepts ComponentOverrideArgs and ComponentOverrideOutput values.
@@ -30,10 +35,15 @@ type ComponentOverrideInput interface {
 	ToComponentOverrideOutputWithContext(context.Context) ComponentOverrideOutput
 }
 
+// Per-component override settings. Each field is optional; only the fields
+// you set are applied on top of the recipe defaults.
 type ComponentOverrideArgs struct {
+	// Override the target Kubernetes namespace.
 	Namespace pulumi.StringPtrInput `pulumi:"namespace"`
-	Values    pulumi.MapInput       `pulumi:"values"`
-	Version   pulumi.StringPtrInput `pulumi:"version"`
+	// Additional or override Helm values, deep-merged with the recipe defaults.
+	Values pulumi.MapInput `pulumi:"values"`
+	// Override the Helm chart version. If unset, the recipe-pinned version is used.
+	Version pulumi.StringPtrInput `pulumi:"version"`
 }
 
 func (ComponentOverrideArgs) ElementType() reflect.Type {
@@ -73,6 +83,8 @@ func (i ComponentOverrideMap) ToComponentOverrideMapOutputWithContext(ctx contex
 	return pulumi.ToOutputWithContext(ctx, i).(ComponentOverrideMapOutput)
 }
 
+// Per-component override settings. Each field is optional; only the fields
+// you set are applied on top of the recipe defaults.
 type ComponentOverrideOutput struct{ *pulumi.OutputState }
 
 func (ComponentOverrideOutput) ElementType() reflect.Type {
@@ -87,14 +99,17 @@ func (o ComponentOverrideOutput) ToComponentOverrideOutputWithContext(ctx contex
 	return o
 }
 
+// Override the target Kubernetes namespace.
 func (o ComponentOverrideOutput) Namespace() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v ComponentOverride) *string { return v.Namespace }).(pulumi.StringPtrOutput)
 }
 
+// Additional or override Helm values, deep-merged with the recipe defaults.
 func (o ComponentOverrideOutput) Values() pulumi.MapOutput {
 	return o.ApplyT(func(v ComponentOverride) map[string]interface{} { return v.Values }).(pulumi.MapOutput)
 }
 
+// Override the Helm chart version. If unset, the recipe-pinned version is used.
 func (o ComponentOverrideOutput) Version() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v ComponentOverride) *string { return v.Version }).(pulumi.StringPtrOutput)
 }

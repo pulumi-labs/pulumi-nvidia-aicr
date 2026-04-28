@@ -155,7 +155,7 @@
         "platform": {
           "type": "string",
           "plain": true,
-          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\nLeave unset for a base recipe with no platform components."
+          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes the kgateway inference gateway\n(part of the base inference stack); choosing a platform layers a runtime\n(\"dynamo\", \"nim\") on top. intent=\"training\" leaves training-runtime\ncomponents out entirely when platform is unset."
         },
         "service": {
           "type": "string",

@@ -10,7 +10,7 @@ LDFLAGS := -X github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/version.Ver
 .PHONY: all provider schema test lint clean install \
         nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdks \
         build_nodejs_sdk build_python_sdk build_dotnet_sdk build_java_sdk \
-        set_version
+        set_version sdk_fixups
 
 all: provider
 
@@ -60,7 +60,33 @@ java_sdk: schema
 	pulumi package gen-sdk --language java $(SCHEMA_FILE)
 
 # Generate all SDKs
-sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk
+sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdk_fixups
+
+# Re-apply tweaks that pulumi package gen-sdk does not (yet) emit:
+#   - Python: point readme at the package-local README and use the SPDX
+#     string-form license (the generator emits a deprecated [project.license]
+#     table that ships an empty PyPI long description and prints a warning).
+#   - .NET: declare PackageReadmeFile and pack README.md so NuGet stops
+#     warning about a missing readme.
+sdk_fixups:
+	@if [ -f sdk/python/pyproject.toml ]; then \
+		python3 -c 'import re,sys,pathlib; \
+p=pathlib.Path("sdk/python/pyproject.toml"); s=p.read_text(); \
+s=re.sub(r"^( *)readme = \"README\\.md\"", r"\1readme = \"pulumi_nvidia_aicr/README.md\"", s, flags=re.M); \
+s=re.sub(r"\\n  \\[project\\.license\\]\\n    text = \"Apache-2\\.0\"", "\\n  license = \"Apache-2.0\"", s); \
+p.write_text(s)'; \
+	fi
+	@if [ -f sdk/dotnet/Pulumi.NvidiaAicr.csproj ] && ! grep -q PackageReadmeFile sdk/dotnet/Pulumi.NvidiaAicr.csproj; then \
+		sed -i.bak -E 's|(<PackageIcon>logo.png</PackageIcon>)|\1\n    <PackageReadmeFile>README.md</PackageReadmeFile>|' sdk/dotnet/Pulumi.NvidiaAicr.csproj && \
+		rm -f sdk/dotnet/Pulumi.NvidiaAicr.csproj.bak; \
+	fi
+	@if [ -f sdk/dotnet/Pulumi.NvidiaAicr.csproj ] && ! grep -q '<None Include="README.md">' sdk/dotnet/Pulumi.NvidiaAicr.csproj; then \
+		python3 -c 'import pathlib; \
+p=pathlib.Path("sdk/dotnet/Pulumi.NvidiaAicr.csproj"); s=p.read_text(); \
+needle="<None Include=\"logo.png\">\n      <Pack>True</Pack>\n      <PackagePath></PackagePath>\n    </None>"; \
+addition=needle + "\n    <None Include=\"README.md\">\n      <Pack>True</Pack>\n      <PackagePath></PackagePath>\n    </None>"; \
+p.write_text(s.replace(needle, addition, 1))'; \
+	fi
 
 # Compile each SDK to catch generation breaks. These targets are best-effort:
 # they no-op if the corresponding toolchain is not installed locally.

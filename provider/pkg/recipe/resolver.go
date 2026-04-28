@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -73,10 +74,20 @@ func Resolve(criteria Criteria) (*ResolvedRecipe, error) {
 // The "base" recipe is excluded from direct matching — it is only used
 // as an inherited parent in the inheritance chain.
 func findBestMatch(allRecipes map[string]*RecipeMetadata, criteria Criteria) (*RecipeMetadata, error) {
+	// Iterate in name order so ties between equally-good candidates resolve
+	// deterministically (Go map iteration is randomized).
+	names := make([]string, 0, len(allRecipes))
+	for n := range allRecipes {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
 	var bestMatch *RecipeMetadata
 	bestScore := -1
+	bestBindings := -1
 
-	for _, r := range allRecipes {
+	for _, n := range names {
+		r := allRecipes[n]
 		// Skip the base recipe — it should only be inherited, not matched directly
 		if r.Metadata.Name == "base" {
 			continue
@@ -88,8 +99,19 @@ func findBestMatch(allRecipes map[string]*RecipeMetadata, criteria Criteria) (*R
 		}
 
 		score := scoreCriteriaMatch(r.Spec.Criteria, criteria)
-		if score > bestScore {
+		if score < 0 {
+			continue
+		}
+		// Tiebreak by recipe specificity: a recipe that explicitly binds
+		// more criteria fields (whether to a concrete value or to "any")
+		// is a tighter author intent than a parent overlay with fewer
+		// bindings. This prevents partial overlays like eks-training.yaml
+		// from out-ranking purpose-built leaves like b200-any-training.yaml
+		// for queries those leaves were authored to cover.
+		bindings := bindingCount(r.Spec.Criteria)
+		if score > bestScore || (score == bestScore && bindings > bestBindings) {
 			bestScore = score
+			bestBindings = bindings
 			bestMatch = r
 		}
 	}
@@ -106,11 +128,45 @@ func findBestMatch(allRecipes map[string]*RecipeMetadata, criteria Criteria) (*R
 
 // scoreCriteriaMatch scores how well a recipe's criteria match the query.
 // Returns -1 if there is no match. Higher scores are better matches.
-// Each exact match scores 2 points, each "any" wildcard scores 1 point.
-// At least one exact match on a non-wildcard field is required.
+//
+// The two wildcard tokens are NOT interchangeable:
+//   - "any" on the recipe side is an explicit wildcard the recipe author
+//     opted into ("this overlay applies for any value of this field");
+//   - "" on the recipe side means "this overlay does not bind this field"
+//     and is generally only meaningful for parent overlays in the
+//     inheritance chain.
+//
+// Two asymmetric mismatch rules keep silent fall-throughs from happening:
+//
+//  1. A query that specifies a field cannot wildcard-match a recipe that
+//     leaves that field unset — otherwise b200/eks/inference would silently
+//     resolve to eks-inference.yaml (no accelerator binding) and
+//     h100/eks/inference/kubeflow would silently resolve to
+//     h100-eks-ubuntu-inference.yaml (no platform binding).
+//
+//  2. A query that leaves *platform* unset cannot match a recipe that
+//     binds a concrete platform — the public contract is that an unset
+//     platform installs only the base recipe, without a platform-specific
+//     runtime layer (kubeflow / dynamo / nim). Without this rule,
+//     h100/eks/ubuntu/training with no platform would still pull in the
+//     kubeflow mixin from h100-eks-ubuntu-training-kubeflow because the
+//     scoring would prefer a fully-specified recipe over the platform-less
+//     parent. (Note: intent="inference" still includes the kgateway
+//     inference gateway from the inference base, which the recipe data
+//     models as base inference infrastructure rather than a platform
+//     runtime — that wiring lives in the recipe overlays, not here.)
+//     Other unset query fields keep the loose semantic: an unset query
+//     field happily accepts whatever the recipe binds.
 func scoreCriteriaMatch(recipe, query Criteria) int {
 	score := 0
 	exactMatches := 0
+
+	if strings.ToLower(query.Platform) == "" {
+		rp := strings.ToLower(recipe.Platform)
+		if rp != "" && rp != "any" {
+			return -1
+		}
+	}
 
 	fields := []struct {
 		recipeVal string
@@ -127,24 +183,32 @@ func scoreCriteriaMatch(recipe, query Criteria) int {
 		rv := strings.ToLower(f.recipeVal)
 		qv := strings.ToLower(f.queryVal)
 
-		if rv == "" || rv == "any" {
-			// Recipe wildcard — matches anything
-			score += 1
-			continue
-		}
-		if qv == "" || qv == "any" {
-			// Query wildcard — matches any recipe value
-			score += 1
-			continue
-		}
-		if rv == qv {
-			// Exact match
+		switch {
+		case rv == qv && rv != "":
+			// Exact match on a concrete value.
 			score += 2
 			exactMatches++
-			continue
+		case rv == "" && qv == "":
+			// Both unspecified — score equal to an exact-value match so
+			// recipes that authoritatively decline to bind this dimension
+			// outrank recipes that bind a value the user didn't request.
+			score += 2
+			exactMatches++
+		case rv == "any":
+			// Explicit recipe wildcard.
+			score += 1
+		case qv == "" && rv != "":
+			// Query unconstrained, recipe binds a concrete value.
+			// Acceptable: the user accepts the recipe's choice.
+			score += 1
+		case qv != "" && rv == "":
+			// Query asks for a specific value; recipe doesn't bind this
+			// field. This is the silent-wildcard bug — refuse to match.
+			return -1
+		default:
+			// Both set, different values.
+			return -1
 		}
-		// Mismatch
-		return -1
 	}
 
 	// Require at least one exact match to avoid pure-wildcard matches
@@ -237,6 +301,7 @@ func resolveComponents(refs []ComponentRef, registry *ComponentRegistry) ([]Reso
 			Namespace:       ref.Namespace,
 			CreateNamespace: true,
 			DependsOn:       ref.DependencyRefs,
+			ManifestFiles:   append([]string(nil), ref.ManifestFiles...),
 		}
 
 		// Fill in defaults from registry if available
@@ -292,10 +357,13 @@ func resolveComponents(refs []ComponentRef, registry *ComponentRegistry) ([]Reso
 			rc.Namespace = ref.Name
 		}
 
-		// Skip manifest-only components that have no Helm chart.
-		// AICR uses these for raw Kubernetes manifests (skyhook-customizations,
-		// gke-nccl-tcpxo); deploying as Helm would fail.
-		if rc.Chart == "" || rc.Repo == "" {
+		// A component must contribute *something* to be deployable: either
+		// a Helm chart (Chart + Repo), one or more raw manifests, or both.
+		// Pure-empty entries (no chart, no manifests) are skipped — they
+		// only exist as inheritance scaffolding.
+		hasChart := rc.Chart != "" && rc.Repo != ""
+		hasManifests := len(rc.ManifestFiles) > 0
+		if !hasChart && !hasManifests {
 			continue
 		}
 
@@ -345,6 +413,20 @@ func buildRecipeName(c Criteria) string {
 		parts = append(parts, c.Platform)
 	}
 	return strings.Join(parts, "-")
+}
+
+// bindingCount returns how many of the recipe's criteria fields the author
+// explicitly bound (to either a concrete value or "any"). Higher counts
+// mark a recipe as more deliberately purpose-built than a partial parent
+// overlay.
+func bindingCount(c Criteria) int {
+	n := 0
+	for _, v := range []string{c.Service, c.Accelerator, c.Intent, c.OS, c.Platform} {
+		if strings.TrimSpace(v) != "" {
+			n++
+		}
+	}
+	return n
 }
 
 func contains(slice []string, item string) bool {

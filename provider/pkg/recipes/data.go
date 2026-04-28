@@ -18,10 +18,11 @@ import (
 	"embed"
 )
 
-// Only embed the files actually read by pkg/recipe at runtime: the registry,
-// recipe overlays (including base and leaves), composable mixins, and per-
-// component default Helm values. AICR's checks/, validators/, and component
-// manifests/ directories are not consumed by this provider.
+// Embed the files read by pkg/recipe at runtime: the registry, recipe
+// overlays (including base and leaves), composable mixins, per-component
+// default Helm values, and per-component raw manifests referenced from
+// recipe componentRefs[].manifestFiles. AICR's checks/ and validators/
+// trees are not consumed by this provider.
 //
-//go:embed registry.yaml overlays/*.yaml mixins/*.yaml components/*/values*.yaml
+//go:embed registry.yaml overlays/*.yaml mixins/*.yaml components/*/values*.yaml components/*/manifests/*.yaml
 var FS embed.FS

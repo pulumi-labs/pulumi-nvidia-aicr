@@ -9,9 +9,31 @@ import (
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	helmv3 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
+	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipe"
+)
+
+// builtinNamespaces are Kubernetes built-in namespaces that always exist and
+// must not be created (or duplicated) by this provider.
+var builtinNamespaces = map[string]bool{
+	"default":         true,
+	"kube-system":     true,
+	"kube-public":     true,
+	"kube-node-lease": true,
+}
+
+// supported{Accelerators,Services,Intents,OSes,Platforms} encode the public
+// contract for ClusterStack inputs. Mismatches are rejected up-front in
+// validateArgs so users get a clear error rather than relying on the
+// resolver's wildcard-match semantics to surface the problem.
+var (
+	supportedAccelerators = []string{"h100", "gb200", "b200"}
+	supportedServices     = []string{"aks", "eks", "gke", "kind", "oke"}
+	supportedIntents      = []string{"training", "inference"}
+	supportedOSes         = []string{"ubuntu", "cos"}
+	supportedPlatforms    = []string{"kubeflow", "dynamo", "nim"}
 )
 
 // Compile-time interface checks: these types contribute schema metadata via
@@ -113,7 +135,12 @@ Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).`
 	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
 
 Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
-Leave unset for a base recipe with no platform components.`)
+
+Leave unset for the base recipe without a platform-specific runtime. Note
+that intent="inference" always includes the kgateway inference gateway
+(part of the base inference stack); choosing a platform layers a runtime
+("dynamo", "nim") on top. intent="training" leaves training-runtime
+components out entirely when platform is unset.`)
 	an.Describe(&a.Kubeconfig, `Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
 Accepts computed outputs from cluster resources (e.g., an EKS cluster's
 KubeconfigJson). Mutually exclusive with `+"`kubeconfigPath`"+`.
@@ -168,13 +195,16 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		return nil, err
 	}
 
-	// Build recipe criteria from inputs
+	// Build recipe criteria from inputs. Canonicalize (trim + lower) to
+	// match the case-insensitive validation we just performed; otherwise
+	// inputs like " EKS " would pass validateArgs but fail resolution, and
+	// uppercase values would leak into the resolved recipe name.
 	criteria := recipe.Criteria{
-		Service:     args.Service,
-		Accelerator: args.Accelerator,
-		Intent:      args.Intent,
-		OS:          derefStr(args.OS, "ubuntu"),
-		Platform:    derefStr(args.Platform, ""),
+		Service:     canonical(args.Service),
+		Accelerator: canonical(args.Accelerator),
+		Intent:      canonical(args.Intent),
+		OS:          canonicalOr(args.OS, "ubuntu"),
+		Platform:    canonicalOr(args.Platform, ""),
 	}
 
 	// Resolve the AICR recipe
@@ -223,79 +253,143 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		return nil, fmt.Errorf("creating Kubernetes provider: %w", err)
 	}
 
-	// Deploy each component as a Helm release
+	// Deploy each component. Most are Helm releases; some are raw manifest
+	// bundles (skyhook-customizations, gke-nccl-tcpxo, gpu-operator's
+	// dcgm-exporter sidecar); a few are both. We track every Pulumi resource
+	// produced for a component so that downstream components depending on it
+	// wait for the full set, not just one piece.
 	skipAwait := derefBool(args.SkipAwait, false)
 	deployedNames := make([]string, 0, len(sorted))
-	releases := make(map[string]*helmv3.Release, len(sorted))
+	deployedResources := make(map[string][]pulumi.Resource, len(sorted))
+
+	// Pre-create a single Namespace per unique non-built-in target namespace.
+	// AICR recipes routinely point multiple components at the same namespace
+	// (e.g. monitoring is shared by kube-prometheus-stack and prometheus-
+	// adapter); creating a Namespace per component would either duplicate
+	// the resource or fail at apply time.
+	namespaceResources := make(map[string]*corev1.Namespace)
+	for _, comp := range sorted {
+		ns := comp.Namespace
+		if ns == "" || builtinNamespaces[ns] {
+			continue
+		}
+		if _, ok := namespaceResources[ns]; ok {
+			continue
+		}
+		nsRes, nsErr := corev1.NewNamespace(ctx, name+"-ns-"+ns, &corev1.NamespaceArgs{
+			Metadata: &metav1.ObjectMetaArgs{
+				Name: pulumi.String(ns),
+			},
+		}, pulumi.Parent(state), pulumi.Provider(k8sProvider))
+		if nsErr != nil {
+			return nil, fmt.Errorf("creating namespace %q: %w", ns, nsErr)
+		}
+		namespaceResources[ns] = nsRes
+	}
 
 	for _, comp := range sorted {
-		releaseOpts := []pulumi.ResourceOption{
+		baseOpts := []pulumi.ResourceOption{
 			pulumi.Parent(state),
 			pulumi.Provider(k8sProvider),
 		}
 
-		// Add dependency on prerequisite components
 		var deps []pulumi.Resource
 		for _, depName := range comp.DependsOn {
-			if rel, ok := releases[depName]; ok {
-				deps = append(deps, rel)
-			}
+			deps = append(deps, deployedResources[depName]...)
+		}
+		if nsRes, ok := namespaceResources[comp.Namespace]; ok {
+			deps = append(deps, nsRes)
 		}
 		if len(deps) > 0 {
-			releaseOpts = append(releaseOpts, pulumi.DependsOn(deps))
+			baseOpts = append(baseOpts, pulumi.DependsOn(deps))
 		}
 
-		// Create namespace if needed
-		if comp.CreateNamespace {
-			ns, nsErr := corev1.NewNamespace(ctx, name+"-ns-"+comp.Name, &corev1.NamespaceArgs{
-				Metadata: &metav1.ObjectMetaArgs{
-					Name: pulumi.String(comp.Namespace),
-				},
-			}, pulumi.Parent(state), pulumi.Provider(k8sProvider))
-			if nsErr != nil {
-				return nil, fmt.Errorf("creating namespace for %s: %w", comp.Name, nsErr)
+		hasChart := comp.Chart != "" && comp.Repo != ""
+
+		if hasChart {
+			values := toPulumiMap(comp.Values)
+
+			// Resolve chart name + repo, handling OCI vs. HTTP Helm registries.
+			// For OCI, the Pulumi Helm provider expects the full OCI URL as the
+			// chart name with no separate repository option.
+			chart := comp.Chart
+			repo := comp.Repo
+			if strings.HasPrefix(repo, "oci://") {
+				if !strings.HasSuffix(repo, "/"+chart) {
+					chart = repo + "/" + chart
+				} else {
+					chart = repo
+				}
+				repo = ""
 			}
-			releaseOpts = append(releaseOpts, pulumi.DependsOn([]pulumi.Resource{ns}))
-		}
 
-		// Build Helm values
-		values := toPulumiMap(comp.Values)
-
-		// Resolve chart name + repo, handling OCI vs. HTTP Helm registries.
-		// For OCI, the Pulumi Helm provider expects the full OCI URL as the
-		// chart name with no separate repository option.
-		chart := comp.Chart
-		repo := comp.Repo
-		if strings.HasPrefix(repo, "oci://") {
-			if !strings.HasSuffix(repo, "/"+chart) {
-				chart = repo + "/" + chart
-			} else {
-				chart = repo
+			// CreateNamespace=true is left as a safety net for the rare case
+			// where the user-provided kubeconfig can install Helm releases
+			// but lacks RBAC to create Namespaces directly via the K8s
+			// provider. Helm's create-namespace is idempotent.
+			releaseArgs := &helmv3.ReleaseArgs{
+				Chart:           pulumi.String(chart),
+				Version:         pulumi.StringPtr(comp.Version),
+				Namespace:       pulumi.StringPtr(comp.Namespace),
+				CreateNamespace: pulumi.Bool(true),
+				Values:          values,
+				SkipAwait:       pulumi.Bool(skipAwait),
 			}
-			repo = ""
-		}
-
-		// Create the Helm release
-		releaseArgs := &helmv3.ReleaseArgs{
-			Chart:           pulumi.String(chart),
-			Version:         pulumi.StringPtr(comp.Version),
-			Namespace:       pulumi.StringPtr(comp.Namespace),
-			CreateNamespace: pulumi.Bool(true), // Fallback in case explicit ns creation fails
-			Values:          values,
-			SkipAwait:       pulumi.Bool(skipAwait),
-		}
-		if repo != "" {
-			releaseArgs.RepositoryOpts = helmv3.RepositoryOptsArgs{
-				Repo: pulumi.StringPtr(repo),
+			if repo != "" {
+				releaseArgs.RepositoryOpts = helmv3.RepositoryOptsArgs{
+					Repo: pulumi.StringPtr(repo),
+				}
 			}
+
+			release, relErr := helmv3.NewRelease(ctx, name+"-"+comp.Name, releaseArgs, baseOpts...)
+			if relErr != nil {
+				return nil, fmt.Errorf("creating Helm release for %s: %w", comp.Name, relErr)
+			}
+			deployedResources[comp.Name] = append(deployedResources[comp.Name], release)
 		}
 
-		release, relErr := helmv3.NewRelease(ctx, name+"-"+comp.Name, releaseArgs, releaseOpts...)
-		if relErr != nil {
-			return nil, fmt.Errorf("creating Helm release for %s: %w", comp.Name, relErr)
+		manifestRendered := false
+		if len(comp.ManifestFiles) > 0 {
+			yamlDoc, mfErr := renderManifestBundle(comp)
+			if mfErr != nil {
+				return nil, fmt.Errorf("rendering manifests for %s: %w", comp.Name, mfErr)
+			}
+
+			// The bundle may render to nothing if every template is
+			// guarded off by its `enabled` flag (e.g. skyhook-customizations
+			// with enabled: false). Treat that as a deliberate no-op —
+			// the user disabled the bundle's contents through values.
+			if strings.TrimSpace(yamlDoc) != "" {
+				manifestOpts := append([]pulumi.ResourceOption(nil), baseOpts...)
+				// If this component has a Helm release, sequence the manifests
+				// after it so any CRDs/operators it ships are ready first.
+				if existing := deployedResources[comp.Name]; len(existing) > 0 {
+					manifestOpts = append(manifestOpts, pulumi.DependsOn(existing))
+				}
+
+				cg, cgErr := yamlv2.NewConfigGroup(ctx, name+"-"+comp.Name+"-manifests",
+					&yamlv2.ConfigGroupArgs{
+						Yaml:      pulumi.StringPtr(yamlDoc),
+						SkipAwait: pulumi.BoolPtr(skipAwait),
+					}, manifestOpts...)
+				if cgErr != nil {
+					return nil, fmt.Errorf("applying manifests for %s: %w", comp.Name, cgErr)
+				}
+				deployedResources[comp.Name] = append(deployedResources[comp.Name], cg)
+			}
+			manifestRendered = true
 		}
 
-		releases[comp.Name] = release
+		if len(deployedResources[comp.Name]) == 0 {
+			// Components with manifestFiles that rendered to nothing are
+			// a deliberate no-op; skip silently. A truly empty component
+			// (no chart and no manifests) should have been filtered by
+			// the resolver — surface that as a programming error.
+			if !manifestRendered {
+				return nil, fmt.Errorf("component %q has no chart and no manifests", comp.Name)
+			}
+			continue
+		}
 		deployedNames = append(deployedNames, comp.Name)
 	}
 
@@ -362,28 +456,124 @@ func toPulumiInput(v interface{}) pulumi.Input {
 }
 
 // validateArgs rejects invalid input combinations early with a clear error,
-// rather than letting them surface as cryptic resolver or k8s-provider failures.
+// rather than letting them surface as cryptic resolver or k8s-provider
+// failures. Required fields must be set, and every dimension is checked
+// against the supported allowlist — the resolver treats empty fields as
+// wildcards, so an unrecognized accelerator like "fictional-gpu" can match
+// generic service overlays without this check.
 func validateArgs(args *ClusterStackArgs) error {
-	if strings.TrimSpace(args.Accelerator) == "" {
-		return fmt.Errorf("accelerator is required (one of: h100, gb200, b200)")
+	accel := strings.ToLower(strings.TrimSpace(args.Accelerator))
+	service := strings.ToLower(strings.TrimSpace(args.Service))
+	intent := strings.ToLower(strings.TrimSpace(args.Intent))
+
+	if accel == "" {
+		return fmt.Errorf("accelerator is required (one of: %s)", strings.Join(supportedAccelerators, ", "))
 	}
-	if strings.TrimSpace(args.Service) == "" {
-		return fmt.Errorf("service is required (one of: aks, eks, gke, kind, oke)")
+	if !contains(supportedAccelerators, accel) {
+		return fmt.Errorf("accelerator %q is not supported (must be one of: %s)",
+			args.Accelerator, strings.Join(supportedAccelerators, ", "))
 	}
-	if strings.TrimSpace(args.Intent) == "" {
-		return fmt.Errorf("intent is required (one of: training, inference)")
+	if service == "" {
+		return fmt.Errorf("service is required (one of: %s)", strings.Join(supportedServices, ", "))
+	}
+	if !contains(supportedServices, service) {
+		return fmt.Errorf("service %q is not supported (must be one of: %s)",
+			args.Service, strings.Join(supportedServices, ", "))
+	}
+	if intent == "" {
+		return fmt.Errorf("intent is required (one of: %s)", strings.Join(supportedIntents, ", "))
+	}
+	if !contains(supportedIntents, intent) {
+		return fmt.Errorf("intent %q is not supported (must be one of: %s)",
+			args.Intent, strings.Join(supportedIntents, ", "))
+	}
+	if args.OS != nil && *args.OS != "" {
+		osVal := strings.ToLower(strings.TrimSpace(*args.OS))
+		if !contains(supportedOSes, osVal) {
+			return fmt.Errorf("os %q is not supported (must be one of: %s)",
+				*args.OS, strings.Join(supportedOSes, ", "))
+		}
+	}
+	if args.Platform != nil && *args.Platform != "" {
+		platform := strings.ToLower(strings.TrimSpace(*args.Platform))
+		if !contains(supportedPlatforms, platform) {
+			return fmt.Errorf("platform %q is not supported (must be one of: %s)",
+				*args.Platform, strings.Join(supportedPlatforms, ", "))
+		}
 	}
 	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
 		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")
 	}
+	return validateCompatibility(accel, service, intent,
+		canonicalOr(args.OS, ""),
+		canonicalOr(args.Platform, ""),
+	)
+}
+
+// validateCompatibility enforces the README's published combination matrix.
+// The resolver also rejects unsupported combinations (no leaf will match)
+// but we surface a precise message here so users see "kubeflow is training-
+// only" instead of "no matching recipe found".
+func validateCompatibility(accelerator, service, intent, osName, platform string) error {
+	switch platform {
+	case "kubeflow":
+		if intent != "training" {
+			return fmt.Errorf("platform %q is training-only; got intent %q", platform, intent)
+		}
+	case "dynamo":
+		if intent != "inference" {
+			return fmt.Errorf("platform %q is inference-only; got intent %q", platform, intent)
+		}
+	case "nim":
+		if intent != "inference" || service != "eks" || accelerator != "h100" {
+			return fmt.Errorf(
+				"platform %q is supported only on eks+h100+inference; got service=%q accelerator=%q intent=%q",
+				platform, service, accelerator, intent)
+		}
+	}
+	if accelerator == "b200" && intent != "training" {
+		return fmt.Errorf("accelerator %q is training-only; got intent %q", accelerator, intent)
+	}
+	if osName == "cos" && service != "gke" {
+		return fmt.Errorf("os %q is only supported on gke; got service %q", osName, service)
+	}
 	return nil
 }
+
+func contains(values []string, target string) bool {
+	for _, v := range values {
+		if v == target {
+			return true
+		}
+	}
+	return false
+}
+
 
 func derefStr(s *string, def string) string {
 	if s != nil {
 		return *s
 	}
 	return def
+}
+
+// canonical lower-cases and trims an input criterion so that " EKS " and
+// "eks" produce the same recipe.Criteria value.
+func canonical(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+// canonicalOr is canonical for an optional string, falling back to def
+// when the pointer is nil or canonicalizes to the empty string.
+func canonicalOr(s *string, def string) string {
+	if s == nil {
+		return def
+	}
+	c := canonical(*s)
+	if c == "" {
+		return def
+	}
+	return c
 }
 
 func derefBool(b *bool, def bool) bool {

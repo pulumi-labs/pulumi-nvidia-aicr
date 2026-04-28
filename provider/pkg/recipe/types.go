@@ -145,8 +145,10 @@ type ResolvedRecipe struct {
 	Components []ResolvedComponent
 }
 
-// ResolvedComponent is a single component ready to be deployed as a Helm
-// release. All fields are concrete (no further registry lookups required).
+// ResolvedComponent is a single component ready to be deployed. Most
+// components are Helm releases; some are raw manifest bundles
+// (Chart/Repo empty, ManifestFiles populated); a few are both
+// (Helm release plus side-car manifests).
 type ResolvedComponent struct {
 	Name            string
 	Chart           string
@@ -156,6 +158,10 @@ type ResolvedComponent struct {
 	CreateNamespace bool
 	Values          map[string]interface{}
 	DependsOn       []string
+	// ManifestFiles is the list of embedded manifest paths (relative to
+	// recipes.FS) that should be applied alongside (or in lieu of) the
+	// Helm release for this component.
+	ManifestFiles []string
 }
 
 // ComponentOverride lets callers customize a single component's chart

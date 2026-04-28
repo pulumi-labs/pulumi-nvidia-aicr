@@ -114,23 +114,51 @@ func TestResolveStripsChartPrefix(t *testing.T) {
 	assert.Equal(t, "gpu-operator", gpu.Chart, "chart prefix should be stripped")
 }
 
-func TestResolveSkipsManifestOnly(t *testing.T) {
-	// skyhook-customizations is a manifest-only AICR component (no Helm chart).
-	// It must be filtered out so we don't try to deploy an empty Helm release.
+func TestResolveKeepsManifestOnlyComponents(t *testing.T) {
+	// Manifest-only AICR components (skyhook-customizations on GKE,
+	// gke-nccl-tcpxo) carry no Helm chart but still need to be deployed
+	// as raw Kubernetes manifests. Resolve must surface them with
+	// ManifestFiles populated rather than silently dropping them.
 	resolved, err := Resolve(Criteria{
-		Service: "eks", Accelerator: "h100", Intent: "training",
-		OS: "ubuntu", Platform: "kubeflow",
+		Service: "gke", Accelerator: "h100", Intent: "training",
+		OS: "cos", Platform: "kubeflow",
 	})
 	require.NoError(t, err)
 
+	cust := findComponent(resolved.Components, "skyhook-customizations")
+	require.NotNil(t, cust, "skyhook-customizations should be resolved on gke/h100/training")
+	assert.NotEmpty(t, cust.ManifestFiles, "manifest-only component must carry manifest paths")
+	assert.Empty(t, cust.Chart, "skyhook-customizations has no Helm chart")
+
+	tcpxo := findComponent(resolved.Components, "gke-nccl-tcpxo")
+	require.NotNil(t, tcpxo, "gke-nccl-tcpxo should be resolved on gke/h100/training")
+	assert.NotEmpty(t, tcpxo.ManifestFiles, "manifest-only component must carry manifest paths")
+
+	// Components that only appear as inheritance scaffolding (no chart and
+	// no manifests) must still be skipped — verify every survivor carries
+	// at least one of the two.
 	for _, c := range resolved.Components {
-		assert.NotEqual(t, "skyhook-customizations", c.Name,
-			"manifest-only components must be filtered")
-		assert.NotEqual(t, "gke-nccl-tcpxo", c.Name,
-			"manifest-only components must be filtered")
-		assert.NotEmpty(t, c.Chart, "every resolved component must have a chart")
-		assert.NotEmpty(t, c.Repo, "every resolved component must have a repo")
+		hasChart := c.Chart != "" && c.Repo != ""
+		hasManifests := len(c.ManifestFiles) > 0
+		assert.True(t, hasChart || hasManifests,
+			"resolved component %q must have a chart or manifests", c.Name)
 	}
+}
+
+func TestResolveAttachesManifestsToHelmComponents(t *testing.T) {
+	// gpu-operator on GKE COS ships a Helm chart *and* a pair of raw
+	// manifests (dcgm-exporter, gke-resource-quota). The resolver must
+	// preserve both so the deployer can apply each side-by-side.
+	resolved, err := Resolve(Criteria{
+		Service: "gke", Accelerator: "h100", Intent: "training",
+		OS: "cos", Platform: "kubeflow",
+	})
+	require.NoError(t, err)
+
+	gpu := findComponent(resolved.Components, "gpu-operator")
+	require.NotNil(t, gpu)
+	assert.NotEmpty(t, gpu.Chart)
+	assert.NotEmpty(t, gpu.ManifestFiles, "gpu-operator on GKE COS includes side-car manifests")
 }
 
 func TestResolveInvalidCriteria(t *testing.T) {
@@ -140,6 +168,65 @@ func TestResolveInvalidCriteria(t *testing.T) {
 		Intent:      "unknown",
 	})
 	assert.Error(t, err)
+}
+
+func TestResolveRejectsSpecifiedQueryAgainstUnboundRecipe(t *testing.T) {
+	// b200/eks/inference has no leaf in the recipe set. It must NOT
+	// silently fall back to eks-inference.yaml (which has accelerator
+	// unset) — that would deploy a recipe that ignores the b200 request.
+	_, err := Resolve(Criteria{
+		Service: "eks", Accelerator: "b200", Intent: "inference", OS: "ubuntu",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no matching recipe found")
+}
+
+func TestResolveUnsetPlatformExcludesPlatformComponents(t *testing.T) {
+	// Public contract (per README and schema): leaving platform unset
+	// returns the base recipe with no platform-specific runtime. The
+	// resolver must not silently land on the kubeflow leaf and pull in
+	// kubeflow-trainer, nor on the dynamo leaf and pull in the dynamo
+	// stack, just because the scoring tied or wildcard-matched empty
+	// against a concrete platform. (kgateway is *not* a platform-specific
+	// runtime in the recipe data — eks-inference.yaml unconditionally
+	// applies the platform-inference mixin as part of the inference base
+	// — so it's expected to ship even when platform is unset.)
+	training, err := Resolve(Criteria{
+		Service: "eks", Accelerator: "h100", Intent: "training", OS: "ubuntu",
+	})
+	require.NoError(t, err)
+	trainingNames := componentNameSet(training.Components)
+	assert.NotContains(t, trainingNames, "kubeflow-trainer",
+		"unset platform must not pull in the kubeflow training mixin")
+
+	inference, err := Resolve(Criteria{
+		Service: "eks", Accelerator: "h100", Intent: "inference", OS: "ubuntu",
+	})
+	require.NoError(t, err)
+	inferenceNames := componentNameSet(inference.Components)
+	assert.NotContains(t, inferenceNames, "dynamo-platform",
+		"unset platform must not pull in the dynamo platform stack")
+	assert.NotContains(t, inferenceNames, "dynamo-crds",
+		"unset platform must not pull in the dynamo platform stack")
+	// kgateway IS expected — the recipe data ships it as part of the
+	// inference base stack (eks-inference.yaml applies platform-inference
+	// unconditionally), and the schema/README document this behavior.
+	assert.Contains(t, inferenceNames, "kgateway",
+		"intent=inference always includes the kgateway inference gateway")
+	assert.Contains(t, inferenceNames, "kgateway-crds",
+		"intent=inference always includes the kgateway CRDs")
+}
+
+func TestResolveRejectsPlatformAgainstUnboundRecipe(t *testing.T) {
+	// h100/eks/inference/kubeflow has no leaf — kubeflow is training-only.
+	// It must NOT silently fall back to h100-eks-ubuntu-inference.yaml
+	// (which has platform unset) and quietly drop the platform request.
+	_, err := Resolve(Criteria{
+		Service: "eks", Accelerator: "h100", Intent: "inference",
+		OS: "ubuntu", Platform: "kubeflow",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no matching recipe found")
 }
 
 func TestApplyOverrides(t *testing.T) {

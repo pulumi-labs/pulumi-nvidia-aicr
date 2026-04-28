@@ -75,7 +75,7 @@ on a Kubernetes cluster.
 | `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"kind"`, `"oke"` |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
 | `os` | `string` | No | OS: `"ubuntu"` (default), `"cos"` (gke only) |
-| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only) |
+| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only). Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes the kgateway inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
 | `kubeconfig` | `Input<string>` | No | Kubeconfig contents (accepts outputs from cluster resources) |
 | `kubeconfigPath` | `string` | No | Path to kubeconfig file |
 | `context` | `string` | No | Kubeconfig context |

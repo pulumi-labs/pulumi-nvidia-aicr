@@ -9,6 +9,7 @@
     <PackageProjectUrl>https://github.com/pulumi-labs/pulumi-nvidia-aicr</PackageProjectUrl>
     <RepositoryUrl>https://github.com/pulumi-labs/pulumi-nvidia-aicr</RepositoryUrl>
     <PackageIcon>logo.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.0.1-dev</Version>
 
     <TargetFramework>net6.0</TargetFramework>
@@ -53,6 +54,10 @@
 
   <ItemGroup>
     <None Include="logo.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="README.md">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>

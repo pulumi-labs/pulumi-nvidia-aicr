@@ -1,4 +1,4 @@
-module github.com/pulumi-labs/pulumi-nvidia-aicr/provider
+module github.com/pulumi-labs/pulumi-nvidia-aicr
 
 go 1.25.0
 

@@ -27,11 +27,11 @@ schema: provider
 
 # Run unit tests
 test:
-	cd $(PROVIDER_DIR) && go test -v -count=1 -race ./pkg/...
+	go test -v -count=1 -race ./provider/pkg/...
 
 # Run linter
 lint:
-	cd $(PROVIDER_DIR) && go vet ./...
+	go vet ./...
 
 # Generate Node.js SDK
 nodejs_sdk: schema

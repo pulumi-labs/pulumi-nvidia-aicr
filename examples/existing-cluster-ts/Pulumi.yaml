@@ -1,0 +1,15 @@
+name: aicr-quickstart
+runtime: nodejs
+description: |
+  Quickstart: Deploy NVIDIA AICR on an existing Kubernetes cluster.
+  The simplest way to get started with AICR and Pulumi.
+config:
+  accelerator:
+    description: GPU accelerator type (h100, gb200)
+    default: h100
+  service:
+    description: Kubernetes service (eks, gke, aks, self-managed)
+    default: eks
+  intent:
+    description: Workload intent (training, inference)
+    default: training

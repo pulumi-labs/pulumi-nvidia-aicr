@@ -1,0 +1,205 @@
+# Copyright (c) 2026, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+kind: RecipeMetadata
+apiVersion: aicr.nvidia.com/v1alpha1
+metadata:
+  name: kind
+
+spec:
+  # Inherits from base (implicit when spec.base is empty)
+  # This recipe contains kind-specific settings for local development/testing
+
+  criteria:
+    service: kind
+
+  # Kind-specific constraints
+  constraints:
+    - name: K8s.server.version
+      value: ">= 1.25"
+
+  # Kind-specific component overrides
+  componentRefs:
+    # gpu-operator: configure for kind with GPU passthrough (nvkind)
+    # Assumes host has NVIDIA drivers and container toolkit pre-configured
+    - name: gpu-operator
+      type: Helm
+      overrides:
+        driver:
+          # Disable driver installation - use pre-installed host drivers
+          enabled: false
+          rdma:
+            # Disable RDMA - requires driver kernel modules not available in kind
+            enabled: false
+        toolkit:
+          # Disable toolkit - nvkind pre-configures the host container runtime
+          enabled: false
+        gdrcopy:
+          # Disable GDR copy - requires driver kernel modules not available in kind
+          enabled: false
+        migManager:
+          # Disable MIG manager - requires driver not available in kind
+          enabled: false
+        dcgm:
+          # Disable standalone DCGM hostengine in kind - use embedded exporter
+          enabled: false
+        # Disable custom DCGM exporter ConfigMap in kind — the manifest that
+        # creates it is applied AFTER helm --wait, causing a deadlock where
+        # ClusterPolicy stays InProgress waiting for exporter pods that need
+        # the ConfigMap. Use the exporter's built-in default metrics instead.
+        dcgmExporter:
+          config:
+            create: false
+            name: ""
+          # Exclude control-plane nodes — NFD labels them with GPU features
+          # (shared host kernel) but they lack actual device access, causing
+          # operand init containers to hang and ClusterPolicy to stay notReady.
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+        nfd:
+          enabled: true
+        # Use chart-default device plugin env in kind (no CDI overrides)
+        devicePlugin:
+          env: []
+          # Exclude control-plane nodes (see dcgmExporter.affinity comment)
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+        gfd:
+          # Exclude control-plane nodes (see dcgmExporter.affinity comment)
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+        validator:
+          # Exclude control-plane nodes (see dcgmExporter.affinity comment)
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+        # Reduce resource requests for local development
+        operator:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 500m
+              memory: 500Mi
+
+    # kube-prometheus-stack: use emptyDir storage (default), reduce resources
+    - name: kube-prometheus-stack
+      type: Helm
+      overrides:
+        prometheus:
+          prometheusSpec:
+            # Smaller storage for local testing
+            storageSpec:
+              emptyDir:
+                medium: ""
+                sizeLimit: 5Gi
+            # Reduced resources for local development
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: 1
+                memory: 1Gi
+            # Shorter retention for local testing
+            retention: 7d
+        grafana:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 250m
+                memory: 256Mi
+
+    # nvsentinel: reduce resources for local development
+    - name: nvsentinel
+      type: Helm
+      overrides:
+        platformConnector:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+
+    # skyhook-operator: reduce resources for local development
+    - name: skyhook-operator
+      type: Helm
+      overrides:
+        controllerManager:
+          manager:
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+
+    # nvidia-dra-driver-gpu: override driver root for kind GPU passthrough
+    - name: nvidia-dra-driver-gpu
+      type: Helm
+      overrides:
+        # Use "/" for host-installed drivers (kind GPU passthrough)
+        nvidiaDriverRoot: "/"
+
+    # network-operator: NVIDIA Network Operator for high-performance networking
+    - name: network-operator
+      type: Helm
+      source: https://helm.ngc.nvidia.com/nvidia
+      version: "25.1.0"
+      valuesFile: components/network-operator/values.yaml
+      dependencyRefs:
+        - cert-manager
+
+  validation:
+    conformance:
+      checks:
+        - platform-health
+        - gpu-operator-health
+        - dra-support
+        - accelerator-metrics
+        - ai-service-metrics

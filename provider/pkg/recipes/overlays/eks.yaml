@@ -1,0 +1,80 @@
+# Copyright (c) 2026, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+kind: RecipeMetadata
+apiVersion: aicr.nvidia.com/v1alpha1
+metadata:
+  name: eks
+
+spec:
+  # Inherits from base (implicit when spec.base is empty)
+  # This recipe contains EKS-specific settings shared by all EKS deployments
+
+  criteria:
+    service: eks
+
+  # EKS-specific constraints
+  # Constraint names use fully qualified measurement paths: {type}.{subtype}.{key}
+  constraints:
+    - name: K8s.server.version
+      value: ">= 1.28"
+
+  # EKS-specific components
+  componentRefs:
+    # EBS CSI driver for persistent volume provisioning on EKS.
+    # Enabled by default since EKS does not include it as a managed addon.
+    # Disable with: --set awsebscsidriver:enabled=false (if installed as EKS addon)
+    - name: aws-ebs-csi-driver
+      type: Helm
+      source: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+      version: 2.55.0
+      valuesFile: components/aws-ebs-csi-driver/values.yaml
+
+    # Enable Prometheus persistent storage for EKS (requires EBS CSI driver)
+    - name: kube-prometheus-stack
+      type: Helm
+      overrides:
+        prometheus:
+          prometheusSpec:
+            storageSpec:
+              emptyDir: null
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp2
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 50Gi
+    # EKS has no control-plane nodes — remove the default nodeAffinity
+    # that requires node-role.kubernetes.io/control-plane
+    - name: nvidia-dra-driver-gpu
+      type: Helm
+      overrides:
+        controller:
+          affinity:
+            nodeAffinity: null
+
+    - name: aws-efa
+      type: Helm
+      version: v0.5.3
+      valuesFile: components/aws-efa/values.yaml
+
+  validation:
+    conformance:
+      checks:
+        - platform-health
+        - gpu-operator-health
+        - dra-support
+        - accelerator-metrics
+        - ai-service-metrics

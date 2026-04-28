@@ -1,0 +1,8 @@
+# Compiled provider binary (built per-platform via `make provider`)
+bin/
+
+# Node.js dependencies
+node_modules/
+
+# OS files
+.DS_Store

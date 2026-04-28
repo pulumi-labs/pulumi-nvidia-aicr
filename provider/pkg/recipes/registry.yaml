@@ -1,0 +1,447 @@
+# Copyright (c) 2026, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Component Registry - Declarative configuration for all AICR components
+#
+# This file defines the bundler configuration for each component.
+# Adding a new component only requires adding an entry here - no Go code needed.
+#
+# Fields:
+#   name:              Component identifier used in recipes (e.g., "gpu-operator")
+#   displayName:       Human-readable name for templates and output
+#   valueOverrideKeys: Alternative keys for --set flag (e.g., --set gpuoperator:key=value)
+#   helm:              Default Helm chart settings (for Helm components)
+#     defaultRepository: Helm repository URL
+#     defaultChart:      Chart name (e.g., "nvidia/gpu-operator")
+#     defaultVersion:    Default chart version if not specified in recipe
+#   kustomize:         Default Kustomize settings (for Kustomize components)
+#     defaultSource:     Git repository or OCI reference
+#     defaultPath:       Path within the repository to the kustomization
+#     defaultTag:        Git tag, branch, or commit
+#   nodeScheduling:    Paths in Helm values where node selectors/tolerations are injected
+#
+# Note: A component must have either 'helm' OR 'kustomize' configuration, not both.
+# Node scheduling paths define WHERE CLI flags like --system-node-selector are applied.
+# The actual values come from CLI flags, not from this file.
+#
+apiVersion: aicr.nvidia.com/v1alpha1
+kind: ComponentRegistry
+
+components:
+  - name: gpu-operator
+    displayName: gpu-operator
+    valueOverrideKeys:
+      - gpuoperator
+    healthCheck:
+      assertFile: checks/gpu-operator/health-check.yaml
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia
+      defaultChart: nvidia/gpu-operator
+      defaultNamespace: gpu-operator
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - operator.nodeSelector
+          - node-feature-discovery.gc.nodeSelector
+          - node-feature-discovery.master.nodeSelector
+        tolerationPaths:
+          - operator.tolerations
+          - node-feature-discovery.gc.tolerations
+          - node-feature-discovery.master.tolerations
+      accelerated:
+        nodeSelectorPaths:
+          - daemonsets.nodeSelector
+          # Note: NFD worker nodeSelector is intentionally excluded from
+          # accelerated scheduling. NFD must run on all nodes (GPU, CPU,
+          # and system) to detect hardware features — this matches the
+          # gpu-operator default behavior where NFD workers also run on
+          # control-plane nodes. NFD worker tolerations remain here so
+          # it inherits the same tolerations as GPU daemonsets.
+        tolerationPaths:
+          - daemonsets.tolerations
+          - node-feature-discovery.worker.tolerations
+
+  - name: network-operator
+    displayName: network-operator
+    valueOverrideKeys:
+      - networkoperator
+    healthCheck:
+      assertFile: checks/network-operator/health-check.yaml
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia
+      defaultChart: nvidia/network-operator
+      defaultNamespace: nvidia-network-operator
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - operator.nodeSelector
+        tolerationPaths:
+          - operator.tolerations
+
+  - name: gke-nccl-tcpxo
+    displayName: gke-nccl-tcpxo
+    valueOverrideKeys:
+      - gkenccltcpxo
+    manifest:
+      defaultNamespace: kube-system
+
+  - name: aws-efa
+    displayName: aws-efa
+    valueOverrideKeys:
+      - awsefa
+      - efa
+    healthCheck:
+      assertFile: checks/aws-efa/health-check.yaml
+    helm:
+      defaultRepository: https://aws.github.io/eks-charts
+      defaultChart: aws-efa-k8s-device-plugin
+      defaultVersion: v0.5.3
+      defaultNamespace: kube-system
+    nodeScheduling:
+      accelerated:
+        nodeSelectorPaths:
+          - nodeSelector
+        tolerationPaths:
+          - tolerations
+
+  - name: cert-manager
+    displayName: cert-manager
+    valueOverrideKeys:
+      - certmanager
+    healthCheck:
+      assertFile: checks/cert-manager/health-check.yaml
+    helm:
+      defaultRepository: https://charts.jetstack.io
+      defaultChart: jetstack/cert-manager
+      defaultVersion: v1.17.2
+      defaultNamespace: cert-manager
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - nodeSelector
+          - webhook.nodeSelector
+          - cainjector.nodeSelector
+          - startupapicheck.nodeSelector
+        tolerationPaths:
+          - tolerations
+          - webhook.tolerations
+          - cainjector.tolerations
+          - startupapicheck.tolerations
+
+  - name: skyhook-operator
+    displayName: skyhook
+    valueOverrideKeys:
+      - skyhook
+    healthCheck:
+      assertFile: checks/skyhook-operator/health-check.yaml
+    helm:
+      defaultRepository: https://nvidia.github.io/skyhook
+      defaultChart: skyhook-operator
+      defaultNamespace: skyhook
+    nodeScheduling:
+      nodeCountPaths:
+        - estimatedNodeCount
+      system:
+        nodeSelectorPaths:
+          - controllerManager.selectors
+        tolerationPaths:
+          - controllerManager.tolerations
+      accelerated:
+        taintStrPaths:
+          - controllerManager.manager.env.runtimeRequiredTaint
+
+  - name: skyhook-customizations
+    displayName: skyhook-customizations
+    valueOverrideKeys:
+      - skyhookcustomizations
+    healthCheck:
+      assertFile: checks/skyhook-customizations/health-check.yaml
+    helm:
+      # Manifest-only component - no external Helm chart, uses manifestFiles
+      defaultRepository: ""
+      defaultNamespace: skyhook
+    nodeScheduling:
+      accelerated:
+        nodeSelectorPaths:
+          - acceleratedNodeSelector
+        tolerationPaths:
+          - acceleratedTolerations
+    podScheduling:
+      workload:
+        workloadSelectorPaths:
+          - workloadSelector
+    validations:
+      - function: CheckWorkloadSelectorMissing
+        severity: warning
+        conditions:
+          intent:
+            - training
+        message: "This may cause skyhook to evict running training jobs. Consider setting --workload-selector to prevent eviction."
+      - function: CheckAcceleratedSelectorMissing
+        severity: warning
+        conditions:
+          intent:
+            - training
+            - inference
+        message: "Without this selector, the customization will run on all nodes. Consider setting --accelerated-node-selector to target specific nodes."
+
+  - name: nvsentinel
+    displayName: nvsentinel
+    valueOverrideKeys:
+      - nv-sentinel
+    healthCheck:
+      assertFile: checks/nvsentinel/health-check.yaml
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia
+      defaultChart: nvidia/nvsentinel
+      defaultVersion: v1.1.0
+      defaultNamespace: nvsentinel
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - global.systemNodeSelector
+        tolerationPaths:
+          - global.systemNodeTolerations
+
+  - name: nvidia-dra-driver-gpu
+    displayName: nvidia-dra-driver-gpu
+    valueOverrideKeys:
+      - dradriver
+    healthCheck:
+      assertFile: checks/nvidia-dra-driver-gpu/health-check.yaml
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia
+      defaultChart: nvidia/nvidia-dra-driver-gpu
+      defaultNamespace: nvidia-dra-driver
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - controller.nodeSelector
+        tolerationPaths:
+          - controller.tolerations
+      accelerated:
+        nodeSelectorPaths:
+          - kubeletPlugin.nodeSelector
+        tolerationPaths:
+          - kubeletPlugin.tolerations
+
+  - name: kube-prometheus-stack
+    displayName: kube-prometheus-stack
+    valueOverrideKeys:
+      - prometheus
+      - kubeprometheusstack
+    healthCheck:
+      assertFile: checks/kube-prometheus-stack/health-check.yaml
+    helm:
+      defaultRepository: https://prometheus-community.github.io/helm-charts
+      defaultChart: prometheus-community/kube-prometheus-stack
+      defaultVersion: 82.8.0
+      defaultNamespace: monitoring
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - prometheus.prometheusSpec.nodeSelector
+          - alertmanager.alertmanagerSpec.nodeSelector
+          - grafana.nodeSelector
+          - prometheusOperator.nodeSelector
+          - prometheusOperator.admissionWebhooks.patch.nodeSelector
+          - kube-state-metrics.nodeSelector
+          - prometheus-node-exporter.nodeSelector
+          - thanosRuler.thanosRulerSpec.nodeSelector
+        tolerationPaths:
+          - prometheus.prometheusSpec.tolerations
+          - alertmanager.alertmanagerSpec.tolerations
+          - grafana.tolerations
+          - prometheusOperator.tolerations
+          - prometheusOperator.admissionWebhooks.patch.tolerations
+          - kube-state-metrics.tolerations
+          - prometheus-node-exporter.tolerations
+          - thanosRuler.thanosRulerSpec.tolerations
+
+  - name: prometheus-adapter
+    displayName: prometheus-adapter
+    valueOverrideKeys:
+      - prometheusadapter
+    healthCheck:
+      assertFile: checks/prometheus-adapter/health-check.yaml
+    helm:
+      defaultRepository: https://prometheus-community.github.io/helm-charts
+      defaultChart: prometheus-community/prometheus-adapter
+      defaultVersion: 5.3.0
+      defaultNamespace: monitoring
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - nodeSelector
+        tolerationPaths:
+          - tolerations
+
+  - name: aws-ebs-csi-driver
+    displayName: aws-ebs-csi-driver
+    valueOverrideKeys:
+      - ebscsidriver
+      - awsebscsidriver
+    healthCheck:
+      assertFile: checks/aws-ebs-csi-driver/health-check.yaml
+    helm:
+      defaultRepository: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+      defaultChart: aws-ebs-csi-driver/aws-ebs-csi-driver
+      defaultVersion: 2.55.0
+      defaultNamespace: kube-system
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - controller.nodeSelector
+        tolerationPaths:
+          - controller.tolerations
+          - node.tolerations
+      accelerated:
+        # No nodeSelectorPaths — CSI node DaemonSet must run on ALL nodes
+        # (not just GPU nodes) since any node may need EBS volumes.
+        tolerationPaths:
+          - node.tolerations
+
+  - name: k8s-ephemeral-storage-metrics
+    displayName: k8s-ephemeral-storage-metrics
+    valueOverrideKeys:
+      - k8sephemeralstoragemetrics
+    healthCheck:
+      assertFile: checks/k8s-ephemeral-storage-metrics/health-check.yaml
+    helm:
+      defaultRepository: https://jmcgrath207.github.io/k8s-ephemeral-storage-metrics/chart
+      defaultChart: k8s-ephemeral-storage-metrics/k8s-ephemeral-storage-metrics
+      defaultNamespace: monitoring
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - nodeSelector
+        tolerationPaths:
+          - tolerations
+
+  - name: kai-scheduler
+    displayName: kai-scheduler
+    valueOverrideKeys:
+      - kaischeduler
+    healthCheck:
+      assertFile: checks/kai-scheduler/health-check.yaml
+    helm:
+      defaultRepository: oci://ghcr.io/nvidia/kai-scheduler
+      defaultChart: kai-scheduler
+      defaultVersion: v0.13.0
+      defaultNamespace: kai-scheduler
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - global.nodeSelector
+        tolerationPaths:
+          - global.tolerations
+
+  - name: dynamo-crds
+    displayName: dynamo-crds
+    valueOverrideKeys:
+      - dynamocrds
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia/ai-dynamo
+      defaultChart: dynamo-crds
+      defaultVersion: "0.9.1"
+      defaultNamespace: dynamo-system
+
+  - name: dynamo-platform
+    displayName: dynamo-platform
+    valueOverrideKeys:
+      - dynamoplatform
+      - dynamo
+    healthCheck:
+      assertFile: checks/dynamo-platform/health-check.yaml
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia/ai-dynamo
+      defaultChart: dynamo-platform
+      defaultVersion: "0.9.1"
+      defaultNamespace: dynamo-system
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - dynamo-operator.controllerManager.nodeSelector
+          - grove.nodeSelector
+        tolerationPaths:
+          - dynamo-operator.controllerManager.tolerations
+          - grove.tolerations
+
+  - name: kgateway-crds
+    displayName: kgateway-crds
+    valueOverrideKeys:
+      - kgatewaycrds
+    helm:
+      defaultRepository: oci://cr.kgateway.dev/kgateway-dev/charts
+      defaultChart: kgateway-crds
+      defaultVersion: v2.0.0
+      defaultNamespace: kgateway-system
+
+  - name: kgateway
+    displayName: kgateway
+    valueOverrideKeys:
+      - kgateway
+    healthCheck:
+      assertFile: checks/kgateway/health-check.yaml
+    helm:
+      defaultRepository: oci://cr.kgateway.dev/kgateway-dev/charts
+      defaultChart: kgateway
+      defaultVersion: v2.0.0
+      defaultNamespace: kgateway-system
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - nodeSelector
+        tolerationPaths:
+          - tolerations
+
+  - name: k8s-nim-operator
+    displayName: k8s-nim-operator
+    valueOverrideKeys:
+      - nimoperator
+      - nim
+    healthCheck:
+      assertFile: checks/k8s-nim-operator/health-check.yaml
+    helm:
+      defaultRepository: https://helm.ngc.nvidia.com/nvidia
+      defaultChart: k8s-nim-operator
+      defaultVersion: "3.1.0"
+      defaultNamespace: nvidia-nim
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - operator.nodeSelector
+        tolerationPaths:
+          - operator.tolerations
+
+  - name: kubeflow-trainer
+    displayName: kubeflow-trainer
+    valueOverrideKeys:
+      - kubeflowtrainer
+      - trainer
+    healthCheck:
+      assertFile: checks/kubeflow-trainer/health-check.yaml
+    helm:
+      defaultRepository: oci://ghcr.io/kubeflow/charts
+      defaultChart: kubeflow-trainer
+      defaultVersion: 2.1.0
+      defaultNamespace: kubeflow
+    nodeScheduling:
+      system:
+        nodeSelectorPaths:
+          - manager.nodeSelector
+          - jobset.controller.nodeSelector
+        tolerationPaths:
+          - manager.tolerations
+          - jobset.controller.tolerations

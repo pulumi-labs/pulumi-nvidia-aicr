@@ -1,0 +1,13 @@
+name: coreweave-h100-inference
+runtime: go
+description: |
+  Deploy an NVIDIA AICR-validated inference stack on CoreWeave.
+  Uses an existing CoreWeave Kubernetes cluster with H100 GPUs
+  and deploys the Dynamo inference platform via AICR recipes.
+
+  CoreWeave H100 pricing: ~$2.49/GPU/hr ($19.92/node with 8 GPUs).
+  Much more cost-effective than hyperscaler GPU instances.
+config:
+  kubeconfigPath:
+    description: Path to your CoreWeave kubeconfig file
+    default: ~/.kube/config

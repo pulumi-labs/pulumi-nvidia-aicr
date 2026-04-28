@@ -1,0 +1,29 @@
+{
+    "name": "@pulumi/nvidia-aicr",
+    "version": "${VERSION}",
+    "keywords": [
+        "pulumi",
+        "nvidia",
+        "aicr",
+        "gpu",
+        "kubernetes",
+        "category/cloud"
+    ],
+    "homepage": "https://github.com/pulumi/pulumi-nvidia-aicr",
+    "repository": "https://github.com/pulumi/pulumi-nvidia-aicr",
+    "license": "Apache-2.0",
+    "scripts": {
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@pulumi/pulumi": "^3.142.0"
+    },
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^4.3.5"
+    },
+    "pulumi": {
+        "resource": true,
+        "name": "nvidia-aicr"
+    }
+}

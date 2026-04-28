@@ -1,0 +1,45 @@
+# Copyright (c) 2026, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NVSentinel Helm values
+# Base configuration for all deployments
+
+# Override release name prefix to avoid aicr-stack- prefix in resource names
+fullnameOverride: nvsentinel
+
+global:
+  # Tolerate all taints so GPU-node daemonsets (platform-connectors,
+  # gpu-health-monitor, syslog-health-monitor, metadata-collector) can
+  # schedule on nodes with NoSchedule/NoExecute taints set by ASG.
+  # Matches internal platform template behavior.
+  # TODO: remove once upstream NVSentinel chart defaults to this
+  # (see https://github.com/NVIDIA/NVSentinel/pull/1004)
+  tolerations:
+    - operator: Exists
+
+networkPolicy:
+  enabled: false
+
+platformConnector:
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+  updateStrategy: RollingUpdate
+  maxUnavailable: 1

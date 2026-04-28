@@ -1,0 +1,129 @@
+{
+  "name": "nvidia-aicr",
+  "displayName": "NVIDIA AI Cluster Runtime",
+  "version": "0.0.1",
+  "description": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
+  "keywords": [
+    "pulumi",
+    "nvidia",
+    "aicr",
+    "gpu",
+    "kubernetes",
+    "category/cloud"
+  ],
+  "homepage": "https://github.com/pulumi/pulumi-nvidia-aicr",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/pulumi/pulumi-nvidia-aicr",
+  "publisher": "Pulumi",
+  "language": {
+    "go": {
+      "generateResourceContainerTypes": true,
+      "importBasePath": "github.com/pulumi/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
+    }
+  },
+  "config": {},
+  "types": {
+    "nvidia-aicr:index:ComponentOverride": {
+      "properties": {
+        "namespace": {
+          "type": "string"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "pulumi.json#/Any"
+          }
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "provider": {},
+  "resources": {
+    "nvidia-aicr:index:ClusterStack": {
+      "properties": {
+        "componentCount": {
+          "type": "integer"
+        },
+        "deployedComponents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "plain": true
+          }
+        },
+        "recipeName": {
+          "type": "string"
+        },
+        "recipeVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "recipeName",
+        "recipeVersion",
+        "deployedComponents",
+        "componentCount"
+      ],
+      "inputProperties": {
+        "accelerator": {
+          "type": "string",
+          "plain": true
+        },
+        "componentOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/types/nvidia-aicr:index:ComponentOverride"
+          }
+        },
+        "context": {
+          "type": "string",
+          "plain": true
+        },
+        "intent": {
+          "type": "string",
+          "plain": true
+        },
+        "kubeconfig": {
+          "type": "string"
+        },
+        "kubeconfigPath": {
+          "type": "string",
+          "plain": true
+        },
+        "os": {
+          "type": "string",
+          "plain": true
+        },
+        "platform": {
+          "type": "string",
+          "plain": true
+        },
+        "service": {
+          "type": "string",
+          "plain": true
+        },
+        "skipAwait": {
+          "type": "boolean",
+          "plain": true
+        },
+        "skipComponents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "plain": true
+          }
+        }
+      },
+      "requiredInputs": [
+        "accelerator",
+        "service",
+        "intent"
+      ],
+      "isComponent": true
+    }
+  }
+}

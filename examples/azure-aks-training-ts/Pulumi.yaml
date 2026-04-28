@@ -1,0 +1,12 @@
+name: azure-aks-h100-training
+runtime: nodejs
+description: |
+  Deploy an NVIDIA AICR-validated GPU training stack on Azure AKS.
+  Creates an AKS cluster with H100 GPU nodes and deploys the full
+  Kubeflow training stack via AICR recipes.
+
+  COST WARNING: Standard_ND96isr_H100_v5 VMs cost ~$40/hr each.
+  This example provisions 2 nodes (~$80/hr). Destroy when done!
+config:
+  azure-native:location:
+    default: eastus

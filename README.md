@@ -17,6 +17,25 @@ AICR into the Infrastructure as Code ecosystem, enabling:
 
 ## Quick Start
 
+### Python
+
+```python
+import pulumi
+import pulumi_nvidia_aicr as aicr
+
+# Deploy the NVIDIA AICR-validated GPU software stack.
+# Uses your ambient kubeconfig (~/.kube/config or KUBECONFIG).
+gpu_stack = aicr.ClusterStack("nvidia-aicr",
+    accelerator="h100",
+    service="eks",
+    intent="training",
+    platform="kubeflow",
+)
+
+pulumi.export("recipe_name", gpu_stack.recipe_name)
+pulumi.export("components", gpu_stack.deployed_components)
+```
+
 ### TypeScript
 
 ```typescript
@@ -29,8 +48,7 @@ const cluster = new eks.Cluster("gpu-cluster", {
     desiredCapacity: 2,
 });
 
-// Deploy the AICR-validated GPU training stack
-// Installs ~11 Helm charts: GPU Operator, Kubeflow Trainer,
+// Deploy ~11 validated Helm charts: GPU Operator, Kubeflow Trainer,
 // KAI Scheduler, Prometheus, cert-manager, and more.
 const gpuStack = new aicr.ClusterStack("nvidia-aicr", {
     kubeconfig: cluster.kubeconfigJson,
@@ -42,167 +60,6 @@ const gpuStack = new aicr.ClusterStack("nvidia-aicr", {
 
 export const recipeName = gpuStack.recipeName;
 export const components = gpuStack.deployedComponents;
-```
-
-### Python
-
-```python
-import pulumi
-import pulumi_eks as eks
-import pulumi_nvidia_aicr as aicr
-
-# Create an EKS cluster with H100 GPU nodes
-cluster = eks.Cluster("gpu-cluster",
-    instance_type="p5.48xlarge",
-    desired_capacity=2,
-)
-
-# Deploy the AICR-validated GPU training stack
-# Installs ~11 Helm charts: GPU Operator, Kubeflow Trainer,
-# KAI Scheduler, Prometheus, cert-manager, and more.
-gpu_stack = aicr.ClusterStack("nvidia-aicr",
-    kubeconfig=cluster.kubeconfig_json,
-    accelerator="h100",
-    service="eks",
-    intent="training",
-    platform="kubeflow",
-)
-
-pulumi.export("recipe_name", gpu_stack.recipe_name)
-pulumi.export("components", gpu_stack.deployed_components)
-```
-
-### Go
-
-```go
-package main
-
-import (
-    "github.com/pulumi/pulumi-eks/sdk/v3/go/eks"
-    aicr "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
-    "github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-)
-
-func main() {
-    pulumi.Run(func(ctx *pulumi.Context) error {
-        // Create an EKS cluster with H100 GPU nodes
-        cluster, err := eks.NewCluster(ctx, "gpu-cluster", &eks.ClusterArgs{
-            InstanceType:    pulumi.String("p5.48xlarge"),
-            DesiredCapacity: pulumi.Int(2),
-        })
-        if err != nil {
-            return err
-        }
-
-        // Deploy the AICR-validated GPU training stack
-        // Installs ~11 Helm charts: GPU Operator, Kubeflow Trainer,
-        // KAI Scheduler, Prometheus, cert-manager, and more.
-        gpuStack, err := aicr.NewClusterStack(ctx, "nvidia-aicr", &aicr.ClusterStackArgs{
-            Kubeconfig:  cluster.KubeconfigJson,
-            Accelerator: "h100",
-            Service:     "eks",
-            Intent:      "training",
-            Platform:    pulumi.StringPtr("kubeflow"),
-        })
-        if err != nil {
-            return err
-        }
-
-        ctx.Export("recipeName", gpuStack.RecipeName)
-        ctx.Export("components", gpuStack.DeployedComponents)
-        return nil
-    })
-}
-```
-
-### C#
-
-```csharp
-using Pulumi;
-using Pulumi.Eks;
-using Pulumi.NvidiaAicr;
-
-return await Deployment.RunAsync(() =>
-{
-    // Create an EKS cluster with H100 GPU nodes
-    var cluster = new Cluster("gpu-cluster", new ClusterArgs
-    {
-        InstanceType = "p5.48xlarge",
-        DesiredCapacity = 2,
-    });
-
-    // Deploy the AICR-validated GPU training stack
-    // Installs ~11 Helm charts: GPU Operator, Kubeflow Trainer,
-    // KAI Scheduler, Prometheus, cert-manager, and more.
-    var gpuStack = new ClusterStack("nvidia-aicr", new ClusterStackArgs
-    {
-        Kubeconfig = cluster.KubeconfigJson,
-        Accelerator = "h100",
-        Service = "eks",
-        Intent = "training",
-        Platform = "kubeflow",
-    });
-
-    return new Dictionary<string, object?>
-    {
-        ["recipeName"] = gpuStack.RecipeName,
-        ["components"] = gpuStack.DeployedComponents,
-    };
-});
-```
-
-### Java
-
-```java
-import com.pulumi.Pulumi;
-import com.pulumi.eks.Cluster;
-import com.pulumi.eks.ClusterArgs;
-import com.pulumi.nvidiaaicr.ClusterStack;
-import com.pulumi.nvidiaaicr.ClusterStackArgs;
-
-public class App {
-    public static void main(String[] args) {
-        Pulumi.run(ctx -> {
-            // Create an EKS cluster with H100 GPU nodes
-            var cluster = new Cluster("gpu-cluster", ClusterArgs.builder()
-                .instanceType("p5.48xlarge")
-                .desiredCapacity(2)
-                .build());
-
-            // Deploy the AICR-validated GPU training stack
-            // Installs ~11 Helm charts: GPU Operator, Kubeflow Trainer,
-            // KAI Scheduler, Prometheus, cert-manager, and more.
-            var gpuStack = new ClusterStack("nvidia-aicr", ClusterStackArgs.builder()
-                .kubeconfig(cluster.kubeconfigJson())
-                .accelerator("h100")
-                .service("eks")
-                .intent("training")
-                .platform("kubeflow")
-                .build());
-
-            ctx.export("recipeName", gpuStack.recipeName());
-            ctx.export("components", gpuStack.deployedComponents());
-        });
-    }
-}
-```
-
-### YAML
-
-```yaml
-resources:
-  gpu-stack:
-    type: nvidia-aicr:index:ClusterStack
-    properties:
-      kubeconfig: ${cluster.kubeconfigJson}
-      accelerator: h100
-      service: eks
-      intent: training
-      platform: kubeflow
-
-outputs:
-  recipeName: ${gpu-stack.recipeName}
-  components: ${gpu-stack.deployedComponents}
 ```
 
 ## Resource: ClusterStack
@@ -421,15 +278,32 @@ var stack = new ClusterStack("aicr", new ClusterStackArgs
 
 ## Examples
 
-See [examples/README.md](./examples/README.md) for a full guide. Quick
-reference:
+Full working examples for every supported cloud and scenario. See
+[examples/](./examples/) for prerequisites, cost estimates, and detailed
+instructions.
+
+**Training — PyTorch distributed training with Kubeflow Trainer:**
+
+| Cloud | TypeScript | Python | Go | C# | Java |
+|---|---|---|---|---|---|
+| AWS EKS (H100) | [ts](./examples/aws-eks-training-ts/) | [py](./examples/aws-eks-training-py/) | [go](./examples/aws-eks-training-go/) | [cs](./examples/aws-eks-training-cs/) | [java](./examples/aws-eks-training-java/) |
+| Azure AKS (H100) | [ts](./examples/azure-aks-training-ts/) | [py](./examples/azure-aks-training-py/) | [go](./examples/azure-aks-training-go/) | [cs](./examples/azure-aks-training-cs/) | [java](./examples/azure-aks-training-java/) |
+| GCP GKE (H100) | [ts](./examples/gcp-gke-training-ts/) | [py](./examples/gcp-gke-training-py/) | [go](./examples/gcp-gke-training-go/) | [cs](./examples/gcp-gke-training-cs/) | [java](./examples/gcp-gke-training-java/) |
+| OCI OKE (GB200) | [ts](./examples/oci-oke-training-ts/) | [py](./examples/oci-oke-training-py/) | [go](./examples/oci-oke-training-go/) | [cs](./examples/oci-oke-training-cs/) | [java](./examples/oci-oke-training-java/) |
+
+**Inference — vLLM model serving with NIM / Dynamo:**
+
+| Cloud | TypeScript | Python | Go | C# | Java |
+|---|---|---|---|---|---|
+| AWS EKS + NIM (H100) | [ts](./examples/aws-eks-inference-ts/) | [py](./examples/aws-eks-inference-py/) | [go](./examples/aws-eks-inference-go/) | [cs](./examples/aws-eks-inference-cs/) | [java](./examples/aws-eks-inference-java/) |
+| CoreWeave + Dynamo (H100) | [ts](./examples/coreweave-inference-ts/) | [py](./examples/coreweave-inference-py/) | [go](./examples/coreweave-inference-go/) | [cs](./examples/coreweave-inference-cs/) | [java](./examples/coreweave-inference-java/) |
+
+**Getting started:**
 
 | Scenario | TypeScript | Python | Go | C# | Java | YAML |
 |---|---|---|---|---|---|---|
-| Existing cluster (quickstart) | [-ts](./examples/existing-cluster-ts/) | [-py](./examples/existing-cluster-py/) | [-go](./examples/existing-cluster-go/) | [-cs](./examples/existing-cluster-cs/) | [-java](./examples/existing-cluster-java/) | [-yaml](./examples/existing-cluster-yaml/) |
-| AWS EKS training | [-ts](./examples/aws-eks-training-ts/) | [-py](./examples/aws-eks-training-py/) | [-go](./examples/aws-eks-training-go/) | [-cs](./examples/aws-eks-training-cs/) | [-java](./examples/aws-eks-training-java/) | -- |
-| CoreWeave inference | [-ts](./examples/coreweave-inference-ts/) | [-py](./examples/coreweave-inference-py/) | [-go](./examples/coreweave-inference-go/) | [-cs](./examples/coreweave-inference-cs/) | [-java](./examples/coreweave-inference-java/) | -- |
-| Local kind dev | [-ts](./examples/kind-local-dev-ts/) | -- | -- | -- | -- | -- |
+| Existing cluster (quickstart) | [ts](./examples/existing-cluster-ts/) | [py](./examples/existing-cluster-py/) | [go](./examples/existing-cluster-go/) | [cs](./examples/existing-cluster-cs/) | [java](./examples/existing-cluster-java/) | [yaml](./examples/existing-cluster-yaml/) |
+| Kind local dev (no GPUs) | [ts](./examples/kind-local-dev-ts/) | [py](./examples/kind-local-dev-py/) | [go](./examples/kind-local-dev-go/) | [cs](./examples/kind-local-dev-cs/) | [java](./examples/kind-local-dev-java/) | [yaml](./examples/kind-local-dev-yaml/) |
 
 ## Supported Configurations
 

@@ -1,0 +1,28 @@
+name: aicr-kind-local
+runtime: yaml
+description: |
+  Exercise the NVIDIA AICR deployment pipeline against a local kind cluster.
+  No real GPU hardware required. Useful for iterating on the deployment
+  graph without provisioning a full cloud environment.
+
+config:
+  intent:
+    type: string
+    default: inference
+
+resources:
+  kind-aicr:
+    type: nvidia-aicr:index:ClusterStack
+    properties:
+      accelerator: h100
+      service: kind
+      intent: ${intent}
+      skipAwait: true # kind clusters often can't satisfy GPU readiness; don't block
+      skipComponents:
+        - kube-prometheus-stack
+
+outputs:
+  recipeName: ${kind-aicr.recipeName}
+  recipeVersion: ${kind-aicr.recipeVersion}
+  deployedComponents: ${kind-aicr.deployedComponents}
+  componentCount: ${kind-aicr.componentCount}

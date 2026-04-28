@@ -1,0 +1,12 @@
+name: gcp-gke-h100-training
+runtime: dotnet
+description: |
+  Deploy an NVIDIA AICR-validated GPU training stack on GCP GKE.
+  Creates a GKE cluster with H100 GPU nodes and deploys the full
+  Kubeflow training stack via AICR recipes.
+
+  COST WARNING: a3-highgpu-8g instances cost ~$30/hr each.
+  This example provisions 2 nodes (~$60/hr). Destroy when done!
+config:
+  gcp:zone:
+    default: us-central1-a

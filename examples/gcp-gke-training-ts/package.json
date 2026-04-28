@@ -1,0 +1,12 @@
+{
+    "name": "gcp-gke-training-ts",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^22"
+    },
+    "dependencies": {
+        "@pulumi/pulumi": "^3.142.0",
+        "@pulumi/gcp": "^8.0.0",
+        "@pulumi/nvidia-aicr": "^0.0.1"
+    }
+}

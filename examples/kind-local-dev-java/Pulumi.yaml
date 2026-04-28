@@ -1,0 +1,10 @@
+name: aicr-kind-local
+runtime: java
+description: |
+  Exercise the NVIDIA AICR deployment pipeline against a local kind cluster.
+  No real GPU hardware required. Useful for iterating on the deployment
+  graph without provisioning a full cloud environment.
+config:
+  intent:
+    description: Workload intent (training, inference)
+    default: inference

@@ -1,0 +1,11 @@
+name: oci-oke-gb200-training
+runtime: go
+description: |
+  Deploy an NVIDIA AICR-validated GPU training stack on Oracle Cloud OKE
+  with NVIDIA GB200 (Grace Blackwell) bare-metal GPU nodes.
+
+  This is the only example using GB200 accelerators -- the newest and most
+  powerful NVIDIA data-center GPU architecture.
+
+  COST WARNING: BM.GPU.GB200.4 bare-metal instances are premium-priced.
+  Contact OCI sales for current pricing. Destroy when done!

@@ -99,7 +99,9 @@ build_nodejs_sdk:
 
 build_python_sdk:
 	@if command -v python3 >/dev/null 2>&1 && [ -d sdk/python ]; then \
-		cd sdk/python && python3 -m build --sdist --wheel --outdir dist/; \
+		python3 -m venv $(BIN_DIR)/python-sdk-venv && \
+		$(BIN_DIR)/python-sdk-venv/bin/python -m pip install --quiet --upgrade pip build && \
+		cd sdk/python && $(CURDIR)/$(BIN_DIR)/python-sdk-venv/bin/python -m build --sdist --wheel --outdir dist/; \
 	else \
 		echo "skipping python SDK build (python3 not installed or sdk/python missing)"; \
 	fi

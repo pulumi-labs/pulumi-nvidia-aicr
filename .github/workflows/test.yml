@@ -33,34 +33,42 @@ jobs:
 
   build-sdks:
     needs: test
+    name: build-sdks (${{ matrix.language }})
     runs-on: ubuntu-latest
+    strategy:
+      # Each language SDK builds in its own parallel job. fail-fast: false
+      # so one language's failure does not cancel the others.
+      fail-fast: false
+      matrix:
+        language: [nodejs, python, go, dotnet, java]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
           cache-dependency-path: provider/go.sum
-      - uses: actions/setup-node@v4
+      - uses: pulumi/actions@v6
+      - if: matrix.language == 'nodejs'
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - uses: actions/setup-python@v5
+      - if: matrix.language == 'python'
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - uses: actions/setup-dotnet@v4
+      - if: matrix.language == 'dotnet'
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - uses: actions/setup-java@v4
+      - if: matrix.language == 'java'
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
-      - uses: pulumi/actions@v6
-      - name: Generate all SDKs
-        run: make sdks
-      - name: Build Node.js SDK
-        run: make build_nodejs_sdk
-      - name: Build Python SDK
-        run: make build_python_sdk
-      - name: Build .NET SDK
-        run: make build_dotnet_sdk
-      - name: Build Java SDK
-        run: make build_java_sdk
+      - name: Generate ${{ matrix.language }} SDK
+        run: make ${{ matrix.language }}_sdk sdk_fixups
+      # Go has no separate build step: `make go_sdk` already runs
+      # `go mod tidy`, which validates the generated module compiles.
+      - if: matrix.language != 'go'
+        name: Build ${{ matrix.language }} SDK
+        run: make build_${{ matrix.language }}_sdk

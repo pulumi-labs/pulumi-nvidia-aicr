@@ -72,6 +72,10 @@ sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdk_fixups
 #     sets no release target. Gradle 9.x needs JVM 17+ to run and the CI
 #     runner provides a single JDK, so compile on JDK 17 but emit Java 11
 #     bytecode via `--release 11`, leaving SDK consumers on Java 11.
+#   - Node.js: the generated package.json has no main/types/files and there
+#     is no .npmignore, so npm falls back to .gitignore (which excludes
+#     bin/) and `npm publish` would ship uncompiled .ts with no entry
+#     point. Add main/types and a files allowlist pointing at bin/.
 sdk_fixups:
 	@if [ -f sdk/python/pyproject.toml ]; then \
 		python3 -c 'import re,sys,pathlib; \
@@ -102,6 +106,16 @@ p=pathlib.Path("sdk/java/build.gradle"); s=p.read_text(); \
 s=s.replace("JavaLanguageVersion.of(11)", "JavaLanguageVersion.of(17)", 1); \
 s=s.replace("options.encoding = \"UTF-8\"", "options.encoding = \"UTF-8\"\n    options.release = 11", 1); \
 p.write_text(s)'; \
+	fi
+# The generated package.json has no main/types/files; with no .npmignore npm
+# falls back to .gitignore (which excludes bin/), so `npm publish` would ship
+# raw .ts with no entry point. Add main/types and a files allowlist so the
+# compiled bin/ is what gets published and imported.
+	@if [ -f sdk/nodejs/package.json ] && ! grep -q '"main"' sdk/nodejs/package.json; then \
+		python3 -c 'import json,pathlib; \
+p=pathlib.Path("sdk/nodejs/package.json"); d=json.loads(p.read_text()); \
+d["main"]="bin/index.js"; d["types"]="bin/index.d.ts"; d["files"]=["bin/"]; \
+p.write_text(json.dumps(d, indent=4)+"\n")'; \
 	fi
 
 # Compile each SDK to catch generation breaks. These targets are best-effort:

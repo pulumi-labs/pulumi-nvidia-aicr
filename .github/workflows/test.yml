@@ -64,7 +64,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
       - name: Generate ${{ matrix.language }} SDK
         run: make ${{ matrix.language }}_sdk sdk_fixups
       # Go has no separate build step: `make go_sdk` already runs

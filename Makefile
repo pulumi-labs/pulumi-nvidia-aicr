@@ -68,6 +68,10 @@ sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdk_fixups
 #     table that ships an empty PyPI long description and prints a warning).
 #   - .NET: declare PackageReadmeFile and pack README.md so NuGet stops
 #     warning about a missing readme.
+#   - Java: the generator pins the Gradle compile toolchain to Java 11 and
+#     sets no release target. Gradle 9.x needs JVM 17+ to run and the CI
+#     runner provides a single JDK, so compile on JDK 17 but emit Java 11
+#     bytecode via `--release 11`, leaving SDK consumers on Java 11.
 sdk_fixups:
 	@if [ -f sdk/python/pyproject.toml ]; then \
 		python3 -c 'import re,sys,pathlib; \
@@ -86,6 +90,18 @@ p=pathlib.Path("sdk/dotnet/Pulumi.NvidiaAicr.csproj"); s=p.read_text(); \
 needle="<None Include=\"logo.png\">\n      <Pack>True</Pack>\n      <PackagePath></PackagePath>\n    </None>"; \
 addition=needle + "\n    <None Include=\"README.md\">\n      <Pack>True</Pack>\n      <PackagePath></PackagePath>\n    </None>"; \
 p.write_text(s.replace(needle, addition, 1))'; \
+	fi
+# String surgery on the generated (do-not-edit) build.gradle: bump the
+# pinned compile toolchain from Java 11 to 17 (so Gradle, which needs
+# JVM 17+, runs on the single JDK the runner provides) and add
+# `options.release = 11` so the emitted bytecode stays Java 11 for SDK
+# consumers. Guarded so it runs once and only if sdk/java was generated.
+	@if [ -f sdk/java/build.gradle ] && ! grep -q 'options.release = 11' sdk/java/build.gradle; then \
+		python3 -c 'import pathlib; \
+p=pathlib.Path("sdk/java/build.gradle"); s=p.read_text(); \
+s=s.replace("JavaLanguageVersion.of(11)", "JavaLanguageVersion.of(17)", 1); \
+s=s.replace("options.encoding = \"UTF-8\"", "options.encoding = \"UTF-8\"\n    options.release = 11", 1); \
+p.write_text(s)'; \
 	fi
 
 # Compile each SDK to catch generation breaks. These targets are best-effort:

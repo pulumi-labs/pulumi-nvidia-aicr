@@ -26,6 +26,7 @@
     "pulumi": {
         "resource": true,
         "name": "nvidia-aicr",
-        "version": "0.0.1-dev"
+        "version": "0.0.1-dev",
+        "server": "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr"
     }
 }

@@ -16,6 +16,8 @@ jobs:
           go-version: '1.24'
           cache-dependency-path: provider/go.sum
       - uses: pulumi/actions@v6
+        with:
+          pulumi-version: '3.241.0'
       - name: Build provider
         run: make provider
       - name: Generate schema
@@ -48,6 +50,8 @@ jobs:
           go-version: '1.24'
           cache-dependency-path: provider/go.sum
       - uses: pulumi/actions@v6
+        with:
+          pulumi-version: '3.241.0'
       - if: matrix.language == 'nodejs'
         uses: actions/setup-node@v4
         with:

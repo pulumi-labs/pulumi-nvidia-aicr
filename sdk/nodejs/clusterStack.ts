@@ -99,7 +99,7 @@ export interface ClusterStackArgs {
      * (version, namespace, Helm values). Values are deep-merged with the recipe
      * defaults; only the keys you specify are changed.
      */
-    componentOverrides?: pulumi.Input<{[key: string]: pulumi.Input<inputs.ComponentOverrideArgs>}>;
+    componentOverrides?: pulumi.Input<{[key: string]: pulumi.Input<inputs.ComponentOverrideArgs>} | undefined>;
     /**
      * Kubeconfig context to select. Defaults to the current-context in the kubeconfig.
      */
@@ -119,7 +119,7 @@ export interface ClusterStackArgs {
      * If neither `kubeconfig` nor `kubeconfigPath` is set, the ambient kubeconfig
      * (KUBECONFIG env var or ~/.kube/config) is used.
      */
-    kubeconfig?: pulumi.Input<string>;
+    kubeconfig?: pulumi.Input<string | undefined>;
     /**
      * Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
      * Prefer `kubeconfig` when chaining off a cluster resource's output.
@@ -135,7 +135,12 @@ export interface ClusterStackArgs {
      * ML platform/framework to layer on top of the base recipe.
      *
      * Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
-     * Leave unset for a base recipe with no platform components.
+     *
+     * Leave unset for the base recipe without a platform-specific runtime. Note
+     * that intent="inference" always includes the kgateway inference gateway
+     * (part of the base inference stack); choosing a platform layers a runtime
+     * ("dynamo", "nim") on top. intent="training" leaves training-runtime
+     * components out entirely when platform is unset.
      */
     platform?: string;
     /**
@@ -155,5 +160,5 @@ export interface ClusterStackArgs {
      * own installation of a component (e.g., bring-your-own cert-manager) or for
      * deploying onto bare-metal where cloud-specific operators are not relevant.
      */
-    skipComponents?: pulumi.Input<string[]>;
+    skipComponents?: pulumi.Input<string[] | undefined>;
 }

@@ -15,6 +15,7 @@
   "license": "Apache-2.0",
   "repository": "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
   "logoUrl": "https://raw.githubusercontent.com/pulumi-labs/pulumi-nvidia-aicr/main/sdk/dotnet/logo.png",
+  "pluginDownloadURL": "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr",
   "publisher": "Pulumi",
   "language": {
     "csharp": {

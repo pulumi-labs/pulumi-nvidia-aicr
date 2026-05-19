@@ -160,7 +160,12 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
      * ML platform/framework to layer on top of the base recipe.
      * 
      * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
-     * Leave unset for a base recipe with no platform components.
+     * 
+     * Leave unset for the base recipe without a platform-specific runtime. Note
+     * that intent=&#34;inference&#34; always includes the kgateway inference gateway
+     * (part of the base inference stack); choosing a platform layers a runtime
+     * (&#34;dynamo&#34;, &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime
+     * components out entirely when platform is unset.
      * 
      */
     @Import(name="platform")
@@ -170,7 +175,12 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
      * @return ML platform/framework to layer on top of the base recipe.
      * 
      * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
-     * Leave unset for a base recipe with no platform components.
+     * 
+     * Leave unset for the base recipe without a platform-specific runtime. Note
+     * that intent=&#34;inference&#34; always includes the kgateway inference gateway
+     * (part of the base inference stack); choosing a platform layers a runtime
+     * (&#34;dynamo&#34;, &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime
+     * components out entirely when platform is unset.
      * 
      */
     public Optional<String> platform() {
@@ -391,7 +401,12 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
          * @param platform ML platform/framework to layer on top of the base recipe.
          * 
          * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
-         * Leave unset for a base recipe with no platform components.
+         * 
+         * Leave unset for the base recipe without a platform-specific runtime. Note
+         * that intent=&#34;inference&#34; always includes the kgateway inference gateway
+         * (part of the base inference stack); choosing a platform layers a runtime
+         * (&#34;dynamo&#34;, &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime
+         * components out entirely when platform is unset.
          * 
          * @return builder
          * 

@@ -24,7 +24,7 @@ def publishRepoPassword = System.getenv("PUBLISH_REPO_PASSWORD")
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
@@ -32,6 +32,7 @@ compileJava {
     options.fork = true
     options.forkOptions.jvmArgs.addAll(["-Xmx16g"])
     options.encoding = "UTF-8"
+    options.release = 11
 }
 
 repositories {
@@ -70,6 +71,7 @@ def genPulumiResources = tasks.register('genPulumiResources') {
         builder {
             resource true
             name "nvidia-aicr"
+            server "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr"
             version resolvedVersion
         }
         def infoJson = builder.toPrettyString()

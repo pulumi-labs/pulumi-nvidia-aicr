@@ -13,13 +13,13 @@ export interface ComponentOverrideArgs {
     /**
      * Override the target Kubernetes namespace.
      */
-    namespace?: pulumi.Input<string>;
+    namespace?: pulumi.Input<string | undefined>;
     /**
      * Additional or override Helm values, deep-merged with the recipe defaults.
      */
-    values?: pulumi.Input<{[key: string]: any}>;
+    values?: pulumi.Input<{[key: string]: any} | undefined>;
     /**
      * Override the Helm chart version. If unset, the recipe-pinned version is used.
      */
-    version?: pulumi.Input<string>;
+    version?: pulumi.Input<string | undefined>;
 }

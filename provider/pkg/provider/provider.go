@@ -11,14 +11,15 @@ import (
 func NewProvider() p.Provider {
 	return infer.Provider(infer.Options{
 		Metadata: schema.Metadata{
-			DisplayName: "NVIDIA AI Cluster Runtime",
-			Description: "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
-			Keywords:    []string{"pulumi", "nvidia", "aicr", "gpu", "kubernetes", "category/cloud"},
-			Homepage:    "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
-			Repository:  "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
-			Publisher:   "Pulumi",
-			LogoURL:     "https://raw.githubusercontent.com/pulumi-labs/pulumi-nvidia-aicr/main/sdk/dotnet/logo.png",
-			License:     "Apache-2.0",
+			DisplayName:       "NVIDIA AI Cluster Runtime",
+			Description:       "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
+			Keywords:          []string{"pulumi", "nvidia", "aicr", "gpu", "kubernetes", "category/cloud"},
+			Homepage:          "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
+			Repository:        "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
+			Publisher:         "Pulumi",
+			PluginDownloadURL: "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr",
+			LogoURL:           "https://raw.githubusercontent.com/pulumi-labs/pulumi-nvidia-aicr/main/sdk/dotnet/logo.png",
+			License:           "Apache-2.0",
 			LanguageMap: map[string]any{
 				"go": map[string]any{
 					"importBasePath":                 "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr",

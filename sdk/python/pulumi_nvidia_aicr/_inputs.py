@@ -24,15 +24,15 @@ class ComponentOverrideArgsDict(TypedDict):
     Per-component override settings. Each field is optional; only the fields
     you set are applied on top of the recipe defaults.
     """
-    namespace: NotRequired[pulumi.Input[_builtins.str]]
+    namespace: NotRequired[pulumi.Input[Optional[_builtins.str]]]
     """
     Override the target Kubernetes namespace.
     """
-    values: NotRequired[pulumi.Input[Mapping[str, Any]]]
+    values: NotRequired[pulumi.Input[Optional[Mapping[str, Any]]]]
     """
     Additional or override Helm values, deep-merged with the recipe defaults.
     """
-    version: NotRequired[pulumi.Input[_builtins.str]]
+    version: NotRequired[pulumi.Input[Optional[_builtins.str]]]
     """
     Override the Helm chart version. If unset, the recipe-pinned version is used.
     """
@@ -40,9 +40,9 @@ class ComponentOverrideArgsDict(TypedDict):
 @pulumi.input_type
 class ComponentOverrideArgs:
     def __init__(__self__, *,
-                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
-                 values: Optional[pulumi.Input[Mapping[str, Any]]] = None,
-                 version: Optional[pulumi.Input[_builtins.str]] = None):
+                 namespace: pulumi.Input[Optional[_builtins.str]] = None,
+                 values: pulumi.Input[Optional[Mapping[str, Any]]] = None,
+                 version: pulumi.Input[Optional[_builtins.str]] = None):
         """
         Per-component override settings. Each field is optional; only the fields
         you set are applied on top of the recipe defaults.
@@ -60,38 +60,38 @@ class ComponentOverrideArgs:
 
     @_builtins.property
     @pulumi.getter
-    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+    def namespace(self) -> pulumi.Input[Optional[_builtins.str]]:
         """
         Override the target Kubernetes namespace.
         """
         return pulumi.get(self, "namespace")
 
     @namespace.setter
-    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+    def namespace(self, value: pulumi.Input[Optional[_builtins.str]]):
         pulumi.set(self, "namespace", value)
 
     @_builtins.property
     @pulumi.getter
-    def values(self) -> Optional[pulumi.Input[Mapping[str, Any]]]:
+    def values(self) -> pulumi.Input[Optional[Mapping[str, Any]]]:
         """
         Additional or override Helm values, deep-merged with the recipe defaults.
         """
         return pulumi.get(self, "values")
 
     @values.setter
-    def values(self, value: Optional[pulumi.Input[Mapping[str, Any]]]):
+    def values(self, value: pulumi.Input[Optional[Mapping[str, Any]]]):
         pulumi.set(self, "values", value)
 
     @_builtins.property
     @pulumi.getter
-    def version(self) -> Optional[pulumi.Input[_builtins.str]]:
+    def version(self) -> pulumi.Input[Optional[_builtins.str]]:
         """
         Override the Helm chart version. If unset, the recipe-pinned version is used.
         """
         return pulumi.get(self, "version")
 
     @version.setter
-    def version(self, value: Optional[pulumi.Input[_builtins.str]]):
+    def version(self, value: pulumi.Input[Optional[_builtins.str]]):
         pulumi.set(self, "version", value)
 
 

@@ -23,14 +23,14 @@ class ClusterStackArgs:
                  accelerator: _builtins.str,
                  intent: _builtins.str,
                  service: _builtins.str,
-                 component_overrides: Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]] = None,
+                 component_overrides: pulumi.Input[Optional[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]] = None,
                  context: Optional[_builtins.str] = None,
-                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
+                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
-                 skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None):
+                 skip_components: pulumi.Input[Optional[Sequence[_builtins.str]]] = None):
         """
         The set of arguments for constructing a ClusterStack resource.
 
@@ -63,7 +63,12 @@ class ClusterStackArgs:
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
                Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
-               Leave unset for a base recipe with no platform components.
+               
+               Leave unset for the base recipe without a platform-specific runtime. Note
+               that intent="inference" always includes the kgateway inference gateway
+               (part of the base inference stack); choosing a platform layers a runtime
+               ("dynamo", "nim") on top. intent="training" leaves training-runtime
+               components out entirely when platform is unset.
         :param _builtins.bool skip_await: If true, do not wait for each Helm release to become ready before continuing.
                Faster previews/updates at the cost of losing readiness signal. Default: false.
         :param pulumi.Input[Sequence[_builtins.str]] skip_components: Component names to exclude from the deployment. Useful for swapping in your
@@ -140,7 +145,7 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter(name="componentOverrides")
-    def component_overrides(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]:
+    def component_overrides(self) -> pulumi.Input[Optional[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]:
         """
         Per-component overrides. Map of AICR component name to override settings
         (version, namespace, Helm values). Values are deep-merged with the recipe
@@ -149,7 +154,7 @@ class ClusterStackArgs:
         return pulumi.get(self, "component_overrides")
 
     @component_overrides.setter
-    def component_overrides(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]):
+    def component_overrides(self, value: pulumi.Input[Optional[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]):
         pulumi.set(self, "component_overrides", value)
 
     @_builtins.property
@@ -166,7 +171,7 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter
-    def kubeconfig(self) -> Optional[pulumi.Input[_builtins.str]]:
+    def kubeconfig(self) -> pulumi.Input[Optional[_builtins.str]]:
         """
         Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
         Accepts computed outputs from cluster resources (e.g., an EKS cluster's
@@ -178,7 +183,7 @@ class ClusterStackArgs:
         return pulumi.get(self, "kubeconfig")
 
     @kubeconfig.setter
-    def kubeconfig(self, value: Optional[pulumi.Input[_builtins.str]]):
+    def kubeconfig(self, value: pulumi.Input[Optional[_builtins.str]]):
         pulumi.set(self, "kubeconfig", value)
 
     @_builtins.property
@@ -215,7 +220,12 @@ class ClusterStackArgs:
         ML platform/framework to layer on top of the base recipe.
 
         Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
-        Leave unset for a base recipe with no platform components.
+
+        Leave unset for the base recipe without a platform-specific runtime. Note
+        that intent="inference" always includes the kgateway inference gateway
+        (part of the base inference stack); choosing a platform layers a runtime
+        ("dynamo", "nim") on top. intent="training" leaves training-runtime
+        components out entirely when platform is unset.
         """
         return pulumi.get(self, "platform")
 
@@ -238,7 +248,7 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter(name="skipComponents")
-    def skip_components(self) -> Optional[pulumi.Input[Sequence[_builtins.str]]]:
+    def skip_components(self) -> pulumi.Input[Optional[Sequence[_builtins.str]]]:
         """
         Component names to exclude from the deployment. Useful for swapping in your
         own installation of a component (e.g., bring-your-own cert-manager) or for
@@ -247,7 +257,7 @@ class ClusterStackArgs:
         return pulumi.get(self, "skip_components")
 
     @skip_components.setter
-    def skip_components(self, value: Optional[pulumi.Input[Sequence[_builtins.str]]]):
+    def skip_components(self, value: pulumi.Input[Optional[Sequence[_builtins.str]]]):
         pulumi.set(self, "skip_components", value)
 
 
@@ -258,16 +268,16 @@ class ClusterStack(pulumi.ComponentResource):
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  accelerator: Optional[_builtins.str] = None,
-                 component_overrides: Optional[pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
+                 component_overrides: pulumi.Input[Optional[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
                  context: Optional[_builtins.str] = None,
                  intent: Optional[_builtins.str] = None,
-                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
+                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  service: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
-                 skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None,
+                 skip_components: pulumi.Input[Optional[Sequence[_builtins.str]]] = None,
                  __props__=None):
         """
         Create a ClusterStack resource with the given unique name, props, and options.
@@ -299,7 +309,12 @@ class ClusterStack(pulumi.ComponentResource):
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
                Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
-               Leave unset for a base recipe with no platform components.
+               
+               Leave unset for the base recipe without a platform-specific runtime. Note
+               that intent="inference" always includes the kgateway inference gateway
+               (part of the base inference stack); choosing a platform layers a runtime
+               ("dynamo", "nim") on top. intent="training" leaves training-runtime
+               components out entirely when platform is unset.
         :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
                
                Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
@@ -335,16 +350,16 @@ class ClusterStack(pulumi.ComponentResource):
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  accelerator: Optional[_builtins.str] = None,
-                 component_overrides: Optional[pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
+                 component_overrides: pulumi.Input[Optional[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
                  context: Optional[_builtins.str] = None,
                  intent: Optional[_builtins.str] = None,
-                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
+                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  service: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
-                 skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None,
+                 skip_components: pulumi.Input[Optional[Sequence[_builtins.str]]] = None,
                  __props__=None):
         opts = pulumi.ResourceOptions.merge(_utilities.get_resource_opts_defaults(), opts)
         if not isinstance(opts, pulumi.ResourceOptions):

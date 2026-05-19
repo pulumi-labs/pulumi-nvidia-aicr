@@ -54,6 +54,7 @@ namespace Pulumi.NvidiaAicr
             var defaultOptions = new ComponentResourceOptions
             {
                 Version = Utilities.Version,
+                PluginDownloadURL = "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr",
             };
             var merged = ComponentResourceOptions.Merge(defaultOptions, options);
             // Override the ID if one was specified for consistency with other language SDKs.
@@ -131,7 +132,12 @@ namespace Pulumi.NvidiaAicr
         /// ML platform/framework to layer on top of the base recipe.
         /// 
         /// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
-        /// Leave unset for a base recipe with no platform components.
+        /// 
+        /// Leave unset for the base recipe without a platform-specific runtime. Note
+        /// that intent="inference" always includes the kgateway inference gateway
+        /// (part of the base inference stack); choosing a platform layers a runtime
+        /// ("dynamo", "nim") on top. intent="training" leaves training-runtime
+        /// components out entirely when platform is unset.
         /// </summary>
         [Input("platform")]
         public string? Platform { get; set; }

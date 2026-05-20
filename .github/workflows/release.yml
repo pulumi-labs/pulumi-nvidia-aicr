@@ -112,23 +112,20 @@ jobs:
     name: publish to npm
     needs: generate-sdks
     runs-on: ubuntu-latest
+    environment: publish-npm
     permissions:
       id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - id: esc-secrets
-        uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
-        env:
-          ESC_ACTION_ENVIRONMENT: github-secrets/${{ github.repository_owner }}-${{ github.event.repository.name }}
-          ESC_ACTION_EXPORT_ENVIRONMENT_VARIABLES: "false"
-          ESC_ACTION_OIDC_AUTH: "true"
-          ESC_ACTION_OIDC_ORGANIZATION: pulumi
-          ESC_ACTION_OIDC_REQUESTED_TOKEN_TYPE: urn:pulumi:token-type:access_token:organization
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Trusted publishing requires Node >= 22.14 and npm >= 11.5.1.
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+      - name: Ensure npm meets the trusted-publishing floor
+        # Node 22 ships with npm 10; bump to the documented minimum.
+        run: npm install -g npm@11.5.1
       - uses: actions/download-artifact@v4
         with:
           name: sdks
@@ -137,8 +134,6 @@ jobs:
         run: cd sdk/nodejs && npm install && npm run build
       - name: Publish
         run: cd sdk/nodejs && npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ steps.esc-secrets.outputs.NPM_TOKEN }}
 
   publish-python:
     name: publish to PyPI

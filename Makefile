@@ -84,6 +84,9 @@ s=re.sub(r"^( *)readme = \"README\.md\"", "\\1readme = \"pulumi_labs_nvidia_aicr
 s=re.sub(r"\n  \[project\.license\]\n    text = \"Apache-2\.0\"", "\n  license = \"Apache-2.0\"", s); \
 p.write_text(s)'; \
 	fi
+	@if [ -d sdk/dotnet ] && [ -f README.md ] && [ ! -f sdk/dotnet/README.md ]; then \
+		cp README.md sdk/dotnet/README.md; \
+	fi
 	@if [ -f sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj ] && ! grep -q PackageReadmeFile sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj; then \
 		sed -i.bak -E 's|(<PackageIcon>logo.png</PackageIcon>)|\1\n    <PackageReadmeFile>README.md</PackageReadmeFile>|' sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj && \
 		rm -f sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj.bak; \

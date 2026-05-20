@@ -1,5 +1,5 @@
 {
-    "name": "@pulumi/nvidia-aicr",
+    "name": "@pulumi-labs/nvidia-aicr",
     "version": "0.0.1-dev",
     "description": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
     "keywords": [
@@ -28,5 +28,10 @@
         "name": "nvidia-aicr",
         "version": "0.0.1-dev",
         "server": "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr"
-    }
+    },
+    "main": "bin/index.js",
+    "types": "bin/index.d.ts",
+    "files": [
+        "bin/"
+    ]
 }

@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Authors>Pulumi</Authors>
-    <Company>Pulumi</Company>
+    <Authors>Pulumi Labs</Authors>
+    <Company>Pulumi Labs</Company>
     <Description>Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/pulumi-labs/pulumi-nvidia-aicr</PackageProjectUrl>

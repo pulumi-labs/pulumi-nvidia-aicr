@@ -8,7 +8,7 @@ plugins {
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
 
-group = "com.pulumi"
+group = "com.pulumi.labs"
 
 def resolvedVersion = System.getenv("PACKAGE_VERSION") ?:
     (project.version == "unspecified"
@@ -86,7 +86,7 @@ jar.configure {
 publishing {
     publications {
         mainPublication(MavenPublication) {
-            groupId = "com.pulumi"
+            groupId = "com.pulumi.labs"
             artifactId = "nvidia-aicr"
             version = resolvedVersion
             from components.java
@@ -94,8 +94,8 @@ publishing {
             artifact javadocJar
 
             pom {
-                inceptionYear = "2022"
-                name = "pulumi-nvidia-aicr"
+                inceptionYear = ""
+                name = ""
                 packaging = "jar"
                 description = "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters."
 
@@ -116,9 +116,9 @@ publishing {
 
                 developers {
                     developer {
-                        id = "pulumi"
-                        name = "Pulumi"
-                        email = "support@pulumi.com"
+                        id = ""
+                        name = ""
+                        email = ""
                     }
                 }
             }

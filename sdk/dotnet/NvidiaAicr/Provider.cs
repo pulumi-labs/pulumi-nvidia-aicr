@@ -6,8 +6,9 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Pulumi.Serialization;
+using Pulumi;
 
-namespace Pulumi.NvidiaAicr
+namespace Pulumi.Labs.NvidiaAicr
 {
     [NvidiaAicrResourceType("pulumi:providers:nvidia-aicr")]
     public partial class Provider : global::Pulumi.ProviderResource

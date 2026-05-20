@@ -15,7 +15,7 @@ _utilities.register(
  {
   "pkg": "nvidia-aicr",
   "mod": "index",
-  "fqn": "pulumi_nvidia_aicr",
+  "fqn": "pulumi_labs_nvidia_aicr",
   "classes": {
    "nvidia-aicr:index:ClusterStack": "ClusterStack"
   }
@@ -27,7 +27,7 @@ _utilities.register(
  {
   "pkg": "nvidia-aicr",
   "token": "pulumi:providers:nvidia-aicr",
-  "fqn": "pulumi_nvidia_aicr",
+  "fqn": "pulumi_labs_nvidia_aicr",
   "class": "Provider"
  }
 ]

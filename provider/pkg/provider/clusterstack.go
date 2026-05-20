@@ -549,7 +549,6 @@ func contains(values []string, target string) bool {
 	return false
 }
 
-
 func derefStr(s *string, def string) string {
 	if s != nil {
 		return *s

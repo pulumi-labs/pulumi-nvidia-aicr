@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/provider"
 	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/version"
+	p "github.com/pulumi/pulumi-go-provider"
 )
 
 func main() {

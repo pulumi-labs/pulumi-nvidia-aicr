@@ -108,14 +108,8 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
 
-  # The publish-* jobs below push SDKs to public package registries. They are
-  # disabled by default; enable them by populating the corresponding repository
-  # secret (NPM_TOKEN, PYPI_API_TOKEN, NUGET_API_KEY, OSSRH_USERNAME +
-  # OSSRH_PASSWORD) and removing the `if: false` guards.
-
   publish-nodejs:
     name: publish to npm
-    if: false
     needs: generate-sdks
     runs-on: ubuntu-latest
     permissions:
@@ -148,9 +142,14 @@ jobs:
 
   publish-python:
     name: publish to PyPI
-    if: false
     needs: generate-sdks
     runs-on: ubuntu-latest
+    # PyPI's pending Trusted Publisher is bound to this exact environment
+    # name and workflow filename; both must match for OIDC to be accepted.
+    environment: publish-pypi
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -163,21 +162,36 @@ jobs:
       - name: Build distributions
         run: |
           cd sdk/python
-          python -m pip install --upgrade build twine
+          python -m pip install --upgrade build
           python -m build --sdist --wheel
-      - name: Publish
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: cd sdk/python && twine upload dist/*
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdk/python/dist
 
   publish-dotnet:
     name: publish to NuGet
-    if: false
     needs: generate-sdks
     runs-on: ubuntu-latest
+    # NuGet's Trusted Publisher policy is bound to (repo owner, repo,
+    # workflow filename, optional environment). The environment here must
+    # match the policy on nuget.org.
+    environment: publish-nuget
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
+      # Fetch NUGET_USER (the nuget.org policy-owner profile slug; not
+      # secret but kept in ESC for consistency with the rest of the
+      # publishing config).
+      - id: esc-secrets
+        uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
+        env:
+          ESC_ACTION_ENVIRONMENT: github-secrets/${{ github.repository_owner }}-${{ github.event.repository.name }}
+          ESC_ACTION_EXPORT_ENVIRONMENT_VARIABLES: "false"
+          ESC_ACTION_OIDC_AUTH: "true"
+          ESC_ACTION_OIDC_ORGANIZATION: pulumi
+          ESC_ACTION_OIDC_REQUESTED_TOKEN_TYPE: urn:pulumi:token-type:access_token:organization
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -185,10 +199,71 @@ jobs:
         with:
           name: sdks
           path: sdk
-      - name: Pack and push
+      - name: Pack
+        run: cd sdk/dotnet && dotnet pack -c Release -o nupkgs
+      # Exchange the GitHub OIDC token for a short-lived (~1h, single-use)
+      # nuget.org API key. `user` is the policy owner's nuget.org profile
+      # slug (can be a user or an organization slug).
+      - uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ steps.esc-secrets.outputs.NUGET_USER }}
+      - name: Push
         run: |
           cd sdk/dotnet
-          dotnet pack -c Release -o nupkgs
           dotnet nuget push 'nupkgs/*.nupkg' \
             --source https://api.nuget.org/v3/index.json \
-            --api-key "${{ secrets.NUGET_API_KEY }}"
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+
+  publish-java:
+    name: publish to Maven Central
+    # Disabled until a GPG signing key is generated and stored in ESC as
+    # SIGNING_KEY (ASCII-armored, full BEGIN/END block) and
+    # SIGNING_PASSWORD. Maven Central rejects unsigned artifacts, so this
+    # is the one piece that has to exist before flipping `if: false`. The
+    # com.pulumi.labs namespace is already verified on Sonatype Central
+    # Portal, and the OSSRH user token is already in ESC.
+    #
+    # Follow-up (not blocking): migrate to Sonatype Trusted Publishing
+    # (OIDC), analogous to the PyPI and NuGet flows. That would drop the
+    # OSSRH user token in favour of short-lived OIDC-minted credentials,
+    # but the GPG signing key is still required.
+    if: false
+    needs: generate-sdks
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - id: esc-secrets
+        uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
+        env:
+          ESC_ACTION_ENVIRONMENT: github-secrets/${{ github.repository_owner }}-${{ github.event.repository.name }}
+          ESC_ACTION_EXPORT_ENVIRONMENT_VARIABLES: "false"
+          ESC_ACTION_OIDC_AUTH: "true"
+          ESC_ACTION_OIDC_ORGANIZATION: pulumi
+          ESC_ACTION_OIDC_REQUESTED_TOKEN_TYPE: urn:pulumi:token-type:access_token:organization
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdks
+          path: sdk
+      # The generated build.gradle reads SIGNING_KEY / SIGNING_PASSWORD
+      # for in-memory PGP signing (required by Maven Central) and
+      # PUBLISH_REPO_USERNAME / PUBLISH_REPO_PASSWORD for Sonatype. The
+      # OSSRH_USERNAME / OSSRH_PASSWORD entries already in ESC are
+      # renamed here to the env names the gradle build expects; no ESC
+      # rename needed. The gradle-nexus.publish-plugin task chain stages
+      # artifacts, closes the staging repo, and triggers release.
+      - name: Publish to Sonatype
+        working-directory: sdk/java
+        env:
+          SIGNING_KEY: ${{ steps.esc-secrets.outputs.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ steps.esc-secrets.outputs.SIGNING_PASSWORD }}
+          PUBLISH_REPO_USERNAME: ${{ steps.esc-secrets.outputs.OSSRH_USERNAME }}
+          PUBLISH_REPO_PASSWORD: ${{ steps.esc-secrets.outputs.OSSRH_PASSWORD }}
+        run: gradle publishToSonatype closeAndReleaseSonatypeStagingRepository

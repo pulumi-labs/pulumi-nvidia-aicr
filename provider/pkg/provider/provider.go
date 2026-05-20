@@ -16,7 +16,7 @@ func NewProvider() p.Provider {
 			Keywords:          []string{"pulumi", "nvidia", "aicr", "gpu", "kubernetes", "category/cloud"},
 			Homepage:          "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
 			Repository:        "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
-			Publisher:         "Pulumi",
+			Publisher:         "Pulumi Labs",
 			PluginDownloadURL: "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr",
 			LogoURL:           "https://raw.githubusercontent.com/pulumi-labs/pulumi-nvidia-aicr/main/sdk/dotnet/logo.png",
 			License:           "Apache-2.0",
@@ -27,7 +27,7 @@ func NewProvider() p.Provider {
 					"respectSchemaVersion":           true,
 				},
 				"nodejs": map[string]any{
-					"packageName":          "@pulumi/nvidia-aicr",
+					"packageName":          "@pulumi-labs/nvidia-aicr",
 					"packageDescription":   "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
 					"respectSchemaVersion": true,
 					"dependencies": map[string]any{
@@ -39,7 +39,7 @@ func NewProvider() p.Provider {
 					},
 				},
 				"python": map[string]any{
-					"packageName":          "pulumi_nvidia_aicr",
+					"packageName":          "pulumi_labs_nvidia_aicr",
 					"respectSchemaVersion": true,
 					"requires": map[string]any{
 						"pulumi": ">=3.165.0,<4.0.0",
@@ -49,14 +49,14 @@ func NewProvider() p.Provider {
 					},
 				},
 				"csharp": map[string]any{
-					"rootNamespace":        "Pulumi",
+					"rootNamespace":        "Pulumi.Labs",
 					"respectSchemaVersion": true,
 					"packageReferences": map[string]any{
 						"Pulumi": "3.*",
 					},
 				},
 				"java": map[string]any{
-					"basePackage":          "com.pulumi",
+					"basePackage":          "com.pulumi.labs",
 					"respectSchemaVersion": true,
 					"dependencies": map[string]any{
 						"com.pulumi:pulumi": "1.+",

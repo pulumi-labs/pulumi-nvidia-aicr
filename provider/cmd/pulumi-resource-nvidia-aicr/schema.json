@@ -16,14 +16,14 @@
   "repository": "https://github.com/pulumi-labs/pulumi-nvidia-aicr",
   "logoUrl": "https://raw.githubusercontent.com/pulumi-labs/pulumi-nvidia-aicr/main/sdk/dotnet/logo.png",
   "pluginDownloadURL": "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr",
-  "publisher": "Pulumi",
+  "publisher": "Pulumi Labs",
   "language": {
     "csharp": {
       "packageReferences": {
         "Pulumi": "3.*"
       },
       "respectSchemaVersion": true,
-      "rootNamespace": "Pulumi"
+      "rootNamespace": "Pulumi.Labs"
     },
     "go": {
       "generateResourceContainerTypes": true,
@@ -31,7 +31,7 @@
       "respectSchemaVersion": true
     },
     "java": {
-      "basePackage": "com.pulumi",
+      "basePackage": "com.pulumi.labs",
       "dependencies": {
         "com.pulumi:pulumi": "1.+"
       },
@@ -46,11 +46,11 @@
         "typescript": "^4.3.5"
       },
       "packageDescription": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
-      "packageName": "@pulumi/nvidia-aicr",
+      "packageName": "@pulumi-labs/nvidia-aicr",
       "respectSchemaVersion": true
     },
     "python": {
-      "packageName": "pulumi_nvidia_aicr",
+      "packageName": "pulumi_labs_nvidia_aicr",
       "pyproject": {
         "enabled": true
       },

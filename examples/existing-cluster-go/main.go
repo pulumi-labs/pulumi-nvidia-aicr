@@ -30,13 +30,13 @@ func main() {
 
 		// Optional fields
 		if platform := cfg.Get("platform"); platform != "" {
-			args.Platform = pulumi.StringPtr(platform)
+			args.Platform = pulumi.StringRef(platform)
 		}
 		if os := cfg.Get("os"); os != "" {
-			args.Os = pulumi.StringPtr(os)
+			args.Os = pulumi.StringRef(os)
 		}
 		if skipAwait := cfg.GetBool("skipAwait"); skipAwait {
-			args.SkipAwait = pulumi.BoolPtr(true)
+			args.SkipAwait = pulumi.BoolRef(true)
 		}
 
 		gpuStack, err := aicr.NewClusterStack(ctx, "aicr", args)

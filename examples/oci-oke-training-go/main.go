@@ -189,7 +189,7 @@ func main() {
 			Accelerator: "gb200",
 			Service:     "oke",
 			Intent:      "training",
-			Platform:    pulumi.StringPtr("kubeflow"),
+			Platform:    pulumi.StringRef("kubeflow"),
 		})
 		if err != nil {
 			return err

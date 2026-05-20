@@ -107,7 +107,7 @@ func main() {
 			DesiredCapacity:              pulumi.IntPtr(2),
 			MinSize:                      pulumi.IntPtr(1),
 			MaxSize:                      pulumi.IntPtr(4),
-			NodeAssociatePublicIpAddress: pulumi.BoolPtr(false),
+			NodeAssociatePublicIpAddress: pulumi.BoolRef(false),
 			CreateOidcProvider:           pulumi.BoolPtr(true),
 			Tags: pulumi.StringMap{
 				"nvidia.com/aicr": pulumi.String("true"),
@@ -131,7 +131,7 @@ func main() {
 			Accelerator: "h100",
 			Service:     "eks",
 			Intent:      "inference",
-			Platform:    pulumi.StringPtr("nim"),
+			Platform:    pulumi.StringRef("nim"),
 			// Optional: customize specific components
 			ComponentOverrides: aicr.ComponentOverrideMap{
 				"gpu-operator": aicr.ComponentOverrideArgs{

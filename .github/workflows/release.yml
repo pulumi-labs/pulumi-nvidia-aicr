@@ -265,8 +265,24 @@ jobs:
       - name: Publish to Sonatype
         working-directory: sdk/java
         env:
-          SIGNING_KEY: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_KEY }}
+          # ESC stores the multi-line PGP armor in folded YAML form, so
+          # the body arrives with literal spaces where newlines should
+          # be. gpg tolerates that; gradle's BouncyCastle PGP parser
+          # does not. Rebuild canonical armor before invoking gradle.
+          SIGNING_KEY_RAW: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_PASSWORD }}
           PUBLISH_REPO_USERNAME: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_OSSRH_USERNAME }}
           PUBLISH_REPO_PASSWORD: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_OSSRH_PASSWORD }}
-        run: gradle publishToSonatype closeAndReleaseSonatypeStagingRepository
+        run: |
+          export SIGNING_KEY="$(printf '%s' "$SIGNING_KEY_RAW" | python3 -c '
+          import sys
+          s = sys.stdin.read()
+          b = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+          e = "-----END PGP PRIVATE KEY BLOCK-----"
+          i, j = s.find(b), s.find(e)
+          if i < 0 or j < 0:
+              sys.exit("armor markers missing in SIGNING_KEY")
+          body = s[i+len(b):j].replace(" ", "\n").strip()
+          print(f"{b}\n\n{body}\n{e}")
+          ')"
+          gradle publishToSonatype closeAndReleaseSonatypeStagingRepository

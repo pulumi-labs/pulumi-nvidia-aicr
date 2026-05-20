@@ -239,18 +239,6 @@ jobs:
 
   publish-java:
     name: publish to Maven Central
-    # Disabled until a GPG signing key is generated and stored in ESC as
-    # SIGNING_KEY (ASCII-armored, full BEGIN/END block) and
-    # SIGNING_PASSWORD. Maven Central rejects unsigned artifacts, so this
-    # is the one piece that has to exist before flipping `if: false`. The
-    # com.pulumi.labs namespace is already verified on Sonatype Central
-    # Portal, and the OSSRH user token is already in ESC.
-    #
-    # Follow-up (not blocking): migrate to Sonatype Trusted Publishing
-    # (OIDC), analogous to the PyPI and NuGet flows. That would drop the
-    # OSSRH user token in favour of short-lived OIDC-minted credentials,
-    # but the GPG signing key is still required.
-    if: false
     needs: generate-sdks
     runs-on: ubuntu-latest
     permissions:

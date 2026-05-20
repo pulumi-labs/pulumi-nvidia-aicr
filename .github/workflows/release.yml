@@ -206,8 +206,10 @@ jobs:
         with:
           name: sdks
           path: sdk
+      - name: Build
+        run: cd sdk/dotnet && dotnet build -c Release
       - name: Pack
-        run: cd sdk/dotnet && dotnet pack -c Release -o nupkgs
+        run: cd sdk/dotnet && dotnet pack -c Release -o nupkgs --no-build
       # Exchange the GitHub OIDC token for a short-lived (~1h, single-use)
       # nuget.org API key. `user` is the policy owner's nuget.org profile
       # slug (can be a user or an organization slug).

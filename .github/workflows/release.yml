@@ -133,7 +133,15 @@ jobs:
       - name: Install and build
         run: cd sdk/nodejs && npm install && npm run build
       - name: Publish
-        run: cd sdk/nodejs && npm publish --access public
+        run: |
+          cd sdk/nodejs
+          VER=$(node -p "require('./package.json').version")
+          if [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+-([a-zA-Z]+) ]]; then
+            NPM_TAG="${BASH_REMATCH[1]}"
+          else
+            NPM_TAG=latest
+          fi
+          npm publish --access public --tag "$NPM_TAG"
 
   publish-python:
     name: publish to PyPI
@@ -189,7 +197,11 @@ jobs:
           ESC_ACTION_OIDC_REQUESTED_TOKEN_TYPE: urn:pulumi:token-type:access_token:organization
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          # The generated csproj targets net6.0; building it from the
+          # runner's preinstalled SDK 10 needs the 6.0 ref assemblies.
+          dotnet-version: |
+            6.0.x
+            8.0.x
       - uses: actions/download-artifact@v4
         with:
           name: sdks

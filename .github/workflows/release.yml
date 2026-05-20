@@ -107,6 +107,19 @@ jobs:
           files: release/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+      - name: Push path-prefixed tag for the Go SDK submodule
+        # The Go SDK lives at sdk/go/nvidiaaicr/, so `go get .../sdk/go/
+        # nvidiaaicr@vX.Y.Z` requires a tag named sdk/go/nvidiaaicr/vX.Y.Z,
+        # not just vX.Y.Z. Push it alongside the root tag. Idempotent on
+        # re-runs.
+        run: |
+          SUBTAG="sdk/go/nvidiaaicr/${GITHUB_REF_NAME}"
+          if git ls-remote --exit-code origin "refs/tags/$SUBTAG" >/dev/null 2>&1; then
+            echo "Tag $SUBTAG already exists on remote; nothing to do"
+          else
+            git tag "$SUBTAG"
+            git push origin "$SUBTAG"
+          fi
 
   publish-nodejs:
     name: publish to npm

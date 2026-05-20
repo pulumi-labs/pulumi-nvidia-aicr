@@ -13,8 +13,8 @@ package main
 import (
 	"encoding/base64"
 
-	"github.com/pulumi/pulumi-azure-native-sdk/v2/containerservice"
-	"github.com/pulumi/pulumi-azure-native-sdk/v2/resources"
+	"github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2"
+	"github.com/pulumi/pulumi-azure-native-sdk/resources/v2"
 	aicr "github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -112,7 +112,7 @@ func main() {
 			Accelerator: "h100",
 			Service:     "aks",
 			Intent:      "training",
-			Platform:    pulumi.StringPtr("kubeflow"),
+			Platform:    pulumi.StringRef("kubeflow"),
 			// Optional: customize specific components
 			ComponentOverrides: aicr.ComponentOverrideMap{
 				"gpu-operator": aicr.ComponentOverrideArgs{

@@ -30,7 +30,7 @@ func main() {
 			Accelerator:  "h100",
 			Service:      "kind",
 			Intent:       intent,
-			SkipAwait:    pulumi.BoolPtr(true), // kind clusters often can't satisfy GPU readiness; don't block
+			SkipAwait:    pulumi.BoolRef(true), // kind clusters often can't satisfy GPU readiness; don't block
 			SkipComponents: pulumi.ToStringArray([]string{
 				"kube-prometheus-stack",
 			}),

@@ -39,11 +39,11 @@ func main() {
 		//   - Monitoring stack (Prometheus, Grafana, DCGM metrics)
 		//   - cert-manager, NVSentinel, and more
 		inferenceStack, err := aicr.NewClusterStack(ctx, "nvidia-inference", &aicr.ClusterStackArgs{
-			KubeconfigPath: pulumi.StringPtr(kubeconfigPath),
+			KubeconfigPath: pulumi.StringRef(kubeconfigPath),
 			Accelerator:    "h100",
 			Service:        "eks", // closest match; cloud-specific add-ons skipped below
 			Intent:         "inference",
-			Platform:       pulumi.StringPtr("dynamo"),
+			Platform:       pulumi.StringRef("dynamo"),
 			// Skip cloud-specific components not needed on CoreWeave
 			SkipComponents: pulumi.StringArray{
 				pulumi.String("aws-efa"),

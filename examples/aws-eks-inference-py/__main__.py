@@ -17,7 +17,7 @@ This example provisions 2 nodes (~$196/hr). Remember to run
 import pulumi
 import pulumi_aws as aws
 import pulumi_eks as eks
-import pulumi_nvidia_aicr as aicr
+import pulumi_labs_nvidia_aicr as aicr
 
 config = pulumi.Config()
 cluster_name = config.get("clusterName") or "aicr-inference"

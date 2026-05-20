@@ -9,7 +9,7 @@
 //   pulumi config set intent training
 //   pulumi up
 using Pulumi;
-using Pulumi.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr;
 
 return await Deployment.RunAsync(() =>
 {

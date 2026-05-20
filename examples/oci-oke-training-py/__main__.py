@@ -20,7 +20,7 @@ to avoid unexpected charges.
 
 import pulumi
 import pulumi_oci as oci
-import pulumi_nvidia_aicr as aicr
+import pulumi_labs_nvidia_aicr as aicr
 
 config = pulumi.Config()
 cluster_name = config.get("clusterName") or "aicr-training"

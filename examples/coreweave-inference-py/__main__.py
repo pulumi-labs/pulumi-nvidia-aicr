@@ -17,7 +17,7 @@ CoreWeave H100 pricing: ~$2.49/GPU/hr ($19.92/node with 8 GPUs).
 """
 
 import pulumi
-import pulumi_nvidia_aicr as aicr
+import pulumi_labs_nvidia_aicr as aicr
 
 config = pulumi.Config()
 kubeconfig_path = config.get("kubeconfigPath") or "~/.kube/config"

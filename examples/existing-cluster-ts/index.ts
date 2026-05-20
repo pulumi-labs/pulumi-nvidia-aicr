@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as aicr from "@pulumi/nvidia-aicr";
+import * as aicr from "@pulumi-labs/nvidia-aicr";
 
 // ============================================================================
 // AICR Quickstart — Deploy on an Existing Kubernetes Cluster

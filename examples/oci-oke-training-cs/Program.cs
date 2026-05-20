@@ -13,7 +13,7 @@ using Pulumi.Oci.Core;
 using Pulumi.Oci.Core.Inputs;
 using Pulumi.Oci.ContainerEngine;
 using Pulumi.Oci.ContainerEngine.Inputs;
-using Pulumi.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr;
 
 return await Deployment.RunAsync(() =>
 {

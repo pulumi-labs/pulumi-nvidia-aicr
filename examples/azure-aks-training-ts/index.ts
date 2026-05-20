@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as azure from "@pulumi/azure-native";
-import * as aicr from "@pulumi/nvidia-aicr";
+import * as aicr from "@pulumi-labs/nvidia-aicr";
 
 // ============================================================================
 // Azure AKS + NVIDIA AICR H100 Training Stack

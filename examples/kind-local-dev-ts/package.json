@@ -6,7 +6,7 @@
         "typescript": "^4.0.0"
     },
     "dependencies": {
-        "@pulumi/nvidia-aicr": "^0.0.1",
+        "@pulumi-labs/nvidia-aicr": "^0.1.0",
         "@pulumi/pulumi": "^3.142.0"
     }
 }

@@ -11,7 +11,7 @@
 // Many GPU pods will not actually be Ready, but the Helm releases will
 // install -- which is enough for iterating on the deployment graph.
 using Pulumi;
-using Pulumi.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr;
 
 return await Deployment.RunAsync(() =>
 {

@@ -12,7 +12,7 @@ using Pulumi;
 using Pulumi.AzureNative.ContainerService;
 using Pulumi.AzureNative.ContainerService.Inputs;
 using Pulumi.AzureNative.Resources;
-using Pulumi.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr;
 
 return await Deployment.RunAsync(() =>
 {

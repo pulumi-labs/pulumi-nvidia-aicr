@@ -7,7 +7,7 @@
 //
 // CoreWeave H100 pricing: ~$2.49/GPU/hr ($19.92/node with 8 GPUs).
 using Pulumi;
-using Pulumi.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr;
 
 return await Deployment.RunAsync(() =>
 {

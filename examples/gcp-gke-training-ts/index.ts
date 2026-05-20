@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as gcp from "@pulumi/gcp";
-import * as aicr from "@pulumi/nvidia-aicr";
+import * as aicr from "@pulumi-labs/nvidia-aicr";
 
 // ============================================================================
 // GCP GKE + NVIDIA AICR H100 Training Stack

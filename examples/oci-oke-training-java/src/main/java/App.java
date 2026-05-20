@@ -39,8 +39,8 @@ import com.pulumi.oci.ContainerEngine.inputs.ClusterOptionsKubernetesNetworkConf
 import com.pulumi.oci.ContainerEngine.inputs.NodePoolNodeConfigDetailsArgs;
 import com.pulumi.oci.ContainerEngine.inputs.NodePoolNodeConfigDetailsPlacementConfigArgs;
 import com.pulumi.oci.ContainerEngine.inputs.NodePoolInitialNodeLabelArgs;
-import com.pulumi.nvidiaaicr.ClusterStack;
-import com.pulumi.nvidiaaicr.ClusterStackArgs;
+import com.pulumi.labs.nvidiaaicr.ClusterStack;
+import com.pulumi.labs.nvidiaaicr.ClusterStackArgs;
 
 public class App {
     public static void main(String[] args) {

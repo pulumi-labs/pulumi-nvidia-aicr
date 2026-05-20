@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as aicr from "@pulumi/nvidia-aicr";
+import * as aicr from "@pulumi-labs/nvidia-aicr";
 
 // ============================================================================
 // AICR on a local kind cluster — for development of the deployment pipeline

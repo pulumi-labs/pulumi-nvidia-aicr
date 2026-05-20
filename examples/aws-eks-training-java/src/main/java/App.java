@@ -24,9 +24,9 @@ import com.pulumi.aws.ec2.VpcArgs;
 import com.pulumi.aws.ec2.inputs.RouteTableRouteArgs;
 import com.pulumi.eks.Cluster;
 import com.pulumi.eks.ClusterArgs;
-import com.pulumi.nvidiaaicr.ClusterStack;
-import com.pulumi.nvidiaaicr.ClusterStackArgs;
-import com.pulumi.nvidiaaicr.inputs.ComponentOverrideArgs;
+import com.pulumi.labs.nvidiaaicr.ClusterStack;
+import com.pulumi.labs.nvidiaaicr.ClusterStackArgs;
+import com.pulumi.labs.nvidiaaicr.inputs.ComponentOverrideArgs;
 
 public class App {
     public static void main(String[] args) {

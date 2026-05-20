@@ -14,7 +14,7 @@ import base64
 
 import pulumi
 import pulumi_azure_native as azure
-import pulumi_nvidia_aicr as aicr
+import pulumi_labs_nvidia_aicr as aicr
 
 config = pulumi.Config()
 cluster_name = config.get("clusterName") or "aicr-training"

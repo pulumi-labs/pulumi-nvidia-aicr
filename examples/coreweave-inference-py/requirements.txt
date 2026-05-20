@@ -1,2 +1,2 @@
 pulumi>=3.142.0,<4.0.0
-pulumi-nvidia-aicr>=0.0.1
+pulumi-labs-nvidia-aicr>=0.1.0

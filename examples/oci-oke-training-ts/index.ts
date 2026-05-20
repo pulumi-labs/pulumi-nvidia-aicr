@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as oci from "@pulumi/oci";
-import * as aicr from "@pulumi/nvidia-aicr";
+import * as aicr from "@pulumi-labs/nvidia-aicr";
 
 // ============================================================================
 // Oracle Cloud OKE + NVIDIA AICR GB200 Training Stack

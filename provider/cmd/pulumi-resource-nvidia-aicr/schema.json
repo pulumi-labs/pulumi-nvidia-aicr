@@ -33,7 +33,7 @@
     "java": {
       "basePackage": "com.pulumi.labs",
       "dependencies": {
-        "com.pulumi:pulumi": "1.+"
+        "com.pulumi:pulumi": "1.0.0"
       },
       "respectSchemaVersion": true
     },

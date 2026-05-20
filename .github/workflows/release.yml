@@ -262,18 +262,11 @@ jobs:
         with:
           name: sdks
           path: sdk
-      # The generated build.gradle reads SIGNING_KEY / SIGNING_PASSWORD
-      # for in-memory PGP signing (required by Maven Central) and
-      # PUBLISH_REPO_USERNAME / PUBLISH_REPO_PASSWORD for Sonatype. The
-      # OSSRH_USERNAME / OSSRH_PASSWORD entries already in ESC are
-      # renamed here to the env names the gradle build expects; no ESC
-      # rename needed. The gradle-nexus.publish-plugin task chain stages
-      # artifacts, closes the staging repo, and triggers release.
       - name: Publish to Sonatype
         working-directory: sdk/java
         env:
-          SIGNING_KEY: ${{ steps.esc-secrets.outputs.SIGNING_KEY }}
-          SIGNING_PASSWORD: ${{ steps.esc-secrets.outputs.SIGNING_PASSWORD }}
-          PUBLISH_REPO_USERNAME: ${{ steps.esc-secrets.outputs.OSSRH_USERNAME }}
-          PUBLISH_REPO_PASSWORD: ${{ steps.esc-secrets.outputs.OSSRH_PASSWORD }}
+          SIGNING_KEY: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_PASSWORD }}
+          PUBLISH_REPO_USERNAME: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_OSSRH_USERNAME }}
+          PUBLISH_REPO_PASSWORD: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_OSSRH_PASSWORD }}
         run: gradle publishToSonatype closeAndReleaseSonatypeStagingRepository

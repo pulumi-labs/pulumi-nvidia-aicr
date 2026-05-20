@@ -98,16 +98,24 @@ needle="<None Include=\"logo.png\">\n      <Pack>True</Pack>\n      <PackagePath
 addition=needle + "\n    <None Include=\"README.md\">\n      <Pack>True</Pack>\n      <PackagePath></PackagePath>\n    </None>"; \
 p.write_text(s.replace(needle, addition, 1))'; \
 	fi
-# String surgery on the generated (do-not-edit) build.gradle: bump the
-# pinned compile toolchain from Java 11 to 17 (so Gradle, which needs
-# JVM 17+, runs on the single JDK the runner provides) and add
-# `options.release = 11` so the emitted bytecode stays Java 11 for SDK
-# consumers. Guarded so it runs once and only if sdk/java was generated.
+# String surgery on the generated (do-not-edit) build.gradle:
+#   - bump the pinned compile toolchain from Java 11 to 17 (so Gradle,
+#     which needs JVM 17+, runs on the single JDK the runner provides)
+#     and add `options.release = 11` so emitted bytecode stays Java 11.
+#   - fill the POM <name> (pulumi-java-gen emits an empty `name = ""`
+#     unless Publisher == "pulumi", which would also clobber our
+#     com.pulumi.labs groupId; tracked upstream).
 	@if [ -f sdk/java/build.gradle ] && ! grep -q 'options.release = 11' sdk/java/build.gradle; then \
 		python3 -c 'import pathlib; \
 p=pathlib.Path("sdk/java/build.gradle"); s=p.read_text(); \
 s=s.replace("JavaLanguageVersion.of(11)", "JavaLanguageVersion.of(17)", 1); \
 s=s.replace("options.encoding = \"UTF-8\"", "options.encoding = \"UTF-8\"\n    options.release = 11", 1); \
+p.write_text(s)'; \
+	fi
+	@if [ -f sdk/java/build.gradle ] && grep -q 'name = ""' sdk/java/build.gradle; then \
+		python3 -c 'import pathlib; \
+p=pathlib.Path("sdk/java/build.gradle"); s=p.read_text(); \
+s=s.replace("name = \"\"", "name = \"pulumi-labs-nvidia-aicr\"", 1); \
 p.write_text(s)'; \
 	fi
 # The generated package.json has no main/types/files; with no .npmignore npm

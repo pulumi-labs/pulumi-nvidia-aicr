@@ -59,7 +59,9 @@ func NewProvider() p.Provider {
 					"basePackage":          "com.pulumi.labs",
 					"respectSchemaVersion": true,
 					"dependencies": map[string]any{
-						"com.pulumi:pulumi": "1.+",
+						// Maven Central rejects '+' in dependency versions, so
+						// pin a concrete floor; consumers can upgrade freely.
+						"com.pulumi:pulumi": "1.0.0",
 					},
 				},
 			},

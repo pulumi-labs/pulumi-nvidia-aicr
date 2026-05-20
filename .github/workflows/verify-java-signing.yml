@@ -1,0 +1,63 @@
+name: verify java signing key
+
+# Manual-trigger sanity check for the Maven Central GPG signing material
+# stored in ESC. Imports the key into gpg in the runner, lists the
+# imported fingerprint, and performs a test clearsign with the passphrase
+# so we can diagnose "Could not read PGP secret key" from gradle without
+# burning a release tag.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - id: esc-secrets
+        uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
+        env:
+          ESC_ACTION_ENVIRONMENT: github-secrets/${{ github.repository_owner }}-${{ github.event.repository.name }}
+          ESC_ACTION_EXPORT_ENVIRONMENT_VARIABLES: "false"
+          ESC_ACTION_OIDC_AUTH: "true"
+          ESC_ACTION_OIDC_ORGANIZATION: pulumi
+          ESC_ACTION_OIDC_REQUESTED_TOKEN_TYPE: urn:pulumi:token-type:access_token:organization
+      - name: Inspect signing key shape (no value leakage)
+        env:
+          SIGNING_KEY: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_KEY }}
+        run: |
+          echo "byte length: ${#SIGNING_KEY}"
+          echo "line count : $(printf '%s' "$SIGNING_KEY" | wc -l)"
+          # GitHub Actions masks the exact secret value but not arbitrary
+          # substrings, so individual lines from inside the armor block
+          # would still be masked. The BEGIN/END markers are public per
+          # the OpenPGP spec; printing them only confirms armor framing.
+          echo "starts with BEGIN marker? $(printf '%s' "$SIGNING_KEY" | head -c 35)"
+          echo "ends with END marker?     $(printf '%s' "$SIGNING_KEY" | tail -c 35)"
+      - name: Import key into gpg and report fingerprint
+        env:
+          SIGNING_KEY: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ steps.esc-secrets.outputs.MAVEN_CENTRAL_SIGNING_PASSWORD }}
+        run: |
+          set -e
+          export GPG_TTY=$(tty || true)
+          mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
+          # Write the key to a tmp file so gpg reads it from disk (any
+          # newline mangling shows up immediately as a parser error).
+          printf '%s\n' "$SIGNING_KEY" > /tmp/signing-key.asc
+          echo "--- file head/tail ---"
+          head -1 /tmp/signing-key.asc
+          tail -1 /tmp/signing-key.asc
+          echo "--- gpg --import ---"
+          gpg --batch --import /tmp/signing-key.asc
+          echo "--- secret keys ---"
+          gpg --list-secret-keys --keyid-format=long
+          echo "--- test clearsign ---"
+          echo "verify-signing-key smoke test" \
+            | gpg --batch --pinentry-mode loopback --passphrase "$SIGNING_PASSWORD" \
+                  --clearsign > /tmp/signed.asc
+          head -3 /tmp/signed.asc
+          echo "clearsign OK"
+          shred -u /tmp/signing-key.asc

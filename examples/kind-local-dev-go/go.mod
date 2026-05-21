@@ -3,7 +3,7 @@ module github.com/pulumi-labs/pulumi-nvidia-aicr/examples/kind-local-dev-go
 go 1.26.2
 
 require (
-	github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.6
+	github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.7
 	github.com/pulumi/pulumi/sdk/v3 v3.242.0
 )
 

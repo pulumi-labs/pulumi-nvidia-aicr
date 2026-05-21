@@ -183,6 +183,8 @@ github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.0 h1:GdpVOs+Hv+
 github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.0/go.mod h1:+1+ydfd85oyNXW9CKP0g+Gc5FsbhPeqTLv+EPLjlmss=
 github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.6 h1:ibOnwduWiBurDV8Q/H1/BV4cFTELscoHIrc2dq2xzIg=
 github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.6/go.mod h1:+1+ydfd85oyNXW9CKP0g+Gc5FsbhPeqTLv+EPLjlmss=
+github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.7 h1:3ptCr7u1xXwnAZwerd8pEFR3d52SKrBe7un9ywjxdv8=
+github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr v0.1.7/go.mod h1:Okg0csG550W9YJNhV/SwrCHIKhoYvy/WHCdmhCcrdg0=
 github.com/pulumi/appdash v0.0.0-20231130102222-75f619a67231 h1:vkHw5I/plNdTr435cARxCW6q9gc0S/Yxz7Mkd38pOb0=
 github.com/pulumi/appdash v0.0.0-20231130102222-75f619a67231/go.mod h1:murToZ2N9hNJzewjHBgfFdXhZKjY3z5cYC1VXk+lbFE=
 github.com/pulumi/esc v0.24.0 h1:sCtiB0qbyrlU1ZNzJn4dTLYiChl8xeCBFbHWl1YoXJg=

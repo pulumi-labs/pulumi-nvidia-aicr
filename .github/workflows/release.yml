@@ -107,19 +107,39 @@ jobs:
           files: release/*
           generate_release_notes: true
           fail_on_unmatched_files: true
-      - name: Push path-prefixed tag for the Go SDK submodule
-        # The Go SDK lives at sdk/go/nvidiaaicr/, so `go get .../sdk/go/
-        # nvidiaaicr@vX.Y.Z` requires a tag named sdk/go/nvidiaaicr/vX.Y.Z,
-        # not just vX.Y.Z. Push it alongside the root tag. Idempotent on
-        # re-runs.
-        run: |
-          SUBTAG="sdk/go/nvidiaaicr/${GITHUB_REF_NAME}"
-          if git ls-remote --exit-code origin "refs/tags/$SUBTAG" >/dev/null 2>&1; then
-            echo "Tag $SUBTAG already exists on remote; nothing to do"
-          else
-            git tag "$SUBTAG"
-            git push origin "$SUBTAG"
-          fi
+
+  # The Go SDK is shipped via a path-prefixed tag (`sdk/go/nvidiaaicr/vX.Y.Z`)
+  # that the Go proxy fetches from. The committed `sdk/go/` source has a
+  # placeholder version baked in by `pulumi package gen-sdk` at codegen time,
+  # so we cannot simply tag the merge commit on main: that would publish the
+  # stale, placeholder-versioned source. `pulumi/publish-go-sdk-action`
+  # creates a release-specific commit with the freshly regenerated SDK files
+  # (downloaded from the `generate-sdks` artifact) and pushes the tag against
+  # *that* commit, which is what the Go proxy serves.
+  publish-go-sdk:
+    name: publish Go SDK
+    needs: generate-sdks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sdks
+          path: sdk
+      - name: Compute version
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Publish Go SDK
+        uses: pulumi/publish-go-sdk-action@v1
+        with:
+          repository: ${{ github.repository }}
+          base-ref: ${{ github.sha }}
+          source: sdk/go/nvidiaaicr
+          path: sdk/go/nvidiaaicr
+          version: ${{ steps.ver.outputs.version }}
 
   publish-nodejs:
     name: publish to npm

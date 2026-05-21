@@ -22,8 +22,14 @@ provider:
 # Pulumi CLI. The provider binary itself only exposes the gRPC
 # ResourceProvider service; pulumi-go-provider has no built-in `schema`
 # subcommand.
+#
+# The `version` field is stripped from the committed schema so it doesn't
+# churn on every release. Version is injected at SDK codegen time via the
+# `--version` flag on `pulumi package gen-sdk`, matching the reference
+# pulumi-go-provider repos (pulumi-command, pulumi-docker-build, pulumi-eks,
+# pulumi-std).
 schema: provider
-	pulumi package get-schema ./$(BIN_DIR)/$(PROVIDER) >$(SCHEMA_FILE)
+	pulumi package get-schema ./$(BIN_DIR)/$(PROVIDER) | jq 'del(.version)' >$(SCHEMA_FILE)
 
 # Run unit tests
 test:
@@ -36,28 +42,28 @@ lint:
 # Generate Node.js SDK
 nodejs_sdk: schema
 	rm -rf sdk/nodejs
-	pulumi package gen-sdk --language nodejs $(SCHEMA_FILE)
+	pulumi package gen-sdk --language nodejs $(SCHEMA_FILE) --version $(VERSION)
 
 # Generate Python SDK
 python_sdk: schema
 	rm -rf sdk/python
-	pulumi package gen-sdk --language python $(SCHEMA_FILE)
+	pulumi package gen-sdk --language python $(SCHEMA_FILE) --version $(VERSION)
 
 # Generate Go SDK
 go_sdk: schema
 	rm -rf sdk/go
-	pulumi package gen-sdk --language go $(SCHEMA_FILE)
+	pulumi package gen-sdk --language go $(SCHEMA_FILE) --version $(VERSION)
 	cd sdk/go/nvidiaaicr && go mod init github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr && go mod tidy
 
 # Generate .NET SDK
 dotnet_sdk: schema
 	rm -rf sdk/dotnet
-	pulumi package gen-sdk --language dotnet $(SCHEMA_FILE)
+	pulumi package gen-sdk --language dotnet $(SCHEMA_FILE) --version $(VERSION)
 
 # Generate Java SDK
 java_sdk: schema
 	rm -rf sdk/java
-	pulumi package gen-sdk --language java $(SCHEMA_FILE)
+	pulumi package gen-sdk --language java $(SCHEMA_FILE) --version $(VERSION)
 
 # Generate all SDKs
 sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdk_fixups

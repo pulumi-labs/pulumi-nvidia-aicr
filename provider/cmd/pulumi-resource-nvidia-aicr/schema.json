@@ -1,7 +1,6 @@
 {
   "name": "nvidia-aicr",
   "displayName": "NVIDIA AI Cluster Runtime",
-  "version": "0.0.1-dev",
   "description": "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters.",
   "keywords": [
     "pulumi",
@@ -55,7 +54,7 @@
         "enabled": true
       },
       "requires": {
-        "pulumi": "\u003e=3.165.0,\u003c4.0.0"
+        "pulumi": ">=3.165.0,<4.0.0"
       },
       "respectSchemaVersion": true
     }

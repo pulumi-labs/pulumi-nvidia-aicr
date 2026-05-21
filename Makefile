@@ -76,6 +76,10 @@ sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdk_fixups
 #     is no .npmignore, so npm falls back to .gitignore (which excludes
 #     bin/) and `npm publish` would ship uncompiled .ts with no entry
 #     point. Add main/types and a files allowlist pointing at bin/.
+#     Also rewrite the build script so it copies package.json into bin/
+#     after tsc; the gen-sdk utilities.ts does `require('./package.json')`
+#     to read the version, and that path resolves next to the compiled
+#     utilities.js at runtime.
 sdk_fixups:
 	@if [ -f sdk/python/pyproject.toml ]; then \
 		python3 -c 'import re,sys,pathlib; \
@@ -122,10 +126,18 @@ p.write_text(s)'; \
 # falls back to .gitignore (which excludes bin/), so `npm publish` would ship
 # raw .ts with no entry point. Add main/types and a files allowlist so the
 # compiled bin/ is what gets published and imported.
+#
+# Also rewrite the build script. The generated utilities.ts reads its
+# version via `require('./package.json')`; tsc emits that line unchanged
+# into bin/utilities.js, which then resolves the require relative to
+# bin/. Without a bin/package.json the first SDK call throws
+# MODULE_NOT_FOUND. Copy package.json into bin/ after tsc so the require
+# resolves at runtime.
 	@if [ -f sdk/nodejs/package.json ] && ! grep -q '"main"' sdk/nodejs/package.json; then \
 		python3 -c 'import json,pathlib; \
 p=pathlib.Path("sdk/nodejs/package.json"); d=json.loads(p.read_text()); \
 d["main"]="bin/index.js"; d["types"]="bin/index.d.ts"; d["files"]=["bin/"]; \
+d.setdefault("scripts", {})["build"]="tsc && cp package.json bin/"; \
 p.write_text(json.dumps(d, indent=4)+"\n")'; \
 	fi
 

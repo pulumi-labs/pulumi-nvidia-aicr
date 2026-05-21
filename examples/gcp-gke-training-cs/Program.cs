@@ -5,10 +5,12 @@
 //
 // COST WARNING: a3-highgpu-8g instances cost ~$30/hr each (8x H100 80GB).
 // Default nodeCount is 2, so plan on ~$60/hr while the cluster is up.
+using System.Collections.Generic;
 using Pulumi;
 using Pulumi.Gcp.Container;
 using Pulumi.Gcp.Container.Inputs;
 using Pulumi.Labs.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr.Inputs;
 
 return await Deployment.RunAsync(() =>
 {
@@ -32,7 +34,7 @@ return await Deployment.RunAsync(() =>
     // Create a GPU node pool with A3 High-GPU machines (8x H100 80GB each)
     var gpuNodePool = new NodePool("gpu-pool", new NodePoolArgs
     {
-        ClusterName = cluster.Name,
+        Cluster = cluster.Name,
         NodeCount = nodeCount,
         NodeConfig = new NodePoolNodeConfigArgs
         {

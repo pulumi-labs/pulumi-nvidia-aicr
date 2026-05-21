@@ -8,6 +8,7 @@
 //   pulumi config set service eks
 //   pulumi config set intent training
 //   pulumi up
+using System.Collections.Generic;
 using Pulumi;
 using Pulumi.Labs.NvidiaAicr;
 

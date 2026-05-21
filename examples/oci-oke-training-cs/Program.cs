@@ -8,6 +8,7 @@
 //
 // COST WARNING: BM.GPU.GB200.4 bare-metal instances are premium-priced.
 // Contact OCI sales for current pricing. Destroy when done!
+using System.Collections.Generic;
 using Pulumi;
 using Pulumi.Oci.Core;
 using Pulumi.Oci.Core.Inputs;

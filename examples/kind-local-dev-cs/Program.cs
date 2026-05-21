@@ -10,6 +10,7 @@
 // GPU-Operator subcomponents that would otherwise hang in a kind cluster.
 // Many GPU pods will not actually be Ready, but the Helm releases will
 // install -- which is enough for iterating on the deployment graph.
+using System.Collections.Generic;
 using Pulumi;
 using Pulumi.Labs.NvidiaAicr;
 

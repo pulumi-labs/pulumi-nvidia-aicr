@@ -5,11 +5,13 @@
 //
 // COST WARNING: p5.48xlarge instances cost ~$98.32/hr each. Default
 // nodeCount is 2, so plan on ~$196/hr while the cluster is up.
+using System.Collections.Generic;
 using Pulumi;
 using Pulumi.Aws.Ec2;
 using Pulumi.Aws.Ec2.Inputs;
 using Pulumi.Eks;
 using Pulumi.Labs.NvidiaAicr;
+using Pulumi.Labs.NvidiaAicr.Inputs;
 
 return await Deployment.RunAsync(() =>
 {

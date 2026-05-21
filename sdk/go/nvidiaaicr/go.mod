@@ -1,6 +1,6 @@
 module github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr
 
-go 1.26.2
+go 1.25.8
 
 require (
 	github.com/blang/semver v3.5.1+incompatible

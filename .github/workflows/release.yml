@@ -21,7 +21,7 @@ jobs:
           - { goos: darwin,  goarch: arm64 }
           - { goos: windows, goarch: amd64 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
@@ -47,7 +47,7 @@ jobs:
             -C dist "pulumi-resource-nvidia-aicr${ext}"
           rm -f "${out}"
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: provider-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*.tar.gz
@@ -57,7 +57,7 @@ jobs:
     name: generate SDKs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
@@ -75,7 +75,7 @@ jobs:
       - name: Stamp version into SDK manifests (fallback)
         run: make set_version VERSION=${{ steps.ver.outputs.version }}
       - name: Upload SDK artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sdks
           path: sdk/
@@ -86,9 +86,9 @@ jobs:
     needs: [build-provider, generate-sdks]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
       - name: Bundle SDK source archives
@@ -102,11 +102,12 @@ jobs:
             fi
           done
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+          token: ${{ github.token }}
 
   # The Go SDK is shipped via a path-prefixed tag (`sdk/go/nvidiaaicr/vX.Y.Z`)
   # that the Go proxy fetches from. The committed `sdk/go/` source has a
@@ -123,9 +124,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download SDK artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: sdks
           path: sdk
@@ -150,7 +151,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           # Trusted publishing requires Node >= 22.14 and npm >= 11.5.1.
@@ -159,7 +160,7 @@ jobs:
       - name: Ensure npm meets the trusted-publishing floor
         # Node 22 ships with npm 10; bump to the documented minimum.
         run: npm install -g npm@11.5.1
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: sdks
           path: sdk
@@ -187,11 +188,11 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: sdks
           path: sdk
@@ -216,7 +217,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Fetch NUGET_USER (the nuget.org policy-owner profile slug; not
       # secret but kept in ESC for consistency with the rest of the
       # publishing config).
@@ -235,7 +236,7 @@ jobs:
           dotnet-version: |
             6.0.x
             8.0.x
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: sdks
           path: sdk
@@ -265,7 +266,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: esc-secrets
         uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
         env:
@@ -278,7 +279,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: sdks
           path: sdk

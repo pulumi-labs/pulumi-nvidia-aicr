@@ -194,9 +194,9 @@ set_version:
 		sed -i.bak -E 's/^( *version *= *)"[^"]+"/\1"$(VERSION)"/' sdk/python/pyproject.toml && \
 		rm -f sdk/python/pyproject.toml.bak; \
 	fi
-	@if [ -f sdk/dotnet/Pulumi.NvidiaAicr.csproj ]; then \
-		sed -i.bak -E 's|<Version>[^<]+</Version>|<Version>$(VERSION)</Version>|' sdk/dotnet/Pulumi.NvidiaAicr.csproj && \
-		rm -f sdk/dotnet/Pulumi.NvidiaAicr.csproj.bak; \
+	@if [ -f sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj ]; then \
+		sed -i.bak -E 's|<Version>[^<]+</Version>|<Version>$(VERSION)</Version>|' sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj && \
+		rm -f sdk/dotnet/Pulumi.Labs.NvidiaAicr.csproj.bak; \
 	fi
 	@if [ -f sdk/java/build.gradle ]; then \
 		sed -i.bak -E 's/version = "[^"]+"/version = "$(VERSION)"/' sdk/java/build.gradle && \

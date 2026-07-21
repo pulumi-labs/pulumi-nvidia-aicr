@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-          cache-dependency-path: provider/go.sum
+          cache-dependency-path: go.sum
       - uses: pulumi/actions@v6
         with:
           pulumi-version: '3.241.0'
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-          cache-dependency-path: provider/go.sum
+          cache-dependency-path: go.sum
       - uses: pulumi/actions@v6
         with:
           pulumi-version: '3.241.0'

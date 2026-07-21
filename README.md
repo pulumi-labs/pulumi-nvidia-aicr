@@ -21,7 +21,7 @@ AICR into the Infrastructure as Code ecosystem, enabling:
 
 ```python
 import pulumi
-import pulumi_nvidia_aicr as aicr
+import pulumi_labs_nvidia_aicr as aicr
 
 # Deploy the NVIDIA AICR-validated GPU software stack.
 # Uses your ambient kubeconfig (~/.kube/config or KUBECONFIG).
@@ -40,7 +40,7 @@ pulumi.export("components", gpu_stack.deployed_components)
 
 ```typescript
 import * as eks from "@pulumi/eks";
-import * as aicr from "@pulumi/nvidia-aicr";
+import * as aicr from "@pulumi-labs/nvidia-aicr";
 
 // Create an EKS cluster with H100 GPU nodes
 const cluster = new eks.Cluster("gpu-cluster", {

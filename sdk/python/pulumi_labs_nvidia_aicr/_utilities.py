@@ -51,7 +51,7 @@ def get_env_int(*args):
     if str is not None:
         try:
             return int(str)
-        except:
+        except ValueError:
             return None
     return None
 
@@ -61,7 +61,7 @@ def get_env_float(*args):
     if str is not None:
         try:
             return float(str)
-        except:
+        except ValueError:
             return None
     return None
 

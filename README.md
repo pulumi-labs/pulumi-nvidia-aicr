@@ -74,8 +74,9 @@ on a Kubernetes cluster.
 | `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"` |
 | `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"kind"`, `"oke"` |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
-| `os` | `string` | No | OS: `"ubuntu"` (default), `"cos"` (gke only) |
-| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only). Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes the kgateway inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
+| `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke), `"rhel"`, `"amazonlinux"`, `"talos"`. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |
+| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only). Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes an inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
+| `nodes` | `int` | No | Worker-node count hint used to size the recipe (nodes, not GPUs) |
 | `kubeconfig` | `Input<string>` | No | Kubeconfig contents (accepts outputs from cluster resources) |
 | `kubeconfigPath` | `string` | No | Path to kubeconfig file |
 | `context` | `string` | No | Kubeconfig context |
@@ -91,21 +92,25 @@ or `KUBECONFIG` env var) is used.
 | Property | Type | Description |
 |---|---|---|
 | `recipeName` | `string` | Resolved recipe identifier |
-| `recipeVersion` | `string` | AICR recipe version |
+| `recipeVersion` | `string` | AICR SDK module version providing the recipe data |
 | `deployedComponents` | `string[]` | Names of deployed components |
 | `componentCount` | `int` | Number of deployed components |
 
 ### What Gets Deployed
 
-A typical training recipe (H100 + EKS + Kubeflow) deploys these validated components:
+A typical training recipe (H100 + EKS + Ubuntu + Kubeflow) deploys these validated components:
 
 | Component | Purpose |
 |---|---|
 | **cert-manager** | TLS certificate management |
+| **nfd** | Node Feature Discovery for hardware labeling |
 | **gpu-operator** | NVIDIA GPU drivers, device plugin, DCGM |
-| **nvsentinel** | GPU security policies |
-| **skyhook-operator** | GPU virtualization |
+| **nvsentinel** | GPU health monitoring and remediation |
+| **nodewright-operator** | Node OS/kernel customization operator |
+| **nodewright-customizations** | GPU node tuning (GRUB, sysctl, containerd limits) |
+| **prometheus-operator-crds** | Prometheus operator CRDs |
 | **kube-prometheus-stack** | Monitoring with GPU metrics (Prometheus + Grafana) |
+| **prometheus-adapter** | Custom-metrics API for autoscaling |
 | **k8s-ephemeral-storage-metrics** | Storage monitoring |
 | **nvidia-dra-driver-gpu** | Dynamic Resource Allocation for GPUs |
 | **kai-scheduler** | GPU-aware workload scheduling |
@@ -337,11 +342,14 @@ make nodejs_sdk python_sdk go_sdk
 
 ## AICR Version Compatibility
 
-This provider embeds AICR recipe data. The provider version tracks the AICR version:
+This provider delegates recipe resolution to the official
+[NVIDIA AICR Go SDK](https://github.com/NVIDIA/aicr) (`pkg/client/v1`),
+whose embedded recipe data is pinned by the SDK module version. The
+`recipeVersion` stack output reports the SDK version in use.
 
-| Provider Version | AICR Version |
+| Provider Version | AICR SDK Module Version |
 |---|---|
-| 0.1.x | main (development) |
+| 0.1.x | v0.18.0 |
 
 ## License
 

@@ -102,6 +102,7 @@ users:
         Service = "gke",
         Intent = "training",
         Platform = "kubeflow",
+        Os = "cos",
         ComponentOverrides =
         {
             ["gpu-operator"] = new ComponentOverrideArgs

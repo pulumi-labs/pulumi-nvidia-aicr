@@ -190,6 +190,7 @@ func main() {
 			Service:     "oke",
 			Intent:      "training",
 			Platform:    pulumi.StringRef("kubeflow"),
+			Os:          pulumi.StringRef("ubuntu"),
 		})
 		if err != nil {
 			return err

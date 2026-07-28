@@ -36,6 +36,7 @@ inference_stack = aicr.ClusterStack("nvidia-inference",
     service="eks",  # closest match; cloud-specific add-ons skipped below
     intent="inference",
     platform="dynamo",
+    os="ubuntu",
     # Skip cloud-specific components not needed on CoreWeave
     skip_components=[
         "aws-efa",

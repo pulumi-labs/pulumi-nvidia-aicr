@@ -117,6 +117,7 @@ users:
 			Service:     "gke",
 			Intent:      "training",
 			Platform:    pulumi.StringRef("kubeflow"),
+			Os:          pulumi.StringRef("cos"),
 			// Optional: customize specific components
 			ComponentOverrides: aicr.ComponentOverrideMap{
 				"gpu-operator": aicr.ComponentOverrideArgs{

@@ -9,6 +9,7 @@ import com.pulumi.core.internal.Codegen;
 import com.pulumi.exceptions.MissingRequiredPropertyException;
 import com.pulumi.labs.nvidiaaicr.inputs.ComponentOverrideArgs;
 import java.lang.Boolean;
+import java.lang.Integer;
 import java.lang.String;
 import java.util.List;
 import java.util.Map;
@@ -138,18 +139,49 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     }
 
     /**
-     * Operating system flavor.
+     * Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+     * Leave unset to let AICR pick the default-sized recipe.
      * 
-     * Supported values: &#34;ubuntu&#34; (default), &#34;cos&#34; (Container-Optimized OS, GKE only).
+     */
+    @Import(name="nodes")
+    private @Nullable Integer nodes;
+
+    /**
+     * @return Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+     * Leave unset to let AICR pick the default-sized recipe.
+     * 
+     */
+    public Optional<Integer> nodes() {
+        return Optional.ofNullable(this.nodes);
+    }
+
+    /**
+     * Operating system flavor of the worker nodes.
+     * 
+     * Supported values: &#34;ubuntu&#34;, &#34;cos&#34; (Container-Optimized OS, GKE only), &#34;ol&#34;
+     * (Oracle Linux, OKE), &#34;rhel&#34;, &#34;amazonlinux&#34;, &#34;talos&#34;.
+     * 
+     * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+     * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+     * Set it when the cluster&#39;s OS is known. Some combinations require an OS
+     * (e.g. gke requires &#34;cos&#34;; eks platform recipes require &#34;ubuntu&#34;) and fail
+     * with a message listing the valid values; kind recipes require it unset.
      * 
      */
     @Import(name="os")
     private @Nullable String os;
 
     /**
-     * @return Operating system flavor.
+     * @return Operating system flavor of the worker nodes.
      * 
-     * Supported values: &#34;ubuntu&#34; (default), &#34;cos&#34; (Container-Optimized OS, GKE only).
+     * Supported values: &#34;ubuntu&#34;, &#34;cos&#34; (Container-Optimized OS, GKE only), &#34;ol&#34;
+     * (Oracle Linux, OKE), &#34;rhel&#34;, &#34;amazonlinux&#34;, &#34;talos&#34;.
+     * 
+     * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+     * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+     * Set it when the cluster&#39;s OS is known. Some combinations require an OS
+     * (e.g. gke requires &#34;cos&#34;; eks platform recipes require &#34;ubuntu&#34;) and fail
+     * with a message listing the valid values; kind recipes require it unset.
      * 
      */
     public Optional<String> os() {
@@ -162,10 +194,10 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
      * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
      * 
      * Leave unset for the base recipe without a platform-specific runtime. Note
-     * that intent=&#34;inference&#34; always includes the kgateway inference gateway
-     * (part of the base inference stack); choosing a platform layers a runtime
-     * (&#34;dynamo&#34;, &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime
-     * components out entirely when platform is unset.
+     * that intent=&#34;inference&#34; always includes an inference gateway (part of the
+     * base inference stack); choosing a platform layers a runtime (&#34;dynamo&#34;,
+     * &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime components out
+     * entirely when platform is unset.
      * 
      */
     @Import(name="platform")
@@ -177,10 +209,10 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
      * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
      * 
      * Leave unset for the base recipe without a platform-specific runtime. Note
-     * that intent=&#34;inference&#34; always includes the kgateway inference gateway
-     * (part of the base inference stack); choosing a platform layers a runtime
-     * (&#34;dynamo&#34;, &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime
-     * components out entirely when platform is unset.
+     * that intent=&#34;inference&#34; always includes an inference gateway (part of the
+     * base inference stack); choosing a platform layers a runtime (&#34;dynamo&#34;,
+     * &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime components out
+     * entirely when platform is unset.
      * 
      */
     public Optional<String> platform() {
@@ -253,6 +285,7 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         this.intent = $.intent;
         this.kubeconfig = $.kubeconfig;
         this.kubeconfigPath = $.kubeconfigPath;
+        this.nodes = $.nodes;
         this.os = $.os;
         this.platform = $.platform;
         this.service = $.service;
@@ -385,9 +418,28 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         }
 
         /**
-         * @param os Operating system flavor.
+         * @param nodes Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+         * Leave unset to let AICR pick the default-sized recipe.
          * 
-         * Supported values: &#34;ubuntu&#34; (default), &#34;cos&#34; (Container-Optimized OS, GKE only).
+         * @return builder
+         * 
+         */
+        public Builder nodes(@Nullable Integer nodes) {
+            $.nodes = nodes;
+            return this;
+        }
+
+        /**
+         * @param os Operating system flavor of the worker nodes.
+         * 
+         * Supported values: &#34;ubuntu&#34;, &#34;cos&#34; (Container-Optimized OS, GKE only), &#34;ol&#34;
+         * (Oracle Linux, OKE), &#34;rhel&#34;, &#34;amazonlinux&#34;, &#34;talos&#34;.
+         * 
+         * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+         * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+         * Set it when the cluster&#39;s OS is known. Some combinations require an OS
+         * (e.g. gke requires &#34;cos&#34;; eks platform recipes require &#34;ubuntu&#34;) and fail
+         * with a message listing the valid values; kind recipes require it unset.
          * 
          * @return builder
          * 
@@ -403,10 +455,10 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
          * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
          * 
          * Leave unset for the base recipe without a platform-specific runtime. Note
-         * that intent=&#34;inference&#34; always includes the kgateway inference gateway
-         * (part of the base inference stack); choosing a platform layers a runtime
-         * (&#34;dynamo&#34;, &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime
-         * components out entirely when platform is unset.
+         * that intent=&#34;inference&#34; always includes an inference gateway (part of the
+         * base inference stack); choosing a platform layers a runtime (&#34;dynamo&#34;,
+         * &#34;nim&#34;) on top. intent=&#34;training&#34; leaves training-runtime components out
+         * entirely when platform is unset.
          * 
          * @return builder
          * 
@@ -486,7 +538,6 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
             if ($.intent == null) {
                 throw new MissingRequiredPropertyException("ClusterStackArgs", "intent");
             }
-            $.os = Codegen.stringProp("os").arg($.os).def("ubuntu").getNullable();
             if ($.service == null) {
                 throw new MissingRequiredPropertyException("ClusterStackArgs", "service");
             }

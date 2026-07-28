@@ -9,4 +9,4 @@ description: |
   This example provisions 2 nodes (~$80/hr). Destroy when done!
 config:
   azure-native:location:
-    default: eastus
+    value: eastus

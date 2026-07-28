@@ -9,4 +9,4 @@ description: |
   This example provisions 2 nodes (~$196/hr). Destroy when done!
 config:
   aws:region:
-    default: us-east-1
+    value: us-east-1

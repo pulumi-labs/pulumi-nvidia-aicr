@@ -9,4 +9,4 @@ description: |
   This example provisions 2 nodes (~$60/hr). Destroy when done!
 config:
   gcp:zone:
-    default: us-central1-a
+    value: us-central1-a

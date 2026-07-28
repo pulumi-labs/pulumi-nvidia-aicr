@@ -1,5 +1,9 @@
 name: aicr-quickstart
-runtime: python
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: venv
 description: |
   Quickstart: Deploy NVIDIA AICR on an existing Kubernetes cluster.
   The simplest way to get started with AICR and Pulumi.

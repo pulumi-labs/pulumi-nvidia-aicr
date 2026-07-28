@@ -1,5 +1,9 @@
 name: oci-oke-gb200-training
-runtime: python
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: venv
 description: >-
   Deploy an NVIDIA AICR-validated Kubeflow training stack on Oracle Cloud OKE with GB200 (Grace Blackwell) bare-metal GPU nodes. COST WARNING: BM.GPU.GB200.4 bare-metal instances are premium-priced; contact OCI sales for pricing. Destroy when done!
 config:

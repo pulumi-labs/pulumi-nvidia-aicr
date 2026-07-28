@@ -169,9 +169,8 @@ func TestValidateArgsCanonicalizesWhitespaceAndCase(t *testing.T) {
 }
 
 func TestValidateArgsAcceptsUnsetOptionalFields(t *testing.T) {
-	// Optional fields (OS, Platform) left unset must pass validation —
-	// the resolver fills in defaults (OS=ubuntu) or treats them as
-	// "no platform" base recipes.
+	// Optional fields (OS, Platform, Nodes) left unset must pass validation —
+	// the SDK resolves the OS-agnostic recipe / "no platform" base recipe.
 	args := &ClusterStackArgs{
 		Accelerator: "h100",
 		Service:     "eks",
@@ -216,6 +215,7 @@ func TestNewClusterStackBuildsResourceGraph(t *testing.T) {
 			Accelerator: "h100",
 			Service:     "eks",
 			Intent:      "training",
+			OS:          pulumi.StringRef("ubuntu"),
 			Platform:    pulumi.StringRef("kubeflow"),
 		})
 		return err
@@ -264,6 +264,7 @@ func TestNewClusterStackDedupesSharedNamespaces(t *testing.T) {
 			Accelerator: "h100",
 			Service:     "eks",
 			Intent:      "training",
+			OS:          pulumi.StringRef("ubuntu"),
 			Platform:    pulumi.StringRef("kubeflow"),
 		})
 		return err
@@ -293,10 +294,10 @@ func TestNewClusterStackDedupesSharedNamespaces(t *testing.T) {
 }
 
 func TestNewClusterStackDeploysManifestComponents(t *testing.T) {
-	// On gke-cos/h100/training the recipe pulls in two manifest-only
-	// components (skyhook-customizations, gke-nccl-tcpxo) plus side-car
-	// manifests for gpu-operator. Each must surface as a yaml/v2 ConfigGroup
-	// resource — the previous "skip if no chart" behavior would drop them.
+	// On gke-cos/h100/training the recipe pulls in manifest-only components
+	// (nodewright-customizations, gke-nccl-tcpxo) plus side-car manifests
+	// for kubeflow-trainer. Each must surface as a yaml/v2 ConfigGroup
+	// resource — a "skip if no chart" behavior would drop them.
 	mon := &recordingMonitor{}
 	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
 		os := "cos"
@@ -320,20 +321,50 @@ func TestNewClusterStackDeploysManifestComponents(t *testing.T) {
 			manifestNames[r.name] = true
 		}
 	}
-	assert.True(t, manifestNames["stack-skyhook-customizations-manifests"],
-		"expected skyhook-customizations manifest bundle; got: %v", manifestNames)
+	assert.True(t, manifestNames["stack-nodewright-customizations-manifests"],
+		"expected nodewright-customizations manifest bundle; got: %v", manifestNames)
 	assert.True(t, manifestNames["stack-gke-nccl-tcpxo-manifests"],
 		"expected gke-nccl-tcpxo manifest bundle; got: %v", manifestNames)
-	assert.True(t, manifestNames["stack-gpu-operator-manifests"],
-		"expected gpu-operator side-car manifest bundle; got: %v", manifestNames)
+	assert.True(t, manifestNames["stack-kubeflow-trainer-manifests"],
+		"expected kubeflow-trainer side-car manifest bundle; got: %v", manifestNames)
+}
+
+func TestNewClusterStackDeploysPreManifestsBeforeChart(t *testing.T) {
+	// gb200-eks recipes attach a kernel-module pre-manifest to gpu-operator;
+	// it must surface as its own ConfigGroup alongside the Helm release.
+	mon := &recordingMonitor{}
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		_, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "gb200",
+			Service:     "eks",
+			Intent:      "training",
+		})
+		return err
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	mon.mu.Lock()
+	defer mon.mu.Unlock()
+
+	var preManifest, release bool
+	for _, r := range mon.resources {
+		switch {
+		case r.typeToken == "kubernetes:yaml/v2:ConfigGroup" && r.name == "stack-gpu-operator-pre-manifests":
+			preManifest = true
+		case strings.HasPrefix(r.typeToken, "kubernetes:helm.sh/v3:Release") && r.name == "stack-gpu-operator":
+			release = true
+		}
+	}
+	assert.True(t, preManifest, "expected gpu-operator pre-manifest ConfigGroup")
+	assert.True(t, release, "expected gpu-operator Helm release")
 }
 
 func TestNewClusterStackTreatsEmptyManifestRenderAsNoOp(t *testing.T) {
 	// A manifest-only component whose templates all render to nothing
-	// (e.g. skyhook-customizations with an `enabled: false` override on
-	// the gke-cos training recipe) is a deliberate user-driven no-op,
-	// not a configuration error. The previous "no chart and no manifests"
-	// guard would have failed the entire deploy in that case.
+	// (e.g. nodewright-customizations with an `enabled: false` override)
+	// is a deliberate user-driven no-op, not a configuration error. A
+	// "no chart and no manifests" guard would have failed the entire
+	// deploy in that case.
 	mon := &recordingMonitor{}
 	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
 		os := "cos"
@@ -345,7 +376,7 @@ func TestNewClusterStackTreatsEmptyManifestRenderAsNoOp(t *testing.T) {
 			OS:          &os,
 			Platform:    pulumi.StringRef("kubeflow"),
 			ComponentOverrides: map[string]ComponentOverride{
-				"skyhook-customizations": {
+				"nodewright-customizations": {
 					Values: map[string]interface{}{"enabled": falseStr},
 				},
 			},
@@ -359,8 +390,8 @@ func TestNewClusterStackTreatsEmptyManifestRenderAsNoOp(t *testing.T) {
 
 	for _, r := range mon.resources {
 		if r.typeToken == "kubernetes:yaml/v2:ConfigGroup" {
-			assert.NotEqualf(t, "stack-skyhook-customizations-manifests", r.name,
-				"disabled skyhook-customizations bundle must not register a ConfigGroup")
+			assert.NotEqualf(t, "stack-nodewright-customizations-manifests", r.name,
+				"disabled nodewright-customizations bundle must not register a ConfigGroup")
 		}
 	}
 }
@@ -372,6 +403,7 @@ func TestNewClusterStackHonorsSkipComponents(t *testing.T) {
 			Accelerator:    "h100",
 			Service:        "eks",
 			Intent:         "training",
+			OS:             pulumi.StringRef("ubuntu"),
 			Platform:       pulumi.StringRef("kubeflow"),
 			SkipComponents: []string{"cert-manager", "kube-prometheus-stack"},
 		})
@@ -388,6 +420,35 @@ func TestNewClusterStackHonorsSkipComponents(t *testing.T) {
 			assert.NotEqual(t, "stack-kube-prometheus-stack", r.name, "skipped kube-prometheus-stack should not be deployed")
 		}
 	}
+}
+
+func TestNewClusterStackKindLocalDev(t *testing.T) {
+	// service=kind is the hardware-free local development path. The old
+	// vendored resolver could never resolve it (it forced os=ubuntu while
+	// kind recipes bind no OS); the SDK resolves it with OS unset, so a
+	// plain kind ClusterStack must produce a resource graph.
+	mon := &recordingMonitor{}
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		_, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "h100",
+			Service:     "kind",
+			Intent:      "inference",
+		})
+		return err
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	mon.mu.Lock()
+	defer mon.mu.Unlock()
+
+	releaseNames := map[string]bool{}
+	for _, r := range mon.resources {
+		if strings.HasPrefix(r.typeToken, "kubernetes:helm.sh/v3:Release") {
+			releaseNames[r.name] = true
+		}
+	}
+	assert.True(t, releaseNames["stack-gpu-operator"], "gpu-operator release missing; got: %v", releaseNames)
+	assert.True(t, releaseNames["stack-agentgateway"], "agentgateway release missing; got: %v", releaseNames)
 }
 
 func TestNewClusterStackRejectsUnsupportedCriteria(t *testing.T) {

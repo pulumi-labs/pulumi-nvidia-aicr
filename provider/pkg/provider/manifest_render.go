@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"path"
 	"sort"
 	"strings"
 
@@ -10,21 +9,22 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/engine"
 
-	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipe"
-	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipes"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/aicr"
 )
 
-// renderManifestBundle renders a component's embedded manifest files through
+// renderManifestBundle renders a component's raw manifest content through
 // the Helm template engine. AICR ships these manifests as Helm templates
 // (they reference .Values, .Release, .Chart, etc. — see e.g.
-// components/skyhook-customizations/manifests/tuning-gke.yaml), so feeding
-// the raw bytes to a Kubernetes ConfigGroup would either fail to parse or
-// produce nonsense. We synthesize a tiny in-memory chart from the manifest
-// files and render it with the same values context the matching Helm
-// release uses, then concatenate the documents into a multi-doc YAML
+// components/nodewright-customizations/manifests/tuning.yaml in the AICR
+// module), and the SDK's BundleComponents returns them un-rendered (its own
+// deployers wrap them as local charts and let Helm render at install time),
+// so feeding the raw bytes to a Kubernetes ConfigGroup would either fail to
+// parse or produce nonsense. We synthesize a tiny in-memory chart from the
+// manifest content and render it with the same values context the matching
+// Helm release uses, then concatenate the documents into a multi-doc YAML
 // payload suitable for kubernetes:yaml/v2:ConfigGroup.
-func renderManifestBundle(comp recipe.ResolvedComponent) (string, error) {
-	if len(comp.ManifestFiles) == 0 {
+func renderManifestBundle(comp aicr.Component, raw string) (string, error) {
+	if strings.TrimSpace(raw) == "" {
 		return "", nil
 	}
 
@@ -34,18 +34,13 @@ func renderManifestBundle(comp recipe.ResolvedComponent) (string, error) {
 			Version:    nonEmpty(comp.Version, "0.0.0"),
 			APIVersion: chart.APIVersionV2,
 		},
-	}
-	for _, p := range comp.ManifestFiles {
-		data, err := recipes.FS.ReadFile(p)
-		if err != nil {
-			return "", fmt.Errorf("reading manifest %s: %w", p, err)
-		}
-		// Helm requires templates under "templates/" within the chart;
-		// rebase to the base name to avoid path collisions.
-		syntheticChart.Templates = append(syntheticChart.Templates, &chart.File{
-			Name: "templates/" + path.Base(p),
-			Data: data,
-		})
+		Templates: []*chart.File{{
+			// The stitched multi-file content renders fine as a single
+			// template: each source file's template code is self-contained
+			// and "---" separators pass through as text.
+			Name: "templates/manifests.yaml",
+			Data: []byte(raw),
+		}},
 	}
 
 	// AICR templates dereference .Values keyed by component name (e.g.

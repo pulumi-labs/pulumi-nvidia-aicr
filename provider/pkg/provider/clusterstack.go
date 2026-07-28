@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
-	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipe"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/aicr"
 )
 
 // builtinNamespaces are Kubernetes built-in namespaces that always exist and
@@ -32,7 +33,7 @@ var (
 	supportedAccelerators = []string{"h100", "gb200", "b200"}
 	supportedServices     = []string{"aks", "eks", "gke", "kind", "oke"}
 	supportedIntents      = []string{"training", "inference"}
-	supportedOSes         = []string{"ubuntu", "cos"}
+	supportedOSes         = []string{"ubuntu", "cos", "ol", "rhel", "amazonlinux", "talos"}
 	supportedPlatforms    = []string{"kubeflow", "dynamo", "nim"}
 )
 
@@ -59,13 +60,16 @@ type ClusterStackArgs struct {
 	// Supported values: "training", "inference".
 	Intent string `pulumi:"intent"`
 
-	// The operating system. Optional, defaults to "ubuntu".
-	// Supported values: "ubuntu", "cos" (cos applies to gke).
+	// The operating system. Optional; leave unset for OS-agnostic resolution.
+	// Supported values: "ubuntu", "cos", "ol", "rhel", "amazonlinux", "talos".
 	OS *string `pulumi:"os,optional"`
 
 	// The ML platform/framework. Optional.
 	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference).
 	Platform *string `pulumi:"platform,optional"`
+
+	// The worker-node count hint used to size the recipe. Optional.
+	Nodes *int `pulumi:"nodes,optional"`
 
 	// The kubeconfig contents for the target Kubernetes cluster.
 	// Accepts computed outputs from cluster resources (e.g., EKS cluster kubeconfig).
@@ -128,19 +132,27 @@ hardware-free development of the deployment pipeline.`)
 component sets.
 
 Supported values: "training", "inference".`)
-	an.Describe(&a.OS, `Operating system flavor.
+	an.Describe(&a.OS, `Operating system flavor of the worker nodes.
 
-Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).`)
-	an.SetDefault(&a.OS, "ubuntu")
+Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+(Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+
+Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+Set it when the cluster's OS is known. Some combinations require an OS
+(e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+with a message listing the valid values; kind recipes require it unset.`)
 	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
 
 Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
 
 Leave unset for the base recipe without a platform-specific runtime. Note
-that intent="inference" always includes the kgateway inference gateway
-(part of the base inference stack); choosing a platform layers a runtime
-("dynamo", "nim") on top. intent="training" leaves training-runtime
-components out entirely when platform is unset.`)
+that intent="inference" always includes an inference gateway (part of the
+base inference stack); choosing a platform layers a runtime ("dynamo",
+"nim") on top. intent="training" leaves training-runtime components out
+entirely when platform is unset.`)
+	an.Describe(&a.Nodes, `Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+Leave unset to let AICR pick the default-sized recipe.`)
 	an.Describe(&a.Kubeconfig, `Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
 Accepts computed outputs from cluster resources (e.g., an EKS cluster's
 KubeconfigJson). Mutually exclusive with `+"`kubeconfigPath`"+`.
@@ -199,38 +211,41 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	// match the case-insensitive validation we just performed; otherwise
 	// inputs like " EKS " would pass validateArgs but fail resolution, and
 	// uppercase values would leak into the resolved recipe name.
-	criteria := recipe.Criteria{
+	criteria := aicr.Criteria{
 		Service:     canonical(args.Service),
 		Accelerator: canonical(args.Accelerator),
 		Intent:      canonical(args.Intent),
-		OS:          canonicalOr(args.OS, "ubuntu"),
+		OS:          canonicalOr(args.OS, ""),
 		Platform:    canonicalOr(args.Platform, ""),
 	}
+	if args.Nodes != nil {
+		criteria.Nodes = int32(*args.Nodes)
+	}
 
-	// Resolve the AICR recipe
-	resolved, err := recipe.Resolve(criteria)
+	// Resolve and bundle the AICR recipe via the SDK. Resolution is
+	// synchronous, offline (embedded recipe data), and happens at plan time.
+	// The pulumi.Context is not a context.Context, so use Background.
+	resolved, err := aicr.Resolve(context.Background(), criteria)
 	if err != nil {
-		return nil, fmt.Errorf("resolving AICR recipe: %w", err)
+		return nil, err
 	}
 
 	// Apply user overrides
 	if args.ComponentOverrides != nil || len(args.SkipComponents) > 0 {
-		overrides := make(map[string]recipe.ComponentOverride)
+		overrides := make(map[string]aicr.ComponentOverride)
 		for k, v := range args.ComponentOverrides {
-			overrides[k] = recipe.ComponentOverride{
+			overrides[k] = aicr.ComponentOverride{
 				Version:   v.Version,
 				Namespace: v.Namespace,
 				Values:    v.Values,
 			}
 		}
-		resolved = recipe.ApplyOverrides(resolved, overrides, args.SkipComponents)
+		resolved = aicr.ApplyOverrides(resolved, overrides, args.SkipComponents)
 	}
 
-	// Topologically sort components by dependencies
-	sorted, err := recipe.TopologicalSort(resolved.Components)
-	if err != nil {
-		return nil, fmt.Errorf("sorting components: %w", err)
-	}
+	// Components are already in the SDK's topologically sorted deployment
+	// order (RecipeResult.DeploymentOrder).
+	sorted := resolved.Components
 
 	// Create a Kubernetes provider for the target cluster
 	var k8sProvider *kubernetes.Provider
@@ -306,6 +321,27 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 
 		hasChart := comp.Chart != "" && comp.Repo != ""
 
+		// Pre-manifests must be applied BEFORE the component's chart (e.g. a
+		// privileged Namespace with PSS labels the chart's pods need to land
+		// in, or a kernel-module ConfigMap the driver DaemonSet mounts).
+		if strings.TrimSpace(comp.PreManifests) != "" {
+			yamlDoc, preErr := renderManifestBundle(comp, comp.PreManifests)
+			if preErr != nil {
+				return nil, fmt.Errorf("rendering pre-manifests for %s: %w", comp.Name, preErr)
+			}
+			if strings.TrimSpace(yamlDoc) != "" {
+				cg, cgErr := yamlv2.NewConfigGroup(ctx, name+"-"+comp.Name+"-pre-manifests",
+					&yamlv2.ConfigGroupArgs{
+						Yaml:      pulumi.StringPtr(yamlDoc),
+						SkipAwait: pulumi.BoolPtr(skipAwait),
+					}, baseOpts...)
+				if cgErr != nil {
+					return nil, fmt.Errorf("applying pre-manifests for %s: %w", comp.Name, cgErr)
+				}
+				deployedResources[comp.Name] = append(deployedResources[comp.Name], cg)
+			}
+		}
+
 		if hasChart {
 			values := toPulumiMap(comp.Values)
 
@@ -341,7 +377,13 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 				}
 			}
 
-			release, relErr := helmv3.NewRelease(ctx, name+"-"+comp.Name, releaseArgs, baseOpts...)
+			releaseOpts := append([]pulumi.ResourceOption(nil), baseOpts...)
+			// Sequence the release after this component's pre-manifests.
+			if existing := deployedResources[comp.Name]; len(existing) > 0 {
+				releaseOpts = append(releaseOpts, pulumi.DependsOn(existing))
+			}
+
+			release, relErr := helmv3.NewRelease(ctx, name+"-"+comp.Name, releaseArgs, releaseOpts...)
 			if relErr != nil {
 				return nil, fmt.Errorf("creating Helm release for %s: %w", comp.Name, relErr)
 			}
@@ -349,8 +391,8 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		}
 
 		manifestRendered := false
-		if len(comp.ManifestFiles) > 0 {
-			yamlDoc, mfErr := renderManifestBundle(comp)
+		if strings.TrimSpace(comp.Manifests) != "" {
+			yamlDoc, mfErr := renderManifestBundle(comp, comp.Manifests)
 			if mfErr != nil {
 				return nil, fmt.Errorf("rendering manifests for %s: %w", comp.Name, mfErr)
 			}
@@ -381,11 +423,12 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		}
 
 		if len(deployedResources[comp.Name]) == 0 {
-			// Components with manifestFiles that rendered to nothing are
-			// a deliberate no-op; skip silently. A truly empty component
-			// (no chart and no manifests) should have been filtered by
-			// the resolver — surface that as a programming error.
-			if !manifestRendered {
+			// Components whose manifests rendered to nothing are a
+			// deliberate no-op (e.g. a bundle disabled through values);
+			// skip silently. A truly empty component (no chart and no
+			// manifest content at all) indicates a recipe/adapter bug —
+			// surface it rather than dropping the component quietly.
+			if !manifestRendered && strings.TrimSpace(comp.PreManifests) == "" {
 				return nil, fmt.Errorf("component %q has no chart and no manifests", comp.Name)
 			}
 			continue
@@ -501,6 +544,9 @@ func validateArgs(args *ClusterStackArgs) error {
 				*args.Platform, strings.Join(supportedPlatforms, ", "))
 		}
 	}
+	if args.Nodes != nil && *args.Nodes < 0 {
+		return fmt.Errorf("nodes must be non-negative; got %d", *args.Nodes)
+	}
 	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
 		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")
 	}
@@ -547,13 +593,6 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func derefStr(s *string, def string) string {
-	if s != nil {
-		return *s
-	}
-	return def
 }
 
 // canonical lower-cases and trims an input criterion so that " EKS " and

@@ -33,9 +33,7 @@ public class App {
             .intent(intent)
             .skipAwait(true) // kind clusters often can't satisfy GPU readiness; don't block
             .skipComponents(List.of(
-                "kube-prometheus-stack",
-                // chart unfetchable upstream; see NVIDIA/aicr#1954
-                "kai-scheduler"
+                "kube-prometheus-stack"
             ))
             .build());
 

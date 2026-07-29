@@ -347,15 +347,16 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 
 			// Resolve chart name + repo, handling OCI vs. HTTP Helm registries.
 			// For OCI, the Pulumi Helm provider expects the full OCI URL as the
-			// chart name with no separate repository option.
+			// chart name with no separate repository option. The AICR contract
+			// is that Source is the OCI namespace and Chart is the chart within
+			// it — the full reference is always Source + "/" + Chart, even when
+			// the namespace ends with the chart name (kai-scheduler lives at
+			// oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler); see
+			// NVIDIA/aicr#1954.
 			chart := comp.Chart
 			repo := comp.Repo
 			if strings.HasPrefix(repo, "oci://") {
-				if !strings.HasSuffix(repo, "/"+chart) {
-					chart = repo + "/" + chart
-				} else {
-					chart = repo
-				}
+				chart = repo + "/" + chart
 				repo = ""
 			}
 

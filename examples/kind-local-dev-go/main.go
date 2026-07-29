@@ -33,7 +33,6 @@ func main() {
 			SkipAwait:    pulumi.BoolRef(true), // kind clusters often can't satisfy GPU readiness; don't block
 			SkipComponents: pulumi.ToStringArray([]string{
 				"kube-prometheus-stack",
-				"kai-scheduler", // chart unfetchable upstream; see NVIDIA/aicr#1954
 			}),
 		})
 		if err != nil {

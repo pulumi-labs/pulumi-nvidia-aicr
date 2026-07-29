@@ -27,7 +27,6 @@ stack = aicr.ClusterStack("kind-aicr",
     skip_await=True,  # kind clusters often can't satisfy GPU readiness; don't block
     skip_components=[
         "kube-prometheus-stack",
-        "kai-scheduler",  # chart unfetchable upstream; see NVIDIA/aicr#1954
     ],
 )
 

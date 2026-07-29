@@ -33,7 +33,6 @@ const stack = new aicr.ClusterStack("kind-aicr", {
     skipAwait: true, // kind clusters often can't satisfy GPU readiness; don't block
     skipComponents: [
         "kube-prometheus-stack",
-        "kai-scheduler", // chart unfetchable upstream; see NVIDIA/aicr#1954
     ],
 });
 

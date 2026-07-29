@@ -28,6 +28,7 @@ return await Deployment.RunAsync(() =>
         SkipComponents = new[]
         {
             "kube-prometheus-stack",
+            "kai-scheduler", // chart unfetchable upstream; see NVIDIA/aicr#1954
         },
     });
 

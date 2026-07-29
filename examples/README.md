@@ -26,6 +26,20 @@ languages.
 | Existing cluster (quickstart) | [ts](./existing-cluster-ts/) | [py](./existing-cluster-py/) | [go](./existing-cluster-go/) | [cs](./existing-cluster-cs/) | [java](./existing-cluster-java/) | [yaml](./existing-cluster-yaml/) |
 | Kind local dev (no GPUs) | [ts](./kind-local-dev-ts/) | [py](./kind-local-dev-py/) | [go](./kind-local-dev-go/) | [cs](./kind-local-dev-cs/) | [java](./kind-local-dev-java/) | [yaml](./kind-local-dev-yaml/) |
 
+## Known issues
+
+**kai-scheduler chart is currently unfetchable upstream**
+([NVIDIA/aicr#1954](https://github.com/NVIDIA/aicr/issues/1954)): the AICR
+recipe data points kai-scheduler at an OCI location that is not yet published,
+so `pulumi up` fails when it reaches that component. The kind local-dev
+examples skip it (GPU-aware scheduling does nothing on a GPU-less kind
+cluster anyway). The cloud examples deliberately do **not** skip it —
+kai-scheduler is a load-bearing part of a real GPU cluster — so a cloud
+deploy will stop at that component with a clear registry error until the
+upstream issue is fixed. To proceed anyway, add `"kai-scheduler"` to
+`skipComponents`, understanding the deployed stack then lacks GPU-aware
+scheduling.
+
 ## Scenarios
 
 ### existing-cluster

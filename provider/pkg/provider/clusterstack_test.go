@@ -451,6 +451,46 @@ func TestNewClusterStackKindLocalDev(t *testing.T) {
 	assert.True(t, releaseNames["stack-agentgateway"], "agentgateway release missing; got: %v", releaseNames)
 }
 
+func TestNewClusterStackPreservesNullHelmValues(t *testing.T) {
+	// Explicit nulls in recipe values are semantic: Helm deletes the chart
+	// default for a key set to null. The AICR eks overlay sets
+	// controller.affinity.nodeAffinity: null on nvidia-dra-driver-gpu to
+	// clear the chart's default GPU node affinity; stringifying it to
+	// "<nil>" (the old toPulumiInput behavior) rendered a Deployment the
+	// API server rejects (nodeAffinity must be an object, not a string).
+	mon := &recordingMonitor{}
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		_, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "h100",
+			Service:     "eks",
+			Intent:      "training",
+			OS:          pulumi.StringRef("ubuntu"),
+		})
+		return err
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	mon.mu.Lock()
+	defer mon.mu.Unlock()
+
+	for _, r := range mon.resources {
+		if !strings.HasPrefix(r.typeToken, "kubernetes:helm.sh/v3:Release") || r.name != "stack-nvidia-dra-driver-gpu" {
+			continue
+		}
+		require.True(t, r.inputs["allowNullValues"].BoolValue(),
+			"allowNullValues must be set so the Helm provider honors null-deletion")
+		files := r.inputs["valueYamlFiles"].ArrayValue()
+		require.Len(t, files, 1, "expected exactly one values YAML asset")
+		yamlText := files[0].AssetValue().Text
+		assert.Contains(t, yamlText, "nodeAffinity: null",
+			"the recipe's explicit null must survive into the values YAML")
+		assert.NotContains(t, yamlText, "<nil>",
+			"nulls must not be stringified")
+		return
+	}
+	t.Fatal("nvidia-dra-driver-gpu release not found")
+}
+
 func TestNewClusterStackRejectsUnsupportedCriteria(t *testing.T) {
 	mon := &recordingMonitor{}
 	// validateArgs rejects out-of-allowlist accelerators before the resolver

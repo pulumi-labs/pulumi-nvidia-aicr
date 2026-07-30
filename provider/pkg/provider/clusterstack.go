@@ -12,6 +12,7 @@ import (
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	sigsyaml "sigs.k8s.io/yaml"
 
 	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/aicr"
 )
@@ -343,7 +344,25 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		}
 
 		if hasChart {
-			values := toPulumiMap(comp.Values)
+			// Deliver values as a YAML asset rather than a typed map: the
+			// Pulumi Go SDK strips null map entries during input marshaling,
+			// but explicit nulls are semantic in Helm (setting a key to null
+			// deletes the chart's default — e.g. the AICR eks overlay clears
+			// nvidia-dra-driver-gpu's controller.affinity.nodeAffinity that
+			// way). YAML text preserves them, and AllowNullValues makes the
+			// Helm provider honor them. sigs.k8s.io/yaml marshals map keys
+			// in sorted order, keeping the asset text (and thus diffs)
+			// deterministic across previews.
+			var valueFiles pulumi.AssetOrArchiveArray
+			if len(comp.Values) > 0 {
+				valuesYAML, yErr := sigsyaml.Marshal(comp.Values)
+				if yErr != nil {
+					return nil, fmt.Errorf("encoding Helm values for %s: %w", comp.Name, yErr)
+				}
+				valueFiles = pulumi.AssetOrArchiveArray{
+					pulumi.NewStringAsset(string(valuesYAML)),
+				}
+			}
 
 			// Resolve chart name + repo, handling OCI vs. HTTP Helm registries.
 			// For OCI, the Pulumi Helm provider expects the full OCI URL as the
@@ -369,7 +388,8 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 				Version:         pulumi.StringPtr(comp.Version),
 				Namespace:       pulumi.StringPtr(comp.Namespace),
 				CreateNamespace: pulumi.Bool(true),
-				Values:          values,
+				ValueYamlFiles:  valueFiles,
+				AllowNullValues: pulumi.BoolPtr(true),
 				SkipAwait:       pulumi.Bool(skipAwait),
 			}
 			if repo != "" {
@@ -453,50 +473,6 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	}
 
 	return state, nil
-}
-
-// toPulumiMap converts a map[string]interface{} to pulumi.Map for Helm values.
-func toPulumiMap(m map[string]interface{}) pulumi.Map {
-	if m == nil {
-		return nil
-	}
-	result := make(pulumi.Map, len(m))
-	for k, v := range m {
-		result[k] = toPulumiInput(v)
-	}
-	return result
-}
-
-// toPulumiInput converts an arbitrary value to a pulumi.Input.
-func toPulumiInput(v interface{}) pulumi.Input {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		return toPulumiMap(val)
-	case map[interface{}]interface{}:
-		m := make(map[string]interface{}, len(val))
-		for k, v := range val {
-			m[fmt.Sprintf("%v", k)] = v
-		}
-		return toPulumiMap(m)
-	case []interface{}:
-		arr := make(pulumi.Array, len(val))
-		for i, item := range val {
-			arr[i] = toPulumiInput(item)
-		}
-		return arr
-	case string:
-		return pulumi.String(val)
-	case int:
-		return pulumi.Int(val)
-	case int64:
-		return pulumi.Int(int(val))
-	case float64:
-		return pulumi.Float64(val)
-	case bool:
-		return pulumi.Bool(val)
-	default:
-		return pulumi.String(fmt.Sprintf("%v", v))
-	}
 }
 
 // validateArgs rejects invalid input combinations early with a clear error,

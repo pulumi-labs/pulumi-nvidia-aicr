@@ -10,6 +10,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.21.3
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -298,5 +299,4 @@ require (
 	sigs.k8s.io/node-feature-discovery/api/nfd v0.19.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )

@@ -451,6 +451,99 @@ func TestNewClusterStackKindLocalDev(t *testing.T) {
 	assert.True(t, releaseNames["stack-agentgateway"], "agentgateway release missing; got: %v", releaseNames)
 }
 
+func TestNewClusterStackComposesChartCoordinates(t *testing.T) {
+	// OCI sources: ComponentRef.Source is the OCI namespace and Chart the
+	// chart within it; the full reference is always Source + "/" + Chart,
+	// even when the namespace ends with the chart name (see NVIDIA/aicr#1954
+	// — kai-scheduler's truncated reference addressed the parent repository
+	// and failed with a 403 that masqueraded as a permissions error).
+	// HTTP sources: chart name and repository stay separate.
+	mon := &recordingMonitor{}
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		_, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "h100",
+			Service:     "kind",
+			Intent:      "inference",
+		})
+		return err
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	mon.mu.Lock()
+	defer mon.mu.Unlock()
+
+	charts := map[string]struct{ chart, repo string }{}
+	for _, r := range mon.resources {
+		if !strings.HasPrefix(r.typeToken, "kubernetes:helm.sh/v3:Release") {
+			continue
+		}
+		chart := r.inputs["chart"].StringValue()
+		repo := ""
+		if ro, ok := r.inputs["repositoryOpts"]; ok && ro.IsObject() {
+			if rv, ok := ro.ObjectValue()["repo"]; ok && rv.IsString() {
+				repo = rv.StringValue()
+			}
+		}
+		charts[r.name] = struct{ chart, repo string }{chart, repo}
+	}
+
+	kai, ok := charts["stack-kai-scheduler"]
+	require.True(t, ok, "kai-scheduler release missing; got %v", charts)
+	assert.Equal(t, "oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler", kai.chart,
+		"OCI reference must be Source + \"/\" + Chart even when Source ends with the chart name")
+	assert.Empty(t, kai.repo, "OCI releases must not set a separate repository")
+
+	cm, ok := charts["stack-cert-manager"]
+	require.True(t, ok, "cert-manager release missing")
+	assert.Equal(t, "cert-manager", cm.chart)
+	assert.Equal(t, "https://charts.jetstack.io", cm.repo,
+		"HTTP releases keep chart name and repository separate")
+}
+
+func TestNewClusterStackPropagatesSkipAwait(t *testing.T) {
+	mon := &recordingMonitor{}
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		skip := true
+		_, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "h100",
+			Service:     "kind",
+			Intent:      "inference",
+			SkipAwait:   &skip,
+		})
+		return err
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	mon.mu.Lock()
+	defer mon.mu.Unlock()
+
+	checked := 0
+	for _, r := range mon.resources {
+		switch {
+		case strings.HasPrefix(r.typeToken, "kubernetes:helm.sh/v3:Release"),
+			r.typeToken == "kubernetes:yaml/v2:ConfigGroup":
+			assert.Truef(t, r.inputs["skipAwait"].BoolValue(),
+				"%s must carry skipAwait=true", r.name)
+			checked++
+		}
+	}
+	assert.Greater(t, checked, 5, "expected skipAwait asserted on several resources")
+}
+
+func TestValidateArgsRejectsNegativeNodes(t *testing.T) {
+	nodes := -1
+	err := validateArgs(&ClusterStackArgs{
+		Accelerator: "h100", Service: "eks", Intent: "training", Nodes: &nodes,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "non-negative")
+
+	valid := 4
+	assert.NoError(t, validateArgs(&ClusterStackArgs{
+		Accelerator: "h100", Service: "eks", Intent: "training", Nodes: &valid,
+	}))
+}
+
 func TestNewClusterStackPreservesNullHelmValues(t *testing.T) {
 	// Explicit nulls in recipe values are semantic: Helm deletes the chart
 	// default for a key set to null. The AICR eks overlay sets

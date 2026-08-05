@@ -46,9 +46,30 @@ ClusterStack failed would poison update semantics and block subsequent
 `pulumi up`s of a healthy cluster. A flaky performance check must never
 wedge the cluster resource.
 
-Why not a policy pack: policies evaluate the resource graph at preview/update
-time; they cannot deploy a snapshotter Job and wait minutes for NCCL results,
-and should not.
+Why not a policy pack: not impossibility — unsuitability. A stack validation
+policy is arbitrary code running at the end of an update with outputs
+available, so it *could* reach the cluster and run checks. But it would gain
+nothing and lose a lot:
+
+- **No stronger gating.** Stack policies run after provisioning; a mandatory
+  violation fails the update but the cluster is already deployed — identical
+  post-facto semantics to a `strict: true` ValidationRun.
+- **No cadence control.** Policies run on every preview and update of every
+  bound stack, with no equivalent of `triggers`; a ten-minute job-launching
+  step taxes every `pulumi up` org-wide, and must self-skip at preview
+  (unknown outputs, cluster may not exist) anyway.
+- **Side effects from an observer.** A "policy" that deploys privileged Jobs
+  into the cluster breaks CrossGuard's effectively side-effect-free contract,
+  and depends on fragile access to the secret kubeconfig output.
+- **No durable record or independent retry.** Policies emit violations, not
+  structured per-check outputs in state; re-running one means another full
+  update.
+
+The two mechanisms compose instead: the policy pack's proper role is
+*enforcing* validation org-wide — "every stack containing a ClusterStack must
+contain a strict ValidationRun" / "ValidationRun.status must be `passed`" —
+by reading this resource's outputs at end of update. Policy enforces that
+validation happened; the resource implements it.
 
 A separate resource gives us: validation recorded per-deployment in state and
 the Console; independent retry (`pulumi up --replace` on the ValidationRun

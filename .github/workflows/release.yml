@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
-          cache-dependency-path: provider/go.sum
+          cache-dependency-path: go.sum
       - name: Compute version
         id: ver
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
-          cache-dependency-path: provider/go.sum
+          cache-dependency-path: go.sum
       - uses: pulumi/actions@v6
         with:
           pulumi-version: '3.241.0'

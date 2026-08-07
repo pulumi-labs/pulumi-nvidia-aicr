@@ -241,6 +241,37 @@ func TestApplyOverrides(t *testing.T) {
 	assert.NotContains(t, comp.Values, "toolkit", "nil override deletes the key")
 }
 
+func TestApplyOverridesDoesNotMutateInput(t *testing.T) {
+	// ApplyOverrides reads as copy-on-write; this pins that the merge
+	// really does write into copies, not the maps the input recipe still
+	// references (a trap if resolution is ever cached or reused).
+	base := &Recipe{
+		Components: []Component{{
+			Name: "gpu-operator",
+			Values: map[string]interface{}{
+				"driver":  map[string]interface{}{"enabled": true, "version": "550"},
+				"toolkit": map[string]interface{}{"enabled": true},
+			},
+		}},
+	}
+
+	_ = ApplyOverrides(base, map[string]ComponentOverride{
+		"gpu-operator": {
+			Values: map[string]interface{}{
+				"driver":  map[string]interface{}{"version": "570"},
+				"toolkit": nil,
+				"extra":   "added",
+			},
+		},
+	}, nil)
+
+	orig := base.Components[0].Values
+	driver := orig["driver"].(map[string]interface{})
+	assert.Equal(t, "550", driver["version"], "nested merge must not leak into the input")
+	assert.Contains(t, orig, "toolkit", "nil-delete must not remove keys from the input")
+	assert.NotContains(t, orig, "extra", "added keys must not appear in the input")
+}
+
 func TestApplyOverridesOnResolvedRecipe(t *testing.T) {
 	r := resolve(t, Criteria{
 		Service: "eks", Accelerator: "h100", Intent: "training", OS: "ubuntu",

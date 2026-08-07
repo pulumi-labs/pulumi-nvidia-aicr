@@ -266,7 +266,11 @@ func ApplyOverrides(r *Recipe, overrides map[string]ComponentOverride, skipCompo
 				comp.Namespace = *override.Namespace
 			}
 			if override.Values != nil {
-				comp.Values = DeepMergeMaps(comp.Values, override.Values)
+				// Merge into a copy: DeepMergeMaps writes into dst, and
+				// comp.Values is shared with the input recipe — without the
+				// copy the "copy-on-write" shape of this function is a lie
+				// and the caller's *Recipe is silently mutated.
+				comp.Values = DeepMergeMaps(copyValueMaps(comp.Values), override.Values)
 			}
 		}
 		filtered = append(filtered, comp)
@@ -275,6 +279,26 @@ func ApplyOverrides(r *Recipe, overrides map[string]ComponentOverride, skipCompo
 	result := *r
 	result.Components = filtered
 	return &result
+}
+
+// copyValueMaps returns a copy of m with every nested map[string]any
+// duplicated. Leaves (scalars, slices) are shared: DeepMergeMaps only ever
+// writes at map levels it recurses into — slices are replaced wholesale,
+// never mutated — so copying the map spine is sufficient to isolate the
+// original from the merge.
+func copyValueMaps(m map[string]interface{}) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		if nested, ok := toMap(v); ok {
+			out[k] = copyValueMaps(nested)
+		} else {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // DeepMergeMaps recursively merges src into dst. Values in src take

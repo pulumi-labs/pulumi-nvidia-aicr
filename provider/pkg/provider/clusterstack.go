@@ -34,7 +34,13 @@ var (
 	supportedAccelerators = []string{"h100", "gb200", "b200"}
 	supportedServices     = []string{"aks", "eks", "gke", "kind", "oke"}
 	supportedIntents      = []string{"training", "inference"}
-	supportedOSes         = []string{"ubuntu", "cos", "ol", "rhel", "amazonlinux", "talos"}
+	// supportedOSes lists only OS values with backing recipes in the pinned
+	// SDK's data (the SDK's request schema names more — rhel, amazonlinux,
+	// talos — but v0.18.0 ships no leaves for them, and admitting them here
+	// would trade this allowlist's friendly errors for SDK resolution
+	// errors). Extend alongside SDK bumps; deriving this from the SDK's
+	// CriteriaRegistry is tracked as a follow-up.
+	supportedOSes = []string{"ubuntu", "cos", "ol"}
 	supportedPlatforms    = []string{"kubeflow", "dynamo", "nim"}
 )
 
@@ -62,7 +68,7 @@ type ClusterStackArgs struct {
 	Intent string `pulumi:"intent"`
 
 	// The operating system. Optional; leave unset for OS-agnostic resolution.
-	// Supported values: "ubuntu", "cos", "ol", "rhel", "amazonlinux", "talos".
+	// Supported values: "ubuntu", "cos", "ol".
 	OS *string `pulumi:"os,optional"`
 
 	// The ML platform/framework. Optional.
@@ -136,7 +142,9 @@ Supported values: "training", "inference".`)
 	an.Describe(&a.OS, `Operating system flavor of the worker nodes.
 
 Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
-(Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+(Oracle Linux, OKE) — the values with backing recipes in this provider's
+pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+through AICR SDK upgrades.
 
 Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
 tuning, driver constraints) are skipped and the OS-agnostic recipe is used.

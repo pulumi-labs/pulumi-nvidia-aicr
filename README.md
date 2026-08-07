@@ -74,7 +74,7 @@ on a Kubernetes cluster.
 | `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"` |
 | `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"kind"`, `"oke"` |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
-| `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke), `"rhel"`, `"amazonlinux"`, `"talos"`. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |
+| `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke) — the values backed by recipes in the pinned AICR data; more arrive via SDK upgrades. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |
 | `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only). Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes an inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
 | `nodes` | `int` | No | Worker-node count hint used to size the recipe (nodes, not GPUs) |
 | `kubeconfig` | `Input<string>` | No | Kubeconfig contents (accepts outputs from cluster resources) |

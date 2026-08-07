@@ -154,7 +154,7 @@
         "os": {
           "type": "string",
           "plain": true,
-          "description": "Operating system flavor of the worker nodes.\n\nSupported values: \"ubuntu\", \"cos\" (Container-Optimized OS, GKE only), \"ol\"\n(Oracle Linux, OKE), \"rhel\", \"amazonlinux\", \"talos\".\n\nLeave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel\ntuning, driver constraints) are skipped and the OS-agnostic recipe is used.\nSet it when the cluster's OS is known. Some combinations require an OS\n(e.g. gke requires \"cos\"; eks platform recipes require \"ubuntu\") and fail\nwith a message listing the valid values; kind recipes require it unset."
+          "description": "Operating system flavor of the worker nodes.\n\nSupported values: \"ubuntu\", \"cos\" (Container-Optimized OS, GKE only), \"ol\"\n(Oracle Linux, OKE) — the values with backing recipes in this provider's\npinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive\nthrough AICR SDK upgrades.\n\nLeave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel\ntuning, driver constraints) are skipped and the OS-agnostic recipe is used.\nSet it when the cluster's OS is known. Some combinations require an OS\n(e.g. gke requires \"cos\"; eks platform recipes require \"ubuntu\") and fail\nwith a message listing the valid values; kind recipes require it unset."
         },
         "platform": {
           "type": "string",

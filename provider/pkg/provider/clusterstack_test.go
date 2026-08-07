@@ -101,6 +101,14 @@ func TestValidateArgsRejectsUnsupportedValues(t *testing.T) {
 			want: `os "flatcar" is not supported`,
 		},
 		{
+			// In the SDK's request schema but with no backing recipes in the
+			// pinned data — must fail here with the friendly allowlist error,
+			// not inside SDK resolution.
+			name: "os without backing recipes",
+			args: ClusterStackArgs{Accelerator: "h100", Service: "eks", Intent: "training", OS: str("rhel")},
+			want: `os "rhel" is not supported`,
+		},
+		{
 			name: "unsupported platform",
 			args: ClusterStackArgs{Accelerator: "h100", Service: "eks", Intent: "training", Platform: str("ray")},
 			want: `platform "ray" is not supported`,

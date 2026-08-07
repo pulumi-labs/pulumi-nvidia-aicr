@@ -73,7 +73,7 @@
           "additionalProperties": {
             "$ref": "pulumi.json#/Any"
           },
-          "description": "Additional or override Helm values, deep-merged with the recipe defaults."
+          "description": "Additional or override Helm values, deep-merged on top of the\nrecipe-resolved values.\n\nMerge semantics: nested maps merge recursively; scalars and arrays replace\nthe recipe's value; setting a key to null removes it from the\nrecipe-resolved values, restoring the chart's own default for that key.\nNote the null asymmetry: a null *in the recipe data* is passed through to\nHelm (explicitly clearing the chart default), while a null *here* removes\nthe recipe's setting. There is currently no way to pass a literal null\nthrough to Helm from this input — and some language SDKs drop null map\nentries during serialization before they reach the provider at all."
         },
         "version": {
           "type": "string",

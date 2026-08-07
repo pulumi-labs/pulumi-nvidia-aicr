@@ -43,7 +43,13 @@ func TestResolveEKSH100TrainingKubeflow(t *testing.T) {
 	})
 
 	assert.Equal(t, "h100-eks-ubuntu-training-kubeflow", r.Name)
-	assert.NotEmpty(t, r.Version, "recipe version must report the SDK module version")
+	// Module binaries report the pinned SDK version (e.g. "v0.18.0"); test
+	// binaries carry incomplete dependency build info and land on the
+	// "embedded" fallback. Accept exactly those shapes — never "".
+	// TestSDKModuleVersion covers each path against fabricated build info,
+	// and CI asserts the shipped binary via `go version -m`.
+	assert.Regexp(t, `^(v\d+\.\d+\.\d+.*|embedded)$`, r.Version,
+		"recipe version must be a semver SDK version or the embedded fallback")
 
 	names := componentNames(r)
 	for _, expected := range []string{

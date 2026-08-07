@@ -215,16 +215,27 @@ func recipeName(internal *recipe.RecipeResult, fallback string) string {
 	return fallback
 }
 
+// readBuildInfo is debug.ReadBuildInfo, indirected so tests can inject
+// fabricated build info: Go test binaries carry incomplete dependency
+// build info, so the real function cannot exercise the version path there.
+var readBuildInfo = debug.ReadBuildInfo
+
 // sdkModuleVersion reports the pinned version of the AICR SDK module, which
 // also versions the embedded recipe data. Falls back to "embedded" when build
-// info is unavailable (e.g. non-module builds).
+// info is unavailable or carries no usable version (test binaries, and
+// filesystem `replace` directives whose Replace.Version is empty or
+// "(devel)"). CI asserts the shipped binary's build info resolves to a real
+// version via `go version -m`.
 func sdkModuleVersion() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
+	if info, ok := readBuildInfo(); ok {
 		for _, dep := range info.Deps {
-			if dep.Path == aicrModulePath {
-				if dep.Replace != nil {
-					return dep.Replace.Version
-				}
+			if dep.Path != aicrModulePath {
+				continue
+			}
+			if dep.Replace != nil && dep.Replace.Version != "" && dep.Replace.Version != "(devel)" {
+				return dep.Replace.Version
+			}
+			if dep.Version != "" {
 				return dep.Version
 			}
 		}

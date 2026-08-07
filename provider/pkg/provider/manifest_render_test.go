@@ -67,7 +67,6 @@ func TestRenderManifestBundleDropsCommentOnlyDocuments(t *testing.T) {
 	// be dropped individually, not survive because a sibling document has
 	// content.
 	raw := `# This section is guarded off by values.
-# {{ guard renders nothing }}
 {{- if .Values.missing }}
 kind: Never
 {{- end }}

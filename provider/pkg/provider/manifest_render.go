@@ -78,22 +78,47 @@ func renderManifestBundle(comp aicr.Component, raw string) (string, error) {
 
 	var b strings.Builder
 	for _, k := range keys {
-		body := stripCommentOnly(rendered[k])
-		if body == "" {
-			// A template guarded by `{{- if ... }}` renders to just the
-			// leading comments outside the conditional — for example,
-			// skyhook-customizations when `enabled: false`. Drop those
-			// "empty after stripping comments" outputs so we don't emit
-			// a no-op ConfigGroup downstream.
-			continue
+		// The stitched input can hold several YAML documents (the SDK joins
+		// the recipe's manifest files with "---"). Strip comment-only
+		// content per document, not per template: a guarded-off section
+		// (`{{- if ... }}` rendering to just its comment header — e.g.
+		// nodewright-customizations when `enabled: false`) inside a bundle
+		// that also has real content would otherwise leave a stray comment
+		// document in the output.
+		for _, doc := range splitYAMLDocs(rendered[k]) {
+			body := stripCommentOnly(doc)
+			if body == "" {
+				continue
+			}
+			if b.Len() > 0 {
+				b.WriteString("\n---\n")
+			}
+			b.WriteString(body)
+			b.WriteString("\n")
 		}
-		if b.Len() > 0 {
-			b.WriteString("\n---\n")
-		}
-		b.WriteString(body)
-		b.WriteString("\n")
 	}
 	return b.String(), nil
+}
+
+// splitYAMLDocs splits a multi-document YAML string on document separator
+// lines ("---" alone on a line). This is a line-level split, not a YAML
+// parse — sufficient here because the inputs are recipe manifest files
+// joined with bare separators, and a rendered document never contains a
+// bare "---" line of its own.
+func splitYAMLDocs(s string) []string {
+	var docs []string
+	var cur strings.Builder
+	for _, line := range strings.Split(s, "\n") {
+		if strings.TrimSpace(line) == "---" {
+			docs = append(docs, cur.String())
+			cur.Reset()
+			continue
+		}
+		cur.WriteString(line)
+		cur.WriteString("\n")
+	}
+	docs = append(docs, cur.String())
+	return docs
 }
 
 // stripCommentOnly returns the input with leading whitespace and comment-

@@ -61,6 +61,33 @@ func TestRenderManifestBundleProducesValidYAML(t *testing.T) {
 	assert.Greater(t, rendered, 0, "expected at least one rendered Kubernetes object across the bundle")
 }
 
+func TestRenderManifestBundleDropsCommentOnlyDocuments(t *testing.T) {
+	// A stitched bundle can mix a guarded-off section (rendering to only
+	// its comment header) with real content. The comment-only document must
+	// be dropped individually, not survive because a sibling document has
+	// content.
+	raw := `# This section is guarded off by values.
+# {{ guard renders nothing }}
+{{- if .Values.missing }}
+kind: Never
+{{- end }}
+---
+# A real resource follows.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: real
+`
+	out, err := renderManifestBundle(aicr.Component{Name: "mixed", Namespace: "default"}, raw)
+	require.NoError(t, err)
+
+	assert.Contains(t, out, "kind: ConfigMap")
+	assert.NotContains(t, out, "guarded off", "comment-only document must be dropped")
+	assert.False(t, strings.HasPrefix(strings.TrimSpace(out), "---"),
+		"output must not lead with a stray separator")
+	assert.Equal(t, 1, strings.Count(out, "kind:"), "exactly one document expected")
+}
+
 func TestRenderManifestBundleHandlesEnabledFalse(t *testing.T) {
 	// nodewright-customizations' tuning manifest is wrapped in
 	// `{{- if ne (toString (index $cust "enabled")) "false" }}` — when the

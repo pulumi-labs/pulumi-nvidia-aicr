@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"math"
 	"strings"
 	"sync"
 	"testing"
@@ -538,13 +539,22 @@ func TestNewClusterStackPropagatesSkipAwait(t *testing.T) {
 	assert.Greater(t, checked, 5, "expected skipAwait asserted on several resources")
 }
 
-func TestValidateArgsRejectsNegativeNodes(t *testing.T) {
+func TestValidateArgsBoundsNodes(t *testing.T) {
 	nodes := -1
 	err := validateArgs(&ClusterStackArgs{
 		Accelerator: "h100", Service: "eks", Intent: "training", Nodes: &nodes,
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "non-negative")
+
+	// Above int32: must be a friendly error, not a silent wrap into the
+	// SDK's int32 Nodes field.
+	huge := math.MaxInt32 + 1
+	err = validateArgs(&ClusterStackArgs{
+		Accelerator: "h100", Service: "eks", Intent: "training", Nodes: &huge,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at most")
 
 	valid := 4
 	assert.NoError(t, validateArgs(&ClusterStackArgs{

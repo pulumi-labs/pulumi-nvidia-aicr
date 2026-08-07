@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/pulumi/pulumi-go-provider/infer"
@@ -40,8 +41,8 @@ var (
 	// would trade this allowlist's friendly errors for SDK resolution
 	// errors). Extend alongside SDK bumps; deriving this from the SDK's
 	// CriteriaRegistry is tracked as a follow-up.
-	supportedOSes = []string{"ubuntu", "cos", "ol"}
-	supportedPlatforms    = []string{"kubeflow", "dynamo", "nim"}
+	supportedOSes      = []string{"ubuntu", "cos", "ol"}
+	supportedPlatforms = []string{"kubeflow", "dynamo", "nim"}
 )
 
 // Compile-time interface checks: these types contribute schema metadata via
@@ -541,6 +542,11 @@ func validateArgs(args *ClusterStackArgs) error {
 	}
 	if args.Nodes != nil && *args.Nodes < 0 {
 		return fmt.Errorf("nodes must be non-negative; got %d", *args.Nodes)
+	}
+	// The SDK's RecipeRequest.Nodes is an int32; bound it here so an
+	// oversized value is a friendly error, not a silent integer wrap.
+	if args.Nodes != nil && *args.Nodes > math.MaxInt32 {
+		return fmt.Errorf("nodes must be at most %d; got %d", math.MaxInt32, *args.Nodes)
 	}
 	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
 		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")

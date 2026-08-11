@@ -32,10 +32,6 @@ func NewClusterStack(ctx *pulumi.Context,
 		return nil, errors.New("missing one or more required arguments")
 	}
 
-	if args.Os == nil {
-		os_ := "ubuntu"
-		args.Os = &os_
-	}
 	if args.SkipAwait == nil {
 		skipAwait_ := false
 		args.SkipAwait = &skipAwait_
@@ -75,19 +71,29 @@ type clusterStackArgs struct {
 	// Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
 	// Prefer `kubeconfig` when chaining off a cluster resource's output.
 	KubeconfigPath *string `pulumi:"kubeconfigPath"`
-	// Operating system flavor.
+	// Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+	// Leave unset to let AICR pick the default-sized recipe.
+	Nodes *int `pulumi:"nodes"`
+	// Operating system flavor of the worker nodes.
 	//
-	// Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+	// Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+	// (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+	//
+	// Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+	// tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+	// Set it when the cluster's OS is known. Some combinations require an OS
+	// (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+	// with a message listing the valid values; kind recipes require it unset.
 	Os *string `pulumi:"os"`
 	// ML platform/framework to layer on top of the base recipe.
 	//
 	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
 	//
 	// Leave unset for the base recipe without a platform-specific runtime. Note
-	// that intent="inference" always includes the kgateway inference gateway
-	// (part of the base inference stack); choosing a platform layers a runtime
-	// ("dynamo", "nim") on top. intent="training" leaves training-runtime
-	// components out entirely when platform is unset.
+	// that intent="inference" always includes an inference gateway (part of the
+	// base inference stack); choosing a platform layers a runtime ("dynamo",
+	// "nim") on top. intent="training" leaves training-runtime components out
+	// entirely when platform is unset.
 	Platform *string `pulumi:"platform"`
 	// Kubernetes service. Selects cloud-specific operators and storage drivers.
 	//
@@ -130,19 +136,29 @@ type ClusterStackArgs struct {
 	// Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
 	// Prefer `kubeconfig` when chaining off a cluster resource's output.
 	KubeconfigPath *string
-	// Operating system flavor.
+	// Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+	// Leave unset to let AICR pick the default-sized recipe.
+	Nodes *int
+	// Operating system flavor of the worker nodes.
 	//
-	// Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+	// Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+	// (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+	//
+	// Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+	// tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+	// Set it when the cluster's OS is known. Some combinations require an OS
+	// (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+	// with a message listing the valid values; kind recipes require it unset.
 	Os *string
 	// ML platform/framework to layer on top of the base recipe.
 	//
 	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
 	//
 	// Leave unset for the base recipe without a platform-specific runtime. Note
-	// that intent="inference" always includes the kgateway inference gateway
-	// (part of the base inference stack); choosing a platform layers a runtime
-	// ("dynamo", "nim") on top. intent="training" leaves training-runtime
-	// components out entirely when platform is unset.
+	// that intent="inference" always includes an inference gateway (part of the
+	// base inference stack); choosing a platform layers a runtime ("dynamo",
+	// "nim") on top. intent="training" leaves training-runtime components out
+	// entirely when platform is unset.
 	Platform *string
 	// Kubernetes service. Selects cloud-specific operators and storage drivers.
 	//

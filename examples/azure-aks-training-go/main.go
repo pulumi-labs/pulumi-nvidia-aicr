@@ -113,6 +113,7 @@ func main() {
 			Service:     "aks",
 			Intent:      "training",
 			Platform:    pulumi.StringRef("kubeflow"),
+			Os:          pulumi.StringRef("ubuntu"),
 			// Optional: customize specific components
 			ComponentOverrides: aicr.ComponentOverrideMap{
 				"gpu-operator": aicr.ComponentOverrideArgs{

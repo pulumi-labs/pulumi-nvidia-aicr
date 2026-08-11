@@ -98,6 +98,7 @@ return await Deployment.RunAsync(() =>
         Service = "eks",
         Intent = "inference",
         Platform = "nim",
+        Os = "ubuntu",
         ComponentOverrides =
         {
             ["gpu-operator"] = new ComponentOverrideArgs

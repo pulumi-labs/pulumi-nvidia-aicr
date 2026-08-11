@@ -107,6 +107,7 @@ public class App {
             .service("eks")
             .intent("inference")
             .platform("nim")
+            .os("ubuntu")
             .componentOverrides(Map.of(
                 "gpu-operator", ComponentOverrideArgs.builder()
                     .values(Map.of(

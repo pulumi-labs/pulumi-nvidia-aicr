@@ -44,6 +44,7 @@ func main() {
 			Service:        "eks", // closest match; cloud-specific add-ons skipped below
 			Intent:         "inference",
 			Platform:       pulumi.StringRef("dynamo"),
+			Os:             pulumi.StringRef("ubuntu"),
 			// Skip cloud-specific components not needed on CoreWeave
 			SkipComponents: pulumi.StringArray{
 				pulumi.String("aws-efa"),

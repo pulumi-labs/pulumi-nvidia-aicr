@@ -19,7 +19,7 @@ config:
     default: ""
   os:
     type: string
-    default: ubuntu
+    default: ""
 
 resources:
   aicr:

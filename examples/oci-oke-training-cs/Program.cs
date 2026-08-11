@@ -177,6 +177,7 @@ return await Deployment.RunAsync(() =>
         Service = "oke",
         Intent = "training",
         Platform = "kubeflow",
+        Os = "ubuntu",
     });
 
     return new Dictionary<string, object?>

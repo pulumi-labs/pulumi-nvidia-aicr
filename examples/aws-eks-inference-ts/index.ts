@@ -100,6 +100,7 @@ const gpuStack = new aicr.ClusterStack("nvidia-aicr", {
     service: "eks",
     intent: "inference",
     platform: "nim",
+    os: "ubuntu",
     // Optional: customize specific components
     componentOverrides: {
         "gpu-operator": {

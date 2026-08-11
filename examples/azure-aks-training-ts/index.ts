@@ -88,6 +88,7 @@ const gpuStack = new aicr.ClusterStack("nvidia-aicr", {
     service: "aks",
     intent: "training",
     platform: "kubeflow",
+    os: "ubuntu",
     // Optional: customize specific components
     componentOverrides: {
         "gpu-operator": {

@@ -23,6 +23,7 @@ return await Deployment.RunAsync(() =>
         Service = "eks", // closest match; cloud-specific add-ons skipped below
         Intent = "inference",
         Platform = "dynamo",
+        Os = "ubuntu",
         SkipComponents = { "aws-efa", "aws-ebs-csi-driver" },
         ComponentOverrides =
         {

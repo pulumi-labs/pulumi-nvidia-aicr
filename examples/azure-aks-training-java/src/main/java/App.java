@@ -93,6 +93,7 @@ public class App {
             .service("aks")
             .intent("training")
             .platform("kubeflow")
+            .os("ubuntu")
             .componentOverrides(Map.of(
                 "gpu-operator", ComponentOverrideArgs.builder()
                     .values(Map.of(

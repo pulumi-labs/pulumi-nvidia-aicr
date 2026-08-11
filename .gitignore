@@ -6,3 +6,9 @@ node_modules/
 
 # OS files
 .DS_Store
+
+# Python bytecode
+__pycache__/
+
+# Python example virtualenvs (created by pulumi install)
+venv/

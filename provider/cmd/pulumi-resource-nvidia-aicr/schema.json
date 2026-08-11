@@ -73,7 +73,7 @@
           "additionalProperties": {
             "$ref": "pulumi.json#/Any"
           },
-          "description": "Additional or override Helm values, deep-merged with the recipe defaults."
+          "description": "Additional or override Helm values, deep-merged on top of the\nrecipe-resolved values.\n\nMerge semantics: nested maps merge recursively; scalars and arrays replace\nthe recipe's value; setting a key to null removes it from the\nrecipe-resolved values, restoring the chart's own default for that key.\nNote the null asymmetry: a null *in the recipe data* is passed through to\nHelm (explicitly clearing the chart default), while a null *here* removes\nthe recipe's setting. There is currently no way to pass a literal null\nthrough to Helm from this input — and some language SDKs drop null map\nentries during serialization before they reach the provider at all."
         },
         "version": {
           "type": "string",
@@ -146,16 +146,20 @@
           "plain": true,
           "description": "Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.\nPrefer `kubeconfig` when chaining off a cluster resource's output."
         },
+        "nodes": {
+          "type": "integer",
+          "plain": true,
+          "description": "Worker-node count hint used to size the recipe (number of nodes, not GPUs).\nLeave unset to let AICR pick the default-sized recipe."
+        },
         "os": {
           "type": "string",
           "plain": true,
-          "description": "Operating system flavor.\n\nSupported values: \"ubuntu\" (default), \"cos\" (Container-Optimized OS, GKE only).",
-          "default": "ubuntu"
+          "description": "Operating system flavor of the worker nodes.\n\nSupported values: \"ubuntu\", \"cos\" (Container-Optimized OS, GKE only), \"ol\"\n(Oracle Linux, OKE) — the values with backing recipes in this provider's\npinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive\nthrough AICR SDK upgrades.\n\nLeave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel\ntuning, driver constraints) are skipped and the OS-agnostic recipe is used.\nSet it when the cluster's OS is known. Some combinations require an OS\n(e.g. gke requires \"cos\"; eks platform recipes require \"ubuntu\") and fail\nwith a message listing the valid values; kind recipes require it unset."
         },
         "platform": {
           "type": "string",
           "plain": true,
-          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes the kgateway inference gateway\n(part of the base inference stack); choosing a platform layers a runtime\n(\"dynamo\", \"nim\") on top. intent=\"training\" leaves training-runtime\ncomponents out entirely when platform is unset."
+          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
         },
         "service": {
           "type": "string",

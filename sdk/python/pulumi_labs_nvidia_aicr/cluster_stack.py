@@ -27,6 +27,7 @@ class ClusterStackArgs:
                  context: Optional[_builtins.str] = None,
                  kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
+                 nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
@@ -57,18 +58,27 @@ class ClusterStackArgs:
                (KUBECONFIG env var or ~/.kube/config) is used.
         :param _builtins.str kubeconfig_path: Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
                Prefer `kubeconfig` when chaining off a cluster resource's output.
-        :param _builtins.str os: Operating system flavor.
+        :param _builtins.int nodes: Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+               Leave unset to let AICR pick the default-sized recipe.
+        :param _builtins.str os: Operating system flavor of the worker nodes.
                
-               Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+               Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+               (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+               
+               Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+               tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+               Set it when the cluster's OS is known. Some combinations require an OS
+               (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+               with a message listing the valid values; kind recipes require it unset.
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
                Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
                
                Leave unset for the base recipe without a platform-specific runtime. Note
-               that intent="inference" always includes the kgateway inference gateway
-               (part of the base inference stack); choosing a platform layers a runtime
-               ("dynamo", "nim") on top. intent="training" leaves training-runtime
-               components out entirely when platform is unset.
+               that intent="inference" always includes an inference gateway (part of the
+               base inference stack); choosing a platform layers a runtime ("dynamo",
+               "nim") on top. intent="training" leaves training-runtime components out
+               entirely when platform is unset.
         :param _builtins.bool skip_await: If true, do not wait for each Helm release to become ready before continuing.
                Faster previews/updates at the cost of losing readiness signal. Default: false.
         :param pulumi.Input[Sequence[_builtins.str]] skip_components: Component names to exclude from the deployment. Useful for swapping in your
@@ -86,8 +96,8 @@ class ClusterStackArgs:
             pulumi.set(__self__, "kubeconfig", kubeconfig)
         if kubeconfig_path is not None:
             pulumi.set(__self__, "kubeconfig_path", kubeconfig_path)
-        if os is None:
-            os = 'ubuntu'
+        if nodes is not None:
+            pulumi.set(__self__, "nodes", nodes)
         if os is not None:
             pulumi.set(__self__, "os", os)
         if platform is not None:
@@ -201,11 +211,31 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter
+    def nodes(self) -> Optional[_builtins.int]:
+        """
+        Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+        Leave unset to let AICR pick the default-sized recipe.
+        """
+        return pulumi.get(self, "nodes")
+
+    @nodes.setter
+    def nodes(self, value: Optional[_builtins.int]):
+        pulumi.set(self, "nodes", value)
+
+    @_builtins.property
+    @pulumi.getter
     def os(self) -> Optional[_builtins.str]:
         """
-        Operating system flavor.
+        Operating system flavor of the worker nodes.
 
-        Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+        Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+        (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+
+        Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+        tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+        Set it when the cluster's OS is known. Some combinations require an OS
+        (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+        with a message listing the valid values; kind recipes require it unset.
         """
         return pulumi.get(self, "os")
 
@@ -222,10 +252,10 @@ class ClusterStackArgs:
         Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
 
         Leave unset for the base recipe without a platform-specific runtime. Note
-        that intent="inference" always includes the kgateway inference gateway
-        (part of the base inference stack); choosing a platform layers a runtime
-        ("dynamo", "nim") on top. intent="training" leaves training-runtime
-        components out entirely when platform is unset.
+        that intent="inference" always includes an inference gateway (part of the
+        base inference stack); choosing a platform layers a runtime ("dynamo",
+        "nim") on top. intent="training" leaves training-runtime components out
+        entirely when platform is unset.
         """
         return pulumi.get(self, "platform")
 
@@ -273,6 +303,7 @@ class ClusterStack(pulumi.ComponentResource):
                  intent: Optional[_builtins.str] = None,
                  kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
+                 nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  service: Optional[_builtins.str] = None,
@@ -303,18 +334,27 @@ class ClusterStack(pulumi.ComponentResource):
                (KUBECONFIG env var or ~/.kube/config) is used.
         :param _builtins.str kubeconfig_path: Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
                Prefer `kubeconfig` when chaining off a cluster resource's output.
-        :param _builtins.str os: Operating system flavor.
+        :param _builtins.int nodes: Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+               Leave unset to let AICR pick the default-sized recipe.
+        :param _builtins.str os: Operating system flavor of the worker nodes.
                
-               Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+               Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+               (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+               
+               Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+               tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+               Set it when the cluster's OS is known. Some combinations require an OS
+               (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+               with a message listing the valid values; kind recipes require it unset.
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
                Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
                
                Leave unset for the base recipe without a platform-specific runtime. Note
-               that intent="inference" always includes the kgateway inference gateway
-               (part of the base inference stack); choosing a platform layers a runtime
-               ("dynamo", "nim") on top. intent="training" leaves training-runtime
-               components out entirely when platform is unset.
+               that intent="inference" always includes an inference gateway (part of the
+               base inference stack); choosing a platform layers a runtime ("dynamo",
+               "nim") on top. intent="training" leaves training-runtime components out
+               entirely when platform is unset.
         :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
                
                Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
@@ -355,6 +395,7 @@ class ClusterStack(pulumi.ComponentResource):
                  intent: Optional[_builtins.str] = None,
                  kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
+                 nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  service: Optional[_builtins.str] = None,
@@ -381,8 +422,7 @@ class ClusterStack(pulumi.ComponentResource):
             __props__.__dict__["intent"] = intent
             __props__.__dict__["kubeconfig"] = kubeconfig
             __props__.__dict__["kubeconfig_path"] = kubeconfig_path
-            if os is None:
-                os = 'ubuntu'
+            __props__.__dict__["nodes"] = nodes
             __props__.__dict__["os"] = os
             __props__.__dict__["platform"] = platform
             if service is None and not opts.urn:

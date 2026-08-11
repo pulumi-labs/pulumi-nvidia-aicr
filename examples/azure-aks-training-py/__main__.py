@@ -87,6 +87,7 @@ gpu_stack = aicr.ClusterStack("nvidia-aicr",
     service="aks",
     intent="training",
     platform="kubeflow",
+    os="ubuntu",
     # Optional: customize specific components
     component_overrides={
         "gpu-operator": aicr.ComponentOverrideArgs(

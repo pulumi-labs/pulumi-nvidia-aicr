@@ -1,12 +1,7 @@
 name: aws-eks-h100-inference
 runtime: java
-description: |
-  Deploy an NVIDIA AICR-validated vLLM inference stack on AWS EKS.
-  Creates an EKS cluster with H100 GPU nodes and deploys the full
-  NIM inference stack via AICR recipes.
-
-  COST WARNING: p5.48xlarge instances cost ~$98/hr each.
-  This example provisions 2 nodes (~$196/hr). Destroy when done!
+description: >-
+  Deploy an NVIDIA AICR-validated NIM inference stack on AWS EKS with H100 GPU nodes. COST WARNING: p5.48xlarge instances cost ~$98/hr each; this example provisions 2 nodes (~$196/hr). Destroy when done!
 config:
   aws:region:
-    default: us-east-1
+    value: us-east-1

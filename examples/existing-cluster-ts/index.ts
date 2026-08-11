@@ -22,7 +22,7 @@ const gpuStack = new aicr.ClusterStack("aicr", {
     service: config.require("service"),
     intent: config.require("intent"),
     platform: config.get("platform"),       // optional
-    os: config.get("os"),                   // optional, defaults to ubuntu
+    os: config.get("os"),                   // optional; unset = OS-agnostic recipe
     skipAwait: config.getBoolean("skipAwait") || false,
 });
 

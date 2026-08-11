@@ -132,6 +132,7 @@ func main() {
 			Service:     "eks",
 			Intent:      "inference",
 			Platform:    pulumi.StringRef("nim"),
+			Os:          pulumi.StringRef("ubuntu"),
 			// Optional: customize specific components
 			ComponentOverrides: aicr.ComponentOverrideMap{
 				"gpu-operator": aicr.ComponentOverrideArgs{

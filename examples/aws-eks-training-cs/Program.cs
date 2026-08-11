@@ -98,6 +98,7 @@ return await Deployment.RunAsync(() =>
         Service = "eks",
         Intent = "training",
         Platform = "kubeflow",
+        Os = "ubuntu",
         ComponentOverrides =
         {
             ["gpu-operator"] = new ComponentOverrideArgs

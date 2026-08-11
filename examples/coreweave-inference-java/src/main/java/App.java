@@ -31,6 +31,7 @@ public class App {
             .service("eks") // closest match; cloud-specific add-ons skipped below
             .intent("inference")
             .platform("dynamo")
+            .os("ubuntu")
             .skipComponents(List.of("aws-efa", "aws-ebs-csi-driver"))
             .componentOverrides(Map.of(
                 "dynamo-platform", ComponentOverrideArgs.builder()

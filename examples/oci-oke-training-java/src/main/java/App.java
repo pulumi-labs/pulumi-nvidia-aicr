@@ -174,6 +174,7 @@ public class App {
             .service("oke")
             .intent("training")
             .platform("kubeflow")
+            .os("ubuntu")
             .build());
 
         ctx.export("recipeName", gpuStack.recipeName());

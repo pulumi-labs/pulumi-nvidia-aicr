@@ -6,7 +6,7 @@ Thanks for your interest in contributing to the Pulumi NVIDIA AICR provider.
 
 You will need:
 
-- [Go](https://go.dev/) 1.24+
+- [Go](https://go.dev/) 1.26+
 - [Pulumi CLI](https://www.pulumi.com/docs/install/) 3.165+
 - For SDK generation/build: Node.js 18+, Python 3.9+, .NET 8+, JDK 11+
 
@@ -27,8 +27,7 @@ make sdks              # regenerate all 5 language SDKs
 provider/
   cmd/pulumi-resource-nvidia-aicr/  # provider binary entry point + schema.json
   pkg/provider/                     # ClusterStack component implementation
-  pkg/recipe/                       # AICR recipe resolver and overlay engine
-  pkg/recipes/                      # vendored AICR recipe data (go:embed)
+  pkg/aicr/                         # adapter over the NVIDIA AICR Go SDK
   pkg/version/                      # version string injected via ldflags
 sdk/
   nodejs/ python/ go/ dotnet/ java/ # generated SDKs (do not edit by hand)
@@ -45,22 +44,22 @@ examples/                           # one directory per scenario × language
 4. Open a PR. CI runs the full test + SDK build matrix.
 5. A maintainer reviews and merges.
 
-## Updating the embedded AICR recipe data
+## Updating the AICR recipe data
 
-Recipe YAML files in `provider/pkg/recipes/` are vendored from
-[nvidia/aicr](https://github.com/nvidia/aicr) and embedded at compile time
-via `go:embed`. To pick up new upstream recipes:
+Recipe resolution and data come from the official
+[NVIDIA AICR Go SDK](https://github.com/NVIDIA/aicr) (`pkg/client/v1`),
+pinned in `go.mod`; the recipe YAML is embedded in that module. To pick up
+new upstream recipes:
 
-1. Fetch the latest YAML files from the AICR repo at the tag/commit you
-   want.
-2. Replace the contents of `provider/pkg/recipes/{overlays,mixins,registry.yaml,...}`.
-3. If you added a new overlay with new criteria values, update the
-   `Annotate` descriptions in `provider/pkg/provider/clusterstack.go`,
-   the `validateArgs` helper, the README's "Supported Configurations"
-   table, and `examples/README.md`.
-4. Bump `recipeVersion` in `provider/pkg/recipe/resolver.go` to track the
-   AICR data version this provider build embeds.
-5. Run `make test` — recipe-resolution tests will catch most schema drift.
+1. `go get github.com/NVIDIA/aicr@<release-tag> && go mod tidy`.
+2. If the new data adds criteria values (services, accelerators, OSes,
+   platforms), update the `supported*` allowlists, `validateCompatibility`,
+   and `Annotate` descriptions in `provider/pkg/provider/clusterstack.go`,
+   the README's tables, and `examples/README.md`.
+3. Update the README's "AICR Version Compatibility" table.
+4. Run `make test` — adapter resolution tests will catch most drift.
+
+Never vendor or hand-edit NVIDIA recipe YAML in this repo.
 
 ## Releasing
 
@@ -79,8 +78,8 @@ Releases are tag-driven. Pushing a `v*.*.*` tag fires
 - Go: standard `go fmt` + `go vet`. Match existing patterns; no unrelated
   refactors in feature PRs.
 - Comments on exported symbols only when the WHY is non-obvious.
-- Keep tests focused: the recipe-resolution layer has thorough coverage in
-  `provider/pkg/recipe/`; the component layer has smoke tests in
+- Keep tests focused: the SDK-adapter layer has thorough coverage in
+  `provider/pkg/aicr/`; the component layer has smoke tests in
   `provider/pkg/provider/clusterstack_test.go`.
 
 ## Reporting bugs

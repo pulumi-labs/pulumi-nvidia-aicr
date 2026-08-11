@@ -64,7 +64,8 @@ export class ClusterStack extends pulumi.ComponentResource {
             resourceInputs["intent"] = args?.intent;
             resourceInputs["kubeconfig"] = args?.kubeconfig;
             resourceInputs["kubeconfigPath"] = args?.kubeconfigPath;
-            resourceInputs["os"] = (args?.os) ?? "ubuntu";
+            resourceInputs["nodes"] = args?.nodes;
+            resourceInputs["os"] = args?.os;
             resourceInputs["platform"] = args?.platform;
             resourceInputs["service"] = args?.service;
             resourceInputs["skipAwait"] = (args?.skipAwait) ?? false;
@@ -126,9 +127,21 @@ export interface ClusterStackArgs {
      */
     kubeconfigPath?: string;
     /**
-     * Operating system flavor.
+     * Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+     * Leave unset to let AICR pick the default-sized recipe.
+     */
+    nodes?: number;
+    /**
+     * Operating system flavor of the worker nodes.
      *
-     * Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).
+     * Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+     * (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+     *
+     * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+     * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+     * Set it when the cluster's OS is known. Some combinations require an OS
+     * (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+     * with a message listing the valid values; kind recipes require it unset.
      */
     os?: string;
     /**
@@ -137,10 +150,10 @@ export interface ClusterStackArgs {
      * Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
      *
      * Leave unset for the base recipe without a platform-specific runtime. Note
-     * that intent="inference" always includes the kgateway inference gateway
-     * (part of the base inference stack); choosing a platform layers a runtime
-     * ("dynamo", "nim") on top. intent="training" leaves training-runtime
-     * components out entirely when platform is unset.
+     * that intent="inference" always includes an inference gateway (part of the
+     * base inference stack); choosing a platform layers a runtime ("dynamo",
+     * "nim") on top. intent="training" leaves training-runtime components out
+     * entirely when platform is unset.
      */
     platform?: string;
     /**

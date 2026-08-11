@@ -1,7 +1,9 @@
 package provider
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/pulumi/pulumi-go-provider/infer"
@@ -11,8 +13,9 @@ import (
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	sigsyaml "sigs.k8s.io/yaml"
 
-	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/recipe"
+	"github.com/pulumi-labs/pulumi-nvidia-aicr/provider/pkg/aicr"
 )
 
 // builtinNamespaces are Kubernetes built-in namespaces that always exist and
@@ -32,8 +35,14 @@ var (
 	supportedAccelerators = []string{"h100", "gb200", "b200"}
 	supportedServices     = []string{"aks", "eks", "gke", "kind", "oke"}
 	supportedIntents      = []string{"training", "inference"}
-	supportedOSes         = []string{"ubuntu", "cos"}
-	supportedPlatforms    = []string{"kubeflow", "dynamo", "nim"}
+	// supportedOSes lists only OS values with backing recipes in the pinned
+	// SDK's data (the SDK's request schema names more — rhel, amazonlinux,
+	// talos — but v0.18.0 ships no leaves for them, and admitting them here
+	// would trade this allowlist's friendly errors for SDK resolution
+	// errors). Extend alongside SDK bumps; deriving this from the SDK's
+	// CriteriaRegistry is tracked as a follow-up.
+	supportedOSes      = []string{"ubuntu", "cos", "ol"}
+	supportedPlatforms = []string{"kubeflow", "dynamo", "nim"}
 )
 
 // Compile-time interface checks: these types contribute schema metadata via
@@ -59,13 +68,16 @@ type ClusterStackArgs struct {
 	// Supported values: "training", "inference".
 	Intent string `pulumi:"intent"`
 
-	// The operating system. Optional, defaults to "ubuntu".
-	// Supported values: "ubuntu", "cos" (cos applies to gke).
+	// The operating system. Optional; leave unset for OS-agnostic resolution.
+	// Supported values: "ubuntu", "cos", "ol".
 	OS *string `pulumi:"os,optional"`
 
 	// The ML platform/framework. Optional.
 	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference).
 	Platform *string `pulumi:"platform,optional"`
+
+	// The worker-node count hint used to size the recipe. Optional.
+	Nodes *int `pulumi:"nodes,optional"`
 
 	// The kubeconfig contents for the target Kubernetes cluster.
 	// Accepts computed outputs from cluster resources (e.g., EKS cluster kubeconfig).
@@ -128,19 +140,29 @@ hardware-free development of the deployment pipeline.`)
 component sets.
 
 Supported values: "training", "inference".`)
-	an.Describe(&a.OS, `Operating system flavor.
+	an.Describe(&a.OS, `Operating system flavor of the worker nodes.
 
-Supported values: "ubuntu" (default), "cos" (Container-Optimized OS, GKE only).`)
-	an.SetDefault(&a.OS, "ubuntu")
+Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
+(Oracle Linux, OKE) — the values with backing recipes in this provider's
+pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+through AICR SDK upgrades.
+
+Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
+tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
+Set it when the cluster's OS is known. Some combinations require an OS
+(e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
+with a message listing the valid values; kind recipes require it unset.`)
 	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
 
 Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
 
 Leave unset for the base recipe without a platform-specific runtime. Note
-that intent="inference" always includes the kgateway inference gateway
-(part of the base inference stack); choosing a platform layers a runtime
-("dynamo", "nim") on top. intent="training" leaves training-runtime
-components out entirely when platform is unset.`)
+that intent="inference" always includes an inference gateway (part of the
+base inference stack); choosing a platform layers a runtime ("dynamo",
+"nim") on top. intent="training" leaves training-runtime components out
+entirely when platform is unset.`)
+	an.Describe(&a.Nodes, `Worker-node count hint used to size the recipe (number of nodes, not GPUs).
+Leave unset to let AICR pick the default-sized recipe.`)
 	an.Describe(&a.Kubeconfig, `Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
 Accepts computed outputs from cluster resources (e.g., an EKS cluster's
 KubeconfigJson). Mutually exclusive with `+"`kubeconfigPath`"+`.
@@ -167,7 +189,17 @@ func (c *ComponentOverride) Annotate(an infer.Annotator) {
 you set are applied on top of the recipe defaults.`)
 	an.Describe(&c.Version, `Override the Helm chart version. If unset, the recipe-pinned version is used.`)
 	an.Describe(&c.Namespace, `Override the target Kubernetes namespace.`)
-	an.Describe(&c.Values, `Additional or override Helm values, deep-merged with the recipe defaults.`)
+	an.Describe(&c.Values, `Additional or override Helm values, deep-merged on top of the
+recipe-resolved values.
+
+Merge semantics: nested maps merge recursively; scalars and arrays replace
+the recipe's value; setting a key to null removes it from the
+recipe-resolved values, restoring the chart's own default for that key.
+Note the null asymmetry: a null *in the recipe data* is passed through to
+Helm (explicitly clearing the chart default), while a null *here* removes
+the recipe's setting. There is currently no way to pass a literal null
+through to Helm from this input — and some language SDKs drop null map
+entries during serialization before they reach the provider at all.`)
 }
 
 // Annotate populates schema metadata for the ClusterStack output state.
@@ -199,38 +231,41 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	// match the case-insensitive validation we just performed; otherwise
 	// inputs like " EKS " would pass validateArgs but fail resolution, and
 	// uppercase values would leak into the resolved recipe name.
-	criteria := recipe.Criteria{
+	criteria := aicr.Criteria{
 		Service:     canonical(args.Service),
 		Accelerator: canonical(args.Accelerator),
 		Intent:      canonical(args.Intent),
-		OS:          canonicalOr(args.OS, "ubuntu"),
+		OS:          canonicalOr(args.OS, ""),
 		Platform:    canonicalOr(args.Platform, ""),
 	}
+	if args.Nodes != nil {
+		criteria.Nodes = int32(*args.Nodes)
+	}
 
-	// Resolve the AICR recipe
-	resolved, err := recipe.Resolve(criteria)
+	// Resolve and bundle the AICR recipe via the SDK. Resolution is
+	// synchronous, offline (embedded recipe data), and happens at plan time.
+	// The pulumi.Context is not a context.Context, so use Background.
+	resolved, err := aicr.Resolve(context.Background(), criteria)
 	if err != nil {
-		return nil, fmt.Errorf("resolving AICR recipe: %w", err)
+		return nil, err
 	}
 
 	// Apply user overrides
 	if args.ComponentOverrides != nil || len(args.SkipComponents) > 0 {
-		overrides := make(map[string]recipe.ComponentOverride)
+		overrides := make(map[string]aicr.ComponentOverride)
 		for k, v := range args.ComponentOverrides {
-			overrides[k] = recipe.ComponentOverride{
+			overrides[k] = aicr.ComponentOverride{
 				Version:   v.Version,
 				Namespace: v.Namespace,
 				Values:    v.Values,
 			}
 		}
-		resolved = recipe.ApplyOverrides(resolved, overrides, args.SkipComponents)
+		resolved = aicr.ApplyOverrides(resolved, overrides, args.SkipComponents)
 	}
 
-	// Topologically sort components by dependencies
-	sorted, err := recipe.TopologicalSort(resolved.Components)
-	if err != nil {
-		return nil, fmt.Errorf("sorting components: %w", err)
-	}
+	// Components are already in the SDK's topologically sorted deployment
+	// order (RecipeResult.DeploymentOrder).
+	sorted := resolved.Components
 
 	// Create a Kubernetes provider for the target cluster
 	var k8sProvider *kubernetes.Provider
@@ -306,20 +341,60 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 
 		hasChart := comp.Chart != "" && comp.Repo != ""
 
+		// Pre-manifests must be applied BEFORE the component's chart (e.g. a
+		// privileged Namespace with PSS labels the chart's pods need to land
+		// in, or a kernel-module ConfigMap the driver DaemonSet mounts).
+		if strings.TrimSpace(comp.PreManifests) != "" {
+			yamlDoc, preErr := renderManifestBundle(comp, comp.PreManifests)
+			if preErr != nil {
+				return nil, fmt.Errorf("rendering pre-manifests for %s: %w", comp.Name, preErr)
+			}
+			if strings.TrimSpace(yamlDoc) != "" {
+				cg, cgErr := yamlv2.NewConfigGroup(ctx, name+"-"+comp.Name+"-pre-manifests",
+					&yamlv2.ConfigGroupArgs{
+						Yaml:      pulumi.StringPtr(yamlDoc),
+						SkipAwait: pulumi.BoolPtr(skipAwait),
+					}, baseOpts...)
+				if cgErr != nil {
+					return nil, fmt.Errorf("applying pre-manifests for %s: %w", comp.Name, cgErr)
+				}
+				deployedResources[comp.Name] = append(deployedResources[comp.Name], cg)
+			}
+		}
+
 		if hasChart {
-			values := toPulumiMap(comp.Values)
+			// Deliver values as a YAML asset rather than a typed map: the
+			// Pulumi Go SDK strips null map entries during input marshaling,
+			// but explicit nulls are semantic in Helm (setting a key to null
+			// deletes the chart's default — e.g. the AICR eks overlay clears
+			// nvidia-dra-driver-gpu's controller.affinity.nodeAffinity that
+			// way). YAML text preserves them, and AllowNullValues makes the
+			// Helm provider honor them. sigs.k8s.io/yaml marshals map keys
+			// in sorted order, keeping the asset text (and thus diffs)
+			// deterministic across previews.
+			var valueFiles pulumi.AssetOrArchiveArray
+			if len(comp.Values) > 0 {
+				valuesYAML, yErr := sigsyaml.Marshal(comp.Values)
+				if yErr != nil {
+					return nil, fmt.Errorf("encoding Helm values for %s: %w", comp.Name, yErr)
+				}
+				valueFiles = pulumi.AssetOrArchiveArray{
+					pulumi.NewStringAsset(string(valuesYAML)),
+				}
+			}
 
 			// Resolve chart name + repo, handling OCI vs. HTTP Helm registries.
 			// For OCI, the Pulumi Helm provider expects the full OCI URL as the
-			// chart name with no separate repository option.
+			// chart name with no separate repository option. The AICR contract
+			// is that Source is the OCI namespace and Chart is the chart within
+			// it — the full reference is always Source + "/" + Chart, even when
+			// the namespace ends with the chart name (kai-scheduler lives at
+			// oci://ghcr.io/kai-scheduler/kai-scheduler/kai-scheduler); see
+			// NVIDIA/aicr#1954.
 			chart := comp.Chart
 			repo := comp.Repo
 			if strings.HasPrefix(repo, "oci://") {
-				if !strings.HasSuffix(repo, "/"+chart) {
-					chart = repo + "/" + chart
-				} else {
-					chart = repo
-				}
+				chart = repo + "/" + chart
 				repo = ""
 			}
 
@@ -332,7 +407,8 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 				Version:         pulumi.StringPtr(comp.Version),
 				Namespace:       pulumi.StringPtr(comp.Namespace),
 				CreateNamespace: pulumi.Bool(true),
-				Values:          values,
+				ValueYamlFiles:  valueFiles,
+				AllowNullValues: pulumi.BoolPtr(true),
 				SkipAwait:       pulumi.Bool(skipAwait),
 			}
 			if repo != "" {
@@ -341,7 +417,13 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 				}
 			}
 
-			release, relErr := helmv3.NewRelease(ctx, name+"-"+comp.Name, releaseArgs, baseOpts...)
+			releaseOpts := append([]pulumi.ResourceOption(nil), baseOpts...)
+			// Sequence the release after this component's pre-manifests.
+			if existing := deployedResources[comp.Name]; len(existing) > 0 {
+				releaseOpts = append(releaseOpts, pulumi.DependsOn(existing))
+			}
+
+			release, relErr := helmv3.NewRelease(ctx, name+"-"+comp.Name, releaseArgs, releaseOpts...)
 			if relErr != nil {
 				return nil, fmt.Errorf("creating Helm release for %s: %w", comp.Name, relErr)
 			}
@@ -349,8 +431,8 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		}
 
 		manifestRendered := false
-		if len(comp.ManifestFiles) > 0 {
-			yamlDoc, mfErr := renderManifestBundle(comp)
+		if strings.TrimSpace(comp.Manifests) != "" {
+			yamlDoc, mfErr := renderManifestBundle(comp, comp.Manifests)
 			if mfErr != nil {
 				return nil, fmt.Errorf("rendering manifests for %s: %w", comp.Name, mfErr)
 			}
@@ -381,11 +463,12 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 		}
 
 		if len(deployedResources[comp.Name]) == 0 {
-			// Components with manifestFiles that rendered to nothing are
-			// a deliberate no-op; skip silently. A truly empty component
-			// (no chart and no manifests) should have been filtered by
-			// the resolver — surface that as a programming error.
-			if !manifestRendered {
+			// Components whose manifests rendered to nothing are a
+			// deliberate no-op (e.g. a bundle disabled through values);
+			// skip silently. A truly empty component (no chart and no
+			// manifest content at all) indicates a recipe/adapter bug —
+			// surface it rather than dropping the component quietly.
+			if !manifestRendered && strings.TrimSpace(comp.PreManifests) == "" {
 				return nil, fmt.Errorf("component %q has no chart and no manifests", comp.Name)
 			}
 			continue
@@ -409,50 +492,6 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	}
 
 	return state, nil
-}
-
-// toPulumiMap converts a map[string]interface{} to pulumi.Map for Helm values.
-func toPulumiMap(m map[string]interface{}) pulumi.Map {
-	if m == nil {
-		return nil
-	}
-	result := make(pulumi.Map, len(m))
-	for k, v := range m {
-		result[k] = toPulumiInput(v)
-	}
-	return result
-}
-
-// toPulumiInput converts an arbitrary value to a pulumi.Input.
-func toPulumiInput(v interface{}) pulumi.Input {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		return toPulumiMap(val)
-	case map[interface{}]interface{}:
-		m := make(map[string]interface{}, len(val))
-		for k, v := range val {
-			m[fmt.Sprintf("%v", k)] = v
-		}
-		return toPulumiMap(m)
-	case []interface{}:
-		arr := make(pulumi.Array, len(val))
-		for i, item := range val {
-			arr[i] = toPulumiInput(item)
-		}
-		return arr
-	case string:
-		return pulumi.String(val)
-	case int:
-		return pulumi.Int(val)
-	case int64:
-		return pulumi.Int(int(val))
-	case float64:
-		return pulumi.Float64(val)
-	case bool:
-		return pulumi.Bool(val)
-	default:
-		return pulumi.String(fmt.Sprintf("%v", v))
-	}
 }
 
 // validateArgs rejects invalid input combinations early with a clear error,
@@ -501,6 +540,14 @@ func validateArgs(args *ClusterStackArgs) error {
 				*args.Platform, strings.Join(supportedPlatforms, ", "))
 		}
 	}
+	if args.Nodes != nil && *args.Nodes < 0 {
+		return fmt.Errorf("nodes must be non-negative; got %d", *args.Nodes)
+	}
+	// The SDK's RecipeRequest.Nodes is an int32; bound it here so an
+	// oversized value is a friendly error, not a silent integer wrap.
+	if args.Nodes != nil && *args.Nodes > math.MaxInt32 {
+		return fmt.Errorf("nodes must be at most %d; got %d", math.MaxInt32, *args.Nodes)
+	}
 	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
 		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")
 	}
@@ -547,13 +594,6 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func derefStr(s *string, def string) string {
-	if s != nil {
-		return *s
-	}
-	return def
 }
 
 // canonical lower-cases and trims an input criterion so that " EKS " and

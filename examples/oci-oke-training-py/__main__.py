@@ -149,6 +149,7 @@ gpu_stack = aicr.ClusterStack("nvidia-aicr",
     service="oke",
     intent="training",
     platform="kubeflow",
+    os="ubuntu",
 )
 
 # Exports

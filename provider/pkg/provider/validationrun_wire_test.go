@@ -1,3 +1,17 @@
+// Copyright 2026, Pulumi Corporation.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package provider
 
 // Wire-level lifecycle tests: drive the provider through the integration
@@ -51,8 +65,8 @@ func rigLikeInputs() property.Map {
 		// "embedded"; the value still round-trips the same wire path as the
 		// live "v0.18.0".
 		"recipeDataVersion": property.New("embedded"),
-		"kubeconfig": property.New("apiVersion: v1\nkind: Config\n").WithSecret(true),
-		"requireGpu": property.New(true),
+		"kubeconfig":        property.New("apiVersion: v1\nkind: Config\n").WithSecret(true),
+		"requireGpu":        property.New(true),
 		"triggers": property.New([]property.Value{
 			property.New([]property.Value{
 				property.New("gpu-operator"),

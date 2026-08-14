@@ -219,3 +219,15 @@ install: provider
 clean:
 	rm -rf $(BIN_DIR) sdk/nodejs sdk/python sdk/go sdk/dotnet sdk/java
 	rm -f $(SCHEMA_FILE)
+
+# Verify every hand-written Go source carries the Apache 2.0 copyright
+# header. Generated trees (sdk/, schema.json) and examples are exempt by
+# convention. CI runs this; add headers with the block from any provider/
+# file when it fails.
+.PHONY: check_copyright
+check_copyright:
+	@missing=$$(find provider -name '*.go' | xargs grep -L "Copyright .*Pulumi Corporation"); \
+	if [ -n "$$missing" ]; then \
+		echo "missing copyright header:"; echo "$$missing"; exit 1; \
+	fi
+	@echo "copyright headers OK"

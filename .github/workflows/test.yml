@@ -35,6 +35,8 @@ jobs:
           fi
       - name: Run vet
         run: cd provider && go vet ./...
+      - name: Check copyright headers
+        run: make check_copyright
       - name: Run tests
         run: make test
 

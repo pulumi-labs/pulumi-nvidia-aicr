@@ -24,7 +24,7 @@
         <dependency>
             <groupId>com.pulumi.labs</groupId>
             <artifactId>nvidia-aicr</artifactId>
-            <version>(,1.0]</version>
+            <version>[0.3.0,1.0]</version>
         </dependency>
     </dependencies>
 

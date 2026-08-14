@@ -43,6 +43,33 @@ func main() {
 		ctx.Export("recipeVersion", gpuStack.RecipeVersion)
 		ctx.Export("deployedComponents", gpuStack.DeployedComponents)
 		ctx.Export("componentCount", gpuStack.ComponentCount)
+
+		// Optional: run the recipe's empirical validation against the cluster
+		// (config: `pulumi config set validate true`). Adds ~10 minutes to the update.
+		//
+		// Honest expectations on a GPU-less kind cluster: the readiness pre-flight
+		// passes (kind recipes bind no OS or GPU constraints), but deployment health
+		// checks for GPU components fail or skip, and GPU conformance checks skip --
+		// there is no GPU to validate. Useful for exercising the validation pipeline
+		// itself; a real verdict needs real hardware (see the EKS/GKE examples).
+		if cfg.GetBool("validate") {
+			validation, err := aicr.NewValidationRun(ctx, "kind-validation", &aicr.ValidationRunArgs{
+				// Keep in sync with the ClusterStack criteria above (Python/TS wire the stack's `criteria` output directly; Go cannot).
+				Criteria: aicr.RecipeCriteriaArgs{
+					Accelerator: pulumi.String("h100"),
+					Service:     pulumi.String("kind"),
+					Intent:      pulumi.String(intent),
+				},
+				RecipeDataVersion: gpuStack.RecipeVersion,                    // assert same recipe data as deployed
+				RequireGpu: pulumi.Bool(false),                        // kind has no GPU nodes
+				Triggers:   pulumi.Array{gpuStack.DeployedComponents}, // re-run when the stack changes
+			})
+			if err != nil {
+				return err
+			}
+			ctx.Export("validationStatus", validation.Status)
+			ctx.Export("validationChecks", validation.PhaseResults)
+		}
 		return nil
 	})
 }

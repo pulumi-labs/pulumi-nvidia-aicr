@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Pulumi" Version="3.*" />
     <PackageReference Include="Pulumi.Oci" Version="2.*" />
-    <PackageReference Include="Pulumi.Labs.NvidiaAicr" Version="*" />
+    <PackageReference Include="Pulumi.Labs.NvidiaAicr" Version="0.3.0" />
   </ItemGroup>
 
 </Project>

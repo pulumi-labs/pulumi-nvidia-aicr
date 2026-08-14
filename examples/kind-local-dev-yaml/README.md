@@ -29,9 +29,24 @@ workloads.
 pulumi up
 ```
 
+## Validation
+
+Uncomment the `kind-validation` block (and its outputs) in `Pulumi.yaml` to
+run a `ValidationRun` that snapshots the cluster and runs the recipe's
+deployment and conformance checks in-cluster (~10 minutes, needs
+provider >= 0.3.0). On a GPU-less kind cluster expect an honest result:
+readiness passes, GPU deployment checks fail or skip, GPU conformance checks
+skip. Useful for exercising the validation pipeline itself — a real verdict
+needs real hardware (see the EKS/GKE examples).
+
 ## Clean up
 
 ```bash
 pulumi destroy
 kind delete cluster --name aicr-dev
 ```
+
+> **Note:** if you keep the cluster (skipping `kind delete cluster`) after a
+> `pulumi destroy`, a later `pulumi up` fails on leftover CRDs
+> (`invalid ownership metadata`) -- Helm never removes CRDs on uninstall.
+> Recreate the kind cluster instead; see "Known Limitations" in the main README.

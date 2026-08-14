@@ -67,7 +67,24 @@ inference_stack = aicr.ClusterStack("nvidia-inference",
     },
 )
 
+# Validate the deployed stack empirically: a snapshot agent captures cluster
+# state, then the recipe's deployment and conformance checks run as Jobs in
+# the cluster (~10 minutes). With the default strict=False the update always
+# succeeds and the verdict is data -- read the exported status and per-check
+# results. Set strict=True to fail the update on failed checks instead.
+#
+# Validation pods tolerate all taints by default, so tainted GPU node pools
+# need no configuration; the `tolerations` input exists to narrow that.
+validation = aicr.ValidationRun("nvidia-inference-validation",
+    criteria=inference_stack.criteria,     # same recipe as the stack -- no drift
+    recipe_data_version=inference_stack.recipe_version,  # assert same recipe data as deployed
+    kubeconfig_path=kubeconfig_path,       # same kubeconfig the stack uses
+    triggers=[inference_stack.deployed_components],  # re-validate when the stack changes
+)
+
 # Exports
 pulumi.export("recipe_name", inference_stack.recipe_name)
 pulumi.export("deployed_components", inference_stack.deployed_components)
 pulumi.export("component_count", inference_stack.component_count)
+pulumi.export("validation_status", validation.status)
+pulumi.export("validation_checks", validation.phase_results)

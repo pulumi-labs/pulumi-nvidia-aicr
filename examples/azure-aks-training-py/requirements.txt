@@ -1,3 +1,3 @@
 pulumi>=3.142.0,<4.0.0
 pulumi-azure-native>=2.0.0,<3.0.0
-pulumi-labs-nvidia-aicr>=0.1.0,!=0.2.0
+pulumi-labs-nvidia-aicr>=0.3.0

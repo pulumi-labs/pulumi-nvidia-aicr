@@ -101,8 +101,23 @@ const gpuStack = new aicr.ClusterStack("nvidia-aicr", {
     },
 }, { dependsOn: [gpuNodePool] });
 
+// Validate the deployed stack empirically: a snapshot agent captures cluster
+// state, then the recipe's deployment and conformance checks run as Jobs in
+// the cluster (~10 minutes; GKE's automatic nvidia.com/gpu taint needs no
+// configuration — validation pods tolerate all taints by default). With the
+// default strict: false the update always succeeds and the verdict is data;
+// set strict: true to gate downstream resources on a passing run instead.
+const validation = new aicr.ValidationRun("nvidia-aicr-validation", {
+    criteria: gpuStack.criteria,              // same recipe as the stack — no drift
+    recipeDataVersion: gpuStack.recipeVersion,          // assert same recipe data as deployed
+    kubeconfig: kubeconfig,
+    triggers: [gpuStack.deployedComponents],  // re-validate when the stack changes
+});
+
 // Exports
 export const kubeconfigOutput = pulumi.secret(kubeconfig);
 export const recipeName = gpuStack.recipeName;
 export const deployedComponents = gpuStack.deployedComponents;
 export const componentCount = gpuStack.componentCount;
+export const validationStatus = validation.status;
+export const validationChecks = validation.phaseResults;

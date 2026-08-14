@@ -21,8 +21,28 @@ resources:
       skipComponents:
         - kube-prometheus-stack
 
+  # Uncomment to run empirical validation (~10 minutes, needs provider >= 0.3.0).
+  #
+  # Honest expectations on a GPU-less kind cluster: the readiness pre-flight
+  # passes (kind recipes bind no OS or GPU constraints), but deployment health
+  # checks for GPU components fail or skip, and GPU conformance checks skip --
+  # there is no GPU to validate. Useful for exercising the validation pipeline
+  # itself; a real verdict needs real hardware (see the EKS/GKE examples).
+  #
+  # kind-validation:
+  #   type: nvidia-aicr:index:ValidationRun
+  #   properties:
+  #     criteria: ${kind-aicr.criteria} # same recipe as the stack
+  #     recipeDataVersion: ${kind-aicr.recipeVersion} # assert same recipe data as deployed
+  #     requireGpu: false # kind has no GPU nodes
+  #     triggers: # re-run when the stack changes
+  #       - ${kind-aicr.deployedComponents}
+
 outputs:
   recipeName: ${kind-aicr.recipeName}
   recipeVersion: ${kind-aicr.recipeVersion}
   deployedComponents: ${kind-aicr.deployedComponents}
   componentCount: ${kind-aicr.componentCount}
+  # Uncomment along with the kind-validation resource above:
+  # validationStatus: ${kind-validation.status}
+  # validationChecks: ${kind-validation.phaseResults}

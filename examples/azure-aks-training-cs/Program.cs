@@ -113,11 +113,37 @@ return await Deployment.RunAsync(() =>
         },
     });
 
+    // Validate the deployed stack empirically: a snapshot agent captures cluster
+    // state, then the recipe's deployment and conformance checks run as Jobs in
+    // the cluster (~10 minutes; the GPU pool's nvidia.com/gpu taint needs no
+    // configuration -- validation pods tolerate all taints by default). With the
+    // default Strict = false the update always succeeds and the verdict is data --
+    // read the exported status and per-check results. Set Strict = true to fail
+    // the update on failed checks instead.
+    var validation = new ValidationRun("nvidia-aicr-validation", new ValidationRunArgs
+    {
+        // Keep in sync with the ClusterStack criteria (Python/TS wire the output directly; C# cannot).
+        Criteria = new RecipeCriteriaArgs
+        {
+            Accelerator = "h100",
+            Service = "aks",
+            Intent = "training",
+            Platform = "kubeflow",
+            Os = "ubuntu",
+        },
+        RecipeDataVersion = gpuStack.RecipeVersion,   // assert same recipe data as deployed
+        Kubeconfig = kubeconfig,
+        // Re-validate when the stack changes
+        Triggers = gpuStack.DeployedComponents.Apply(cs => new object[] { cs }),
+    });
+
     return new Dictionary<string, object?>
     {
         ["kubeconfig"] = Output.CreateSecret(kubeconfig),
         ["recipeName"] = gpuStack.RecipeName,
         ["deployedComponents"] = gpuStack.DeployedComponents,
         ["componentCount"] = gpuStack.ComponentCount,
+        ["validationStatus"] = validation.Status,
+        ["validationChecks"] = validation.PhaseResults,
     };
 });

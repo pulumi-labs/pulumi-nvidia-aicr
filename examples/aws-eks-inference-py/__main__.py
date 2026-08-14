@@ -111,8 +111,25 @@ gpu_stack = aicr.ClusterStack("nvidia-aicr",
     },
 )
 
+# Validate the deployed stack empirically: a snapshot agent captures cluster
+# state, then the recipe's deployment and conformance checks run as Jobs in
+# the cluster (~10 minutes). With the default strict=False the update always
+# succeeds and the verdict is data -- read the exported status and per-check
+# results. Set strict=True to fail the update on failed checks instead.
+#
+# Validation pods tolerate all taints by default, so tainted GPU node groups
+# need no configuration; the `tolerations` input exists to narrow that.
+validation = aicr.ValidationRun("nvidia-aicr-validation",
+    criteria=gpu_stack.criteria,           # same recipe as the stack -- no drift
+    recipe_data_version=gpu_stack.recipe_version,      # assert same recipe data as deployed
+    kubeconfig=cluster.kubeconfig_json,
+    triggers=[gpu_stack.deployed_components],  # re-validate when the stack changes
+)
+
 # Exports
 pulumi.export("kubeconfig", pulumi.Output.secret(cluster.kubeconfig_json))
 pulumi.export("recipe_name", gpu_stack.recipe_name)
 pulumi.export("deployed_components", gpu_stack.deployed_components)
 pulumi.export("component_count", gpu_stack.component_count)
+pulumi.export("validation_status", validation.status)
+pulumi.export("validation_checks", validation.phase_results)

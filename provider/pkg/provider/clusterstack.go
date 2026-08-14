@@ -123,6 +123,9 @@ type ClusterStack struct {
 	DeployedComponents pulumi.StringArrayOutput `pulumi:"deployedComponents"`
 	// The number of deployed components.
 	ComponentCount pulumi.IntOutput `pulumi:"componentCount"`
+	// The canonicalized recipe criteria used for resolution. Wire this into
+	// a ValidationRun's `criteria` input to validate exactly this stack.
+	Criteria RecipeCriteria `pulumi:"criteria"`
 }
 
 // Annotate populates the Pulumi schema with descriptions, defaults, and
@@ -208,6 +211,9 @@ func (s *ClusterStack) Annotate(an infer.Annotator) {
 	an.Describe(&s.RecipeVersion, `The AICR recipe data version embedded in this provider build.`)
 	an.Describe(&s.DeployedComponents, `Names of all components deployed as part of this stack, in topological order.`)
 	an.Describe(&s.ComponentCount, `Number of components deployed.`)
+	an.Describe(&s.Criteria, `The canonicalized recipe criteria this stack resolved with. Wire it into a
+ValidationRun's `+"`criteria`"+` input so deployment and validation share a single
+source of truth.`)
 }
 
 // NewClusterStack creates a new NVIDIA AICR ClusterStack component.
@@ -481,17 +487,60 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	state.RecipeVersion = pulumi.String(resolved.Version).ToStringOutput()
 	state.DeployedComponents = pulumi.ToStringArray(deployedNames).ToStringArrayOutput()
 	state.ComponentCount = pulumi.Int(len(deployedNames)).ToIntOutput()
+	state.Criteria = criteriaOutput(criteria, args.Nodes)
+
+	// Mirror the criteria into the registered outputs map, omitting unset
+	// optionals (matching the RecipeCriteria pointer fields).
+	criteriaMap := pulumi.Map{
+		"accelerator": pulumi.String(criteria.Accelerator),
+		"service":     pulumi.String(criteria.Service),
+		"intent":      pulumi.String(criteria.Intent),
+	}
+	if criteria.OS != "" {
+		criteriaMap["os"] = pulumi.String(criteria.OS)
+	}
+	if criteria.Platform != "" {
+		criteriaMap["platform"] = pulumi.String(criteria.Platform)
+	}
+	if args.Nodes != nil {
+		criteriaMap["nodes"] = pulumi.Int(*args.Nodes)
+	}
 
 	if err := ctx.RegisterResourceOutputs(state, pulumi.Map{
 		"recipeName":         pulumi.String(resolved.Name),
 		"recipeVersion":      pulumi.String(resolved.Version),
 		"deployedComponents": pulumi.ToStringArray(deployedNames),
 		"componentCount":     pulumi.Int(len(deployedNames)),
+		"criteria":           criteriaMap,
 	}); err != nil {
 		return nil, err
 	}
 
 	return state, nil
+}
+
+// criteriaOutput builds the RecipeCriteria output from the canonicalized
+// resolution criteria. Optionals stay nil when unset so wiring the output
+// into a ValidationRun re-resolves identical criteria.
+func criteriaOutput(criteria aicr.Criteria, nodes *int) RecipeCriteria {
+	out := RecipeCriteria{
+		Accelerator: criteria.Accelerator,
+		Service:     criteria.Service,
+		Intent:      criteria.Intent,
+	}
+	if criteria.OS != "" {
+		osVal := criteria.OS
+		out.OS = &osVal
+	}
+	if criteria.Platform != "" {
+		platform := criteria.Platform
+		out.Platform = &platform
+	}
+	if nodes != nil {
+		n := *nodes
+		out.Nodes = &n
+	}
+	return out
 }
 
 // validateArgs rejects invalid input combinations early with a clear error,
@@ -501,59 +550,71 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 // wildcards, so an unrecognized accelerator like "fictional-gpu" can match
 // generic service overlays without this check.
 func validateArgs(args *ClusterStackArgs) error {
-	accel := strings.ToLower(strings.TrimSpace(args.Accelerator))
-	service := strings.ToLower(strings.TrimSpace(args.Service))
-	intent := strings.ToLower(strings.TrimSpace(args.Intent))
+	if err := validateCriteria(args.Accelerator, args.Service, args.Intent,
+		args.OS, args.Platform, args.Nodes); err != nil {
+		return err
+	}
+	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
+		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")
+	}
+	return nil
+}
+
+// validateCriteria checks the recipe-selection dimensions shared by
+// ClusterStack and ValidationRun (allowlists, nodes bounds, and the
+// published combination matrix), so both resources produce byte-identical
+// friendly errors.
+func validateCriteria(accelerator, service, intent string, osName, platform *string, nodes *int) error {
+	accel := strings.ToLower(strings.TrimSpace(accelerator))
+	svc := strings.ToLower(strings.TrimSpace(service))
+	intentVal := strings.ToLower(strings.TrimSpace(intent))
 
 	if accel == "" {
 		return fmt.Errorf("accelerator is required (one of: %s)", strings.Join(supportedAccelerators, ", "))
 	}
 	if !contains(supportedAccelerators, accel) {
 		return fmt.Errorf("accelerator %q is not supported (must be one of: %s)",
-			args.Accelerator, strings.Join(supportedAccelerators, ", "))
+			accelerator, strings.Join(supportedAccelerators, ", "))
 	}
-	if service == "" {
+	if svc == "" {
 		return fmt.Errorf("service is required (one of: %s)", strings.Join(supportedServices, ", "))
 	}
-	if !contains(supportedServices, service) {
+	if !contains(supportedServices, svc) {
 		return fmt.Errorf("service %q is not supported (must be one of: %s)",
-			args.Service, strings.Join(supportedServices, ", "))
+			service, strings.Join(supportedServices, ", "))
 	}
-	if intent == "" {
+	if intentVal == "" {
 		return fmt.Errorf("intent is required (one of: %s)", strings.Join(supportedIntents, ", "))
 	}
-	if !contains(supportedIntents, intent) {
+	if !contains(supportedIntents, intentVal) {
 		return fmt.Errorf("intent %q is not supported (must be one of: %s)",
-			args.Intent, strings.Join(supportedIntents, ", "))
+			intent, strings.Join(supportedIntents, ", "))
 	}
-	if args.OS != nil && *args.OS != "" {
-		osVal := strings.ToLower(strings.TrimSpace(*args.OS))
+	if osName != nil && *osName != "" {
+		osVal := strings.ToLower(strings.TrimSpace(*osName))
 		if !contains(supportedOSes, osVal) {
 			return fmt.Errorf("os %q is not supported (must be one of: %s)",
-				*args.OS, strings.Join(supportedOSes, ", "))
+				*osName, strings.Join(supportedOSes, ", "))
 		}
 	}
-	if args.Platform != nil && *args.Platform != "" {
-		platform := strings.ToLower(strings.TrimSpace(*args.Platform))
-		if !contains(supportedPlatforms, platform) {
+	if platform != nil && *platform != "" {
+		platformVal := strings.ToLower(strings.TrimSpace(*platform))
+		if !contains(supportedPlatforms, platformVal) {
 			return fmt.Errorf("platform %q is not supported (must be one of: %s)",
-				*args.Platform, strings.Join(supportedPlatforms, ", "))
+				*platform, strings.Join(supportedPlatforms, ", "))
 		}
 	}
-	if args.Nodes != nil && *args.Nodes < 0 {
-		return fmt.Errorf("nodes must be non-negative; got %d", *args.Nodes)
+	if nodes != nil && *nodes < 0 {
+		return fmt.Errorf("nodes must be non-negative; got %d", *nodes)
 	}
 	// The SDK's RecipeRequest.Nodes is an int32; bound it here so an
 	// oversized value is a friendly error, not a silent integer wrap.
-	if args.Nodes != nil && *args.Nodes > math.MaxInt32 {
-		return fmt.Errorf("nodes must be at most %d; got %d", math.MaxInt32, *args.Nodes)
+	if nodes != nil && *nodes > math.MaxInt32 {
+		return fmt.Errorf("nodes must be at most %d; got %d", math.MaxInt32, *nodes)
 	}
-	if args.Kubeconfig != nil && args.KubeconfigPath != nil {
-		return fmt.Errorf("kubeconfig and kubeconfigPath are mutually exclusive; set only one")
-	}
-	return validateCompatibility(accel, service, intent,
-		canonicalOr(args.OS, ""),
-		canonicalOr(args.Platform, ""),
+	return validateCompatibility(accel, svc, intentVal,
+		canonicalOr(osName, ""),
+		canonicalOr(platform, ""),
 	)
 }
 

@@ -69,6 +69,9 @@ func NewProvider() p.Provider {
 		Components: []infer.InferredComponent{
 			infer.ComponentF(NewClusterStack),
 		},
+		Resources: []infer.InferredResource{
+			infer.Resource(&ValidationRun{}),
+		},
 		ModuleMap: map[tokens.ModuleName]tokens.ModuleName{
 			"provider": "index",
 		},

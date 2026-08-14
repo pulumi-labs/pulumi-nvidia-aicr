@@ -72,6 +72,11 @@ sdks: nodejs_sdk python_sdk go_sdk dotnet_sdk java_sdk sdk_fixups
 #   - Python: point readme at the package-local README and use the SPDX
 #     string-form license (the generator emits a deprecated [project.license]
 #     table that ships an empty PyPI long description and prints a warning).
+#     Also rewrite `pulumi.Input[Optional[T]]` -> `Optional[pulumi.Input[T]]`
+#     in the generated .py files: the codegen emits the inner-Optional
+#     nesting but the runtime's unwrap_type only recognizes the outer-Optional
+#     form, so passing a list/dict to an optional input asserts in
+#     _get_list_element_type. Tracked upstream at pulumi/pulumi#23414.
 #   - .NET: declare PackageReadmeFile and pack README.md so NuGet stops
 #     warning about a missing readme.
 #   - Java: the generator pins the Gradle compile toolchain to Java 11 and
@@ -93,6 +98,9 @@ p=pathlib.Path("sdk/python/pyproject.toml"); s=p.read_text(); \
 s=re.sub(r"^( *)readme = \"README\.md\"", "\\1readme = \"pulumi_labs_nvidia_aicr/README.md\"", s, flags=re.M); \
 s=re.sub(r"\n  \[project\.license\]\n    text = \"Apache-2\.0\"", "\n  license = \"Apache-2.0\"", s); \
 p.write_text(s)'; \
+	fi
+	@if [ -d sdk/python ]; then \
+		python3 scripts/fixup_python_input_optional.py sdk/python; \
 	fi
 	@if [ -d sdk/dotnet ] && [ -f README.md ] && [ ! -f sdk/dotnet/README.md ]; then \
 		cp README.md sdk/dotnet/README.md; \

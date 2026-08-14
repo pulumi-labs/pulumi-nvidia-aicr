@@ -26,6 +26,12 @@ export class ClusterStack extends pulumi.ComponentResource {
      */
     declare public /*out*/ readonly componentCount: pulumi.Output<number>;
     /**
+     * The canonicalized recipe criteria this stack resolved with. Wire it into a
+     * ValidationRun's `criteria` input so deployment and validation share a single
+     * source of truth.
+     */
+    declare public /*out*/ readonly criteria: pulumi.Output<outputs.RecipeCriteria>;
+    /**
      * Names of all components deployed as part of this stack, in topological order.
      */
     declare public /*out*/ readonly deployedComponents: pulumi.Output<string[]>;
@@ -71,11 +77,13 @@ export class ClusterStack extends pulumi.ComponentResource {
             resourceInputs["skipAwait"] = (args?.skipAwait) ?? false;
             resourceInputs["skipComponents"] = args?.skipComponents;
             resourceInputs["componentCount"] = undefined /*out*/;
+            resourceInputs["criteria"] = undefined /*out*/;
             resourceInputs["deployedComponents"] = undefined /*out*/;
             resourceInputs["recipeName"] = undefined /*out*/;
             resourceInputs["recipeVersion"] = undefined /*out*/;
         } else {
             resourceInputs["componentCount"] = undefined /*out*/;
+            resourceInputs["criteria"] = undefined /*out*/;
             resourceInputs["deployedComponents"] = undefined /*out*/;
             resourceInputs["recipeName"] = undefined /*out*/;
             resourceInputs["recipeVersion"] = undefined /*out*/;
@@ -135,7 +143,9 @@ export interface ClusterStackArgs {
      * Operating system flavor of the worker nodes.
      *
      * Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
-     * (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+     * (Oracle Linux, OKE) — the values with backing recipes in this provider's
+     * pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+     * through AICR SDK upgrades.
      *
      * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
      * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.

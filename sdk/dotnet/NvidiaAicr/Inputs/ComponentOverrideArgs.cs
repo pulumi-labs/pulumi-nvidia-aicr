@@ -27,7 +27,17 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
         private InputMap<object>? _values;
 
         /// <summary>
-        /// Additional or override Helm values, deep-merged with the recipe defaults.
+        /// Additional or override Helm values, deep-merged on top of the
+        /// recipe-resolved values.
+        /// 
+        /// Merge semantics: nested maps merge recursively; scalars and arrays replace
+        /// the recipe's value; setting a key to null removes it from the
+        /// recipe-resolved values, restoring the chart's own default for that key.
+        /// Note the null asymmetry: a null *in the recipe data* is passed through to
+        /// Helm (explicitly clearing the chart default), while a null *here* removes
+        /// the recipe's setting. There is currently no way to pass a literal null
+        /// through to Helm from this input — and some language SDKs drop null map
+        /// entries during serialization before they reach the provider at all.
         /// </summary>
         public InputMap<object> Values
         {

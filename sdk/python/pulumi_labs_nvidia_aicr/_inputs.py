@@ -17,6 +17,10 @@ from . import _utilities
 __all__ = [
     'ComponentOverrideArgs',
     'ComponentOverrideArgsDict',
+    'RecipeCriteriaArgs',
+    'RecipeCriteriaArgsDict',
+    'TolerationArgs',
+    'TolerationArgsDict',
 ]
 
 class ComponentOverrideArgsDict(TypedDict):
@@ -30,7 +34,17 @@ class ComponentOverrideArgsDict(TypedDict):
     """
     values: NotRequired[pulumi.Input[Optional[Mapping[str, Any]]]]
     """
-    Additional or override Helm values, deep-merged with the recipe defaults.
+    Additional or override Helm values, deep-merged on top of the
+    recipe-resolved values.
+
+    Merge semantics: nested maps merge recursively; scalars and arrays replace
+    the recipe's value; setting a key to null removes it from the
+    recipe-resolved values, restoring the chart's own default for that key.
+    Note the null asymmetry: a null *in the recipe data* is passed through to
+    Helm (explicitly clearing the chart default), while a null *here* removes
+    the recipe's setting. There is currently no way to pass a literal null
+    through to Helm from this input — and some language SDKs drop null map
+    entries during serialization before they reach the provider at all.
     """
     version: NotRequired[pulumi.Input[Optional[_builtins.str]]]
     """
@@ -48,7 +62,17 @@ class ComponentOverrideArgs:
         you set are applied on top of the recipe defaults.
 
         :param pulumi.Input[_builtins.str] namespace: Override the target Kubernetes namespace.
-        :param pulumi.Input[Mapping[str, Any]] values: Additional or override Helm values, deep-merged with the recipe defaults.
+        :param pulumi.Input[Mapping[str, Any]] values: Additional or override Helm values, deep-merged on top of the
+               recipe-resolved values.
+               
+               Merge semantics: nested maps merge recursively; scalars and arrays replace
+               the recipe's value; setting a key to null removes it from the
+               recipe-resolved values, restoring the chart's own default for that key.
+               Note the null asymmetry: a null *in the recipe data* is passed through to
+               Helm (explicitly clearing the chart default), while a null *here* removes
+               the recipe's setting. There is currently no way to pass a literal null
+               through to Helm from this input — and some language SDKs drop null map
+               entries during serialization before they reach the provider at all.
         :param pulumi.Input[_builtins.str] version: Override the Helm chart version. If unset, the recipe-pinned version is used.
         """
         if namespace is not None:
@@ -74,7 +98,17 @@ class ComponentOverrideArgs:
     @pulumi.getter
     def values(self) -> pulumi.Input[Optional[Mapping[str, Any]]]:
         """
-        Additional or override Helm values, deep-merged with the recipe defaults.
+        Additional or override Helm values, deep-merged on top of the
+        recipe-resolved values.
+
+        Merge semantics: nested maps merge recursively; scalars and arrays replace
+        the recipe's value; setting a key to null removes it from the
+        recipe-resolved values, restoring the chart's own default for that key.
+        Note the null asymmetry: a null *in the recipe data* is passed through to
+        Helm (explicitly clearing the chart default), while a null *here* removes
+        the recipe's setting. There is currently no way to pass a literal null
+        through to Helm from this input — and some language SDKs drop null map
+        entries during serialization before they reach the provider at all.
         """
         return pulumi.get(self, "values")
 
@@ -93,5 +127,266 @@ class ComponentOverrideArgs:
     @version.setter
     def version(self, value: pulumi.Input[Optional[_builtins.str]]):
         pulumi.set(self, "version", value)
+
+
+class RecipeCriteriaArgsDict(TypedDict):
+    """
+    Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+    intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+    output here so deployment and validation resolve the identical recipe.
+    """
+    accelerator: pulumi.Input[_builtins.str]
+    """
+    GPU accelerator type. Supported values: "h100", "gb200", "b200".
+    """
+    intent: pulumi.Input[_builtins.str]
+    """
+    Workload intent. Supported values: "training", "inference".
+    """
+    service: pulumi.Input[_builtins.str]
+    """
+    Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+    """
+    nodes: NotRequired[pulumi.Input[Optional[_builtins.int]]]
+    """
+    Worker-node count hint used to size the recipe.
+    """
+    os: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    """
+    Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+    resolution. Supported values: "ubuntu", "cos", "ol".
+    """
+    platform: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    """
+    ML platform/framework. Supported values: "kubeflow" (training),
+    "dynamo" (inference), "nim" (inference, EKS+H100 only).
+    """
+
+@pulumi.input_type
+class RecipeCriteriaArgs:
+    def __init__(__self__, *,
+                 accelerator: pulumi.Input[_builtins.str],
+                 intent: pulumi.Input[_builtins.str],
+                 service: pulumi.Input[_builtins.str],
+                 nodes: pulumi.Input[Optional[_builtins.int]] = None,
+                 os: pulumi.Input[Optional[_builtins.str]] = None,
+                 platform: pulumi.Input[Optional[_builtins.str]] = None):
+        """
+        Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+        intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+        output here so deployment and validation resolve the identical recipe.
+
+        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        :param pulumi.Input[_builtins.str] intent: Workload intent. Supported values: "training", "inference".
+        :param pulumi.Input[_builtins.str] service: Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        :param pulumi.Input[_builtins.int] nodes: Worker-node count hint used to size the recipe.
+        :param pulumi.Input[_builtins.str] os: Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+               resolution. Supported values: "ubuntu", "cos", "ol".
+        :param pulumi.Input[_builtins.str] platform: ML platform/framework. Supported values: "kubeflow" (training),
+               "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        """
+        pulumi.set(__self__, "accelerator", accelerator)
+        pulumi.set(__self__, "intent", intent)
+        pulumi.set(__self__, "service", service)
+        if nodes is not None:
+            pulumi.set(__self__, "nodes", nodes)
+        if os is not None:
+            pulumi.set(__self__, "os", os)
+        if platform is not None:
+            pulumi.set(__self__, "platform", platform)
+
+    @_builtins.property
+    @pulumi.getter
+    def accelerator(self) -> pulumi.Input[_builtins.str]:
+        """
+        GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        """
+        return pulumi.get(self, "accelerator")
+
+    @accelerator.setter
+    def accelerator(self, value: pulumi.Input[_builtins.str]):
+        pulumi.set(self, "accelerator", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def intent(self) -> pulumi.Input[_builtins.str]:
+        """
+        Workload intent. Supported values: "training", "inference".
+        """
+        return pulumi.get(self, "intent")
+
+    @intent.setter
+    def intent(self, value: pulumi.Input[_builtins.str]):
+        pulumi.set(self, "intent", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def service(self) -> pulumi.Input[_builtins.str]:
+        """
+        Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        """
+        return pulumi.get(self, "service")
+
+    @service.setter
+    def service(self, value: pulumi.Input[_builtins.str]):
+        pulumi.set(self, "service", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def nodes(self) -> pulumi.Input[Optional[_builtins.int]]:
+        """
+        Worker-node count hint used to size the recipe.
+        """
+        return pulumi.get(self, "nodes")
+
+    @nodes.setter
+    def nodes(self, value: pulumi.Input[Optional[_builtins.int]]):
+        pulumi.set(self, "nodes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def os(self) -> pulumi.Input[Optional[_builtins.str]]:
+        """
+        Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+        resolution. Supported values: "ubuntu", "cos", "ol".
+        """
+        return pulumi.get(self, "os")
+
+    @os.setter
+    def os(self, value: pulumi.Input[Optional[_builtins.str]]):
+        pulumi.set(self, "os", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def platform(self) -> pulumi.Input[Optional[_builtins.str]]:
+        """
+        ML platform/framework. Supported values: "kubeflow" (training),
+        "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        """
+        return pulumi.get(self, "platform")
+
+    @platform.setter
+    def platform(self, value: pulumi.Input[Optional[_builtins.str]]):
+        pulumi.set(self, "platform", value)
+
+
+class TolerationArgsDict(TypedDict):
+    """
+    A Kubernetes pod toleration applied to validation workload pods.
+    """
+    effect: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    """
+    The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+    "NoExecute". Empty matches all effects.
+    """
+    key: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    """
+    The taint key the toleration applies to. Empty means match all keys
+    (with operator "Exists").
+    """
+    operator: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    """
+    Key-value relationship: "Exists" or "Equal". Default: "Equal".
+    """
+    toleration_seconds: NotRequired[pulumi.Input[Optional[_builtins.int]]]
+    """
+    How long the pod tolerates a "NoExecute" taint, in seconds.
+    """
+    value: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    """
+    The taint value to match (with operator "Equal").
+    """
+
+@pulumi.input_type
+class TolerationArgs:
+    def __init__(__self__, *,
+                 effect: pulumi.Input[Optional[_builtins.str]] = None,
+                 key: pulumi.Input[Optional[_builtins.str]] = None,
+                 operator: pulumi.Input[Optional[_builtins.str]] = None,
+                 toleration_seconds: pulumi.Input[Optional[_builtins.int]] = None,
+                 value: pulumi.Input[Optional[_builtins.str]] = None):
+        """
+        A Kubernetes pod toleration applied to validation workload pods.
+
+        :param pulumi.Input[_builtins.str] effect: The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+               "NoExecute". Empty matches all effects.
+        :param pulumi.Input[_builtins.str] key: The taint key the toleration applies to. Empty means match all keys
+               (with operator "Exists").
+        :param pulumi.Input[_builtins.str] operator: Key-value relationship: "Exists" or "Equal". Default: "Equal".
+        :param pulumi.Input[_builtins.int] toleration_seconds: How long the pod tolerates a "NoExecute" taint, in seconds.
+        :param pulumi.Input[_builtins.str] value: The taint value to match (with operator "Equal").
+        """
+        if effect is not None:
+            pulumi.set(__self__, "effect", effect)
+        if key is not None:
+            pulumi.set(__self__, "key", key)
+        if operator is not None:
+            pulumi.set(__self__, "operator", operator)
+        if toleration_seconds is not None:
+            pulumi.set(__self__, "toleration_seconds", toleration_seconds)
+        if value is not None:
+            pulumi.set(__self__, "value", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def effect(self) -> pulumi.Input[Optional[_builtins.str]]:
+        """
+        The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+        "NoExecute". Empty matches all effects.
+        """
+        return pulumi.get(self, "effect")
+
+    @effect.setter
+    def effect(self, value: pulumi.Input[Optional[_builtins.str]]):
+        pulumi.set(self, "effect", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def key(self) -> pulumi.Input[Optional[_builtins.str]]:
+        """
+        The taint key the toleration applies to. Empty means match all keys
+        (with operator "Exists").
+        """
+        return pulumi.get(self, "key")
+
+    @key.setter
+    def key(self, value: pulumi.Input[Optional[_builtins.str]]):
+        pulumi.set(self, "key", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def operator(self) -> pulumi.Input[Optional[_builtins.str]]:
+        """
+        Key-value relationship: "Exists" or "Equal". Default: "Equal".
+        """
+        return pulumi.get(self, "operator")
+
+    @operator.setter
+    def operator(self, value: pulumi.Input[Optional[_builtins.str]]):
+        pulumi.set(self, "operator", value)
+
+    @_builtins.property
+    @pulumi.getter(name="tolerationSeconds")
+    def toleration_seconds(self) -> pulumi.Input[Optional[_builtins.int]]:
+        """
+        How long the pod tolerates a "NoExecute" taint, in seconds.
+        """
+        return pulumi.get(self, "toleration_seconds")
+
+    @toleration_seconds.setter
+    def toleration_seconds(self, value: pulumi.Input[Optional[_builtins.int]]):
+        pulumi.set(self, "toleration_seconds", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def value(self) -> pulumi.Input[Optional[_builtins.str]]:
+        """
+        The taint value to match (with operator "Equal").
+        """
+        return pulumi.get(self, "value")
+
+    @value.setter
+    def value(self, value: pulumi.Input[Optional[_builtins.str]]):
+        pulumi.set(self, "value", value)
 
 

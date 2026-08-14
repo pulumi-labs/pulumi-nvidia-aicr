@@ -15,6 +15,11 @@ export type Provider = import("./provider").Provider;
 export const Provider: typeof import("./provider").Provider = null as any;
 utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 
+export { ValidationRunArgs } from "./validationRun";
+export type ValidationRun = import("./validationRun").ValidationRun;
+export const ValidationRun: typeof import("./validationRun").ValidationRun = null as any;
+utilities.lazyLoad(exports, ["ValidationRun"], () => require("./validationRun"));
+
 
 // Export sub-modules:
 import * as types from "./types";
@@ -29,6 +34,8 @@ const _module = {
         switch (type) {
             case "nvidia-aicr:index:ClusterStack":
                 return new ClusterStack(name, <any>undefined, { urn })
+            case "nvidia-aicr:index:ValidationRun":
+                return new ValidationRun(name, <any>undefined, { urn })
             default:
                 throw new Error(`unknown resource type ${type}`);
         }

@@ -15,11 +15,83 @@ export interface ComponentOverrideArgs {
      */
     namespace?: pulumi.Input<string | undefined>;
     /**
-     * Additional or override Helm values, deep-merged with the recipe defaults.
+     * Additional or override Helm values, deep-merged on top of the
+     * recipe-resolved values.
+     *
+     * Merge semantics: nested maps merge recursively; scalars and arrays replace
+     * the recipe's value; setting a key to null removes it from the
+     * recipe-resolved values, restoring the chart's own default for that key.
+     * Note the null asymmetry: a null *in the recipe data* is passed through to
+     * Helm (explicitly clearing the chart default), while a null *here* removes
+     * the recipe's setting. There is currently no way to pass a literal null
+     * through to Helm from this input — and some language SDKs drop null map
+     * entries during serialization before they reach the provider at all.
      */
     values?: pulumi.Input<{[key: string]: any} | undefined>;
     /**
      * Override the Helm chart version. If unset, the recipe-pinned version is used.
      */
     version?: pulumi.Input<string | undefined>;
+}
+
+/**
+ * Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+ * intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+ * output here so deployment and validation resolve the identical recipe.
+ */
+export interface RecipeCriteriaArgs {
+    /**
+     * GPU accelerator type. Supported values: "h100", "gb200", "b200".
+     */
+    accelerator: pulumi.Input<string>;
+    /**
+     * Workload intent. Supported values: "training", "inference".
+     */
+    intent: pulumi.Input<string>;
+    /**
+     * Worker-node count hint used to size the recipe.
+     */
+    nodes?: pulumi.Input<number | undefined>;
+    /**
+     * Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+     * resolution. Supported values: "ubuntu", "cos", "ol".
+     */
+    os?: pulumi.Input<string | undefined>;
+    /**
+     * ML platform/framework. Supported values: "kubeflow" (training),
+     * "dynamo" (inference), "nim" (inference, EKS+H100 only).
+     */
+    platform?: pulumi.Input<string | undefined>;
+    /**
+     * Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+     */
+    service: pulumi.Input<string>;
+}
+
+/**
+ * A Kubernetes pod toleration applied to validation workload pods.
+ */
+export interface TolerationArgs {
+    /**
+     * The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+     * "NoExecute". Empty matches all effects.
+     */
+    effect?: pulumi.Input<string | undefined>;
+    /**
+     * The taint key the toleration applies to. Empty means match all keys
+     * (with operator "Exists").
+     */
+    key?: pulumi.Input<string | undefined>;
+    /**
+     * Key-value relationship: "Exists" or "Equal". Default: "Equal".
+     */
+    operator?: pulumi.Input<string | undefined>;
+    /**
+     * How long the pod tolerates a "NoExecute" taint, in seconds.
+     */
+    tolerationSeconds?: pulumi.Input<number | undefined>;
+    /**
+     * The taint value to match (with operator "Equal").
+     */
+    value?: pulumi.Input<string | undefined>;
 }

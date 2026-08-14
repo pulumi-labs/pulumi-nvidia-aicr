@@ -13,6 +13,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import NotRequired, TypedDict, TypeAlias
 from . import _utilities
+from . import outputs
 from ._inputs import *
 
 __all__ = ['ClusterStackArgs', 'ClusterStack']
@@ -63,7 +64,9 @@ class ClusterStackArgs:
         :param _builtins.str os: Operating system flavor of the worker nodes.
                
                Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
-               (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+               (Oracle Linux, OKE) — the values with backing recipes in this provider's
+               pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+               through AICR SDK upgrades.
                
                Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
                tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
@@ -229,7 +232,9 @@ class ClusterStackArgs:
         Operating system flavor of the worker nodes.
 
         Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
-        (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+        (Oracle Linux, OKE) — the values with backing recipes in this provider's
+        pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+        through AICR SDK upgrades.
 
         Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
         tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
@@ -339,7 +344,9 @@ class ClusterStack(pulumi.ComponentResource):
         :param _builtins.str os: Operating system flavor of the worker nodes.
                
                Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
-               (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+               (Oracle Linux, OKE) — the values with backing recipes in this provider's
+               pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+               through AICR SDK upgrades.
                
                Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
                tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
@@ -433,6 +440,7 @@ class ClusterStack(pulumi.ComponentResource):
             __props__.__dict__["skip_await"] = skip_await
             __props__.__dict__["skip_components"] = skip_components
             __props__.__dict__["component_count"] = None
+            __props__.__dict__["criteria"] = None
             __props__.__dict__["deployed_components"] = None
             __props__.__dict__["recipe_name"] = None
             __props__.__dict__["recipe_version"] = None
@@ -450,6 +458,16 @@ class ClusterStack(pulumi.ComponentResource):
         Number of components deployed.
         """
         return pulumi.get(self, "component_count")
+
+    @_builtins.property
+    @pulumi.getter
+    def criteria(self) -> pulumi.Output['outputs.RecipeCriteria']:
+        """
+        The canonicalized recipe criteria this stack resolved with. Wire it into a
+        ValidationRun's `criteria` input so deployment and validation share a single
+        source of truth.
+        """
+        return pulumi.get(self, "criteria")
 
     @_builtins.property
     @pulumi.getter(name="deployedComponents")

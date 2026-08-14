@@ -23,6 +23,8 @@ func (m *module) Construct(ctx *pulumi.Context, name, typ, urn string) (r pulumi
 	switch typ {
 	case "nvidia-aicr:index:ClusterStack":
 		r = &ClusterStack{}
+	case "nvidia-aicr:index:ValidationRun":
+		r = &ValidationRun{}
 	default:
 		return nil, fmt.Errorf("unknown resource type: %s", typ)
 	}

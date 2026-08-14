@@ -13,12 +13,89 @@ import (
 
 var _ = internal.GetEnvOrDefault
 
+// The outcome of one validator check.
+type CheckResult struct {
+	// The check's failure or diagnostic message, if any.
+	Message string `pulumi:"message"`
+	// The check's name (e.g. "gpu-operator-health").
+	Name string `pulumi:"name"`
+	// The validation phase the check ran in.
+	Phase string `pulumi:"phase"`
+	// The check's status: "passed", "failed", "skipped", "pending", or "other".
+	Status string `pulumi:"status"`
+}
+
+// The outcome of one validator check.
+type CheckResultOutput struct{ *pulumi.OutputState }
+
+func (CheckResultOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*CheckResult)(nil)).Elem()
+}
+
+func (o CheckResultOutput) ToCheckResultOutput() CheckResultOutput {
+	return o
+}
+
+func (o CheckResultOutput) ToCheckResultOutputWithContext(ctx context.Context) CheckResultOutput {
+	return o
+}
+
+// The check's failure or diagnostic message, if any.
+func (o CheckResultOutput) Message() pulumi.StringOutput {
+	return o.ApplyT(func(v CheckResult) string { return v.Message }).(pulumi.StringOutput)
+}
+
+// The check's name (e.g. "gpu-operator-health").
+func (o CheckResultOutput) Name() pulumi.StringOutput {
+	return o.ApplyT(func(v CheckResult) string { return v.Name }).(pulumi.StringOutput)
+}
+
+// The validation phase the check ran in.
+func (o CheckResultOutput) Phase() pulumi.StringOutput {
+	return o.ApplyT(func(v CheckResult) string { return v.Phase }).(pulumi.StringOutput)
+}
+
+// The check's status: "passed", "failed", "skipped", "pending", or "other".
+func (o CheckResultOutput) Status() pulumi.StringOutput {
+	return o.ApplyT(func(v CheckResult) string { return v.Status }).(pulumi.StringOutput)
+}
+
+type CheckResultArrayOutput struct{ *pulumi.OutputState }
+
+func (CheckResultArrayOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*[]CheckResult)(nil)).Elem()
+}
+
+func (o CheckResultArrayOutput) ToCheckResultArrayOutput() CheckResultArrayOutput {
+	return o
+}
+
+func (o CheckResultArrayOutput) ToCheckResultArrayOutputWithContext(ctx context.Context) CheckResultArrayOutput {
+	return o
+}
+
+func (o CheckResultArrayOutput) Index(i pulumi.IntInput) CheckResultOutput {
+	return pulumi.All(o, i).ApplyT(func(vs []interface{}) CheckResult {
+		return vs[0].([]CheckResult)[vs[1].(int)]
+	}).(CheckResultOutput)
+}
+
 // Per-component override settings. Each field is optional; only the fields
 // you set are applied on top of the recipe defaults.
 type ComponentOverride struct {
 	// Override the target Kubernetes namespace.
 	Namespace *string `pulumi:"namespace"`
-	// Additional or override Helm values, deep-merged with the recipe defaults.
+	// Additional or override Helm values, deep-merged on top of the
+	// recipe-resolved values.
+	//
+	// Merge semantics: nested maps merge recursively; scalars and arrays replace
+	// the recipe's value; setting a key to null removes it from the
+	// recipe-resolved values, restoring the chart's own default for that key.
+	// Note the null asymmetry: a null *in the recipe data* is passed through to
+	// Helm (explicitly clearing the chart default), while a null *here* removes
+	// the recipe's setting. There is currently no way to pass a literal null
+	// through to Helm from this input — and some language SDKs drop null map
+	// entries during serialization before they reach the provider at all.
 	Values map[string]interface{} `pulumi:"values"`
 	// Override the Helm chart version. If unset, the recipe-pinned version is used.
 	Version *string `pulumi:"version"`
@@ -40,7 +117,17 @@ type ComponentOverrideInput interface {
 type ComponentOverrideArgs struct {
 	// Override the target Kubernetes namespace.
 	Namespace pulumi.StringPtrInput `pulumi:"namespace"`
-	// Additional or override Helm values, deep-merged with the recipe defaults.
+	// Additional or override Helm values, deep-merged on top of the
+	// recipe-resolved values.
+	//
+	// Merge semantics: nested maps merge recursively; scalars and arrays replace
+	// the recipe's value; setting a key to null removes it from the
+	// recipe-resolved values, restoring the chart's own default for that key.
+	// Note the null asymmetry: a null *in the recipe data* is passed through to
+	// Helm (explicitly clearing the chart default), while a null *here* removes
+	// the recipe's setting. There is currently no way to pass a literal null
+	// through to Helm from this input — and some language SDKs drop null map
+	// entries during serialization before they reach the provider at all.
 	Values pulumi.MapInput `pulumi:"values"`
 	// Override the Helm chart version. If unset, the recipe-pinned version is used.
 	Version pulumi.StringPtrInput `pulumi:"version"`
@@ -104,7 +191,17 @@ func (o ComponentOverrideOutput) Namespace() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v ComponentOverride) *string { return v.Namespace }).(pulumi.StringPtrOutput)
 }
 
-// Additional or override Helm values, deep-merged with the recipe defaults.
+// Additional or override Helm values, deep-merged on top of the
+// recipe-resolved values.
+//
+// Merge semantics: nested maps merge recursively; scalars and arrays replace
+// the recipe's value; setting a key to null removes it from the
+// recipe-resolved values, restoring the chart's own default for that key.
+// Note the null asymmetry: a null *in the recipe data* is passed through to
+// Helm (explicitly clearing the chart default), while a null *here* removes
+// the recipe's setting. There is currently no way to pass a literal null
+// through to Helm from this input — and some language SDKs drop null map
+// entries during serialization before they reach the provider at all.
 func (o ComponentOverrideOutput) Values() pulumi.MapOutput {
 	return o.ApplyT(func(v ComponentOverride) map[string]interface{} { return v.Values }).(pulumi.MapOutput)
 }
@@ -134,9 +231,271 @@ func (o ComponentOverrideMapOutput) MapIndex(k pulumi.StringInput) ComponentOver
 	}).(ComponentOverrideOutput)
 }
 
+// Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+// output here so deployment and validation resolve the identical recipe.
+type RecipeCriteria struct {
+	// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+	Accelerator string `pulumi:"accelerator"`
+	// Workload intent. Supported values: "training", "inference".
+	Intent string `pulumi:"intent"`
+	// Worker-node count hint used to size the recipe.
+	Nodes *int `pulumi:"nodes"`
+	// Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+	// resolution. Supported values: "ubuntu", "cos", "ol".
+	Os *string `pulumi:"os"`
+	// ML platform/framework. Supported values: "kubeflow" (training),
+	// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	Platform *string `pulumi:"platform"`
+	// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+	Service string `pulumi:"service"`
+}
+
+// RecipeCriteriaInput is an input type that accepts RecipeCriteriaArgs and RecipeCriteriaOutput values.
+// You can construct a concrete instance of `RecipeCriteriaInput` via:
+//
+//	RecipeCriteriaArgs{...}
+type RecipeCriteriaInput interface {
+	pulumi.Input
+
+	ToRecipeCriteriaOutput() RecipeCriteriaOutput
+	ToRecipeCriteriaOutputWithContext(context.Context) RecipeCriteriaOutput
+}
+
+// Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+// output here so deployment and validation resolve the identical recipe.
+type RecipeCriteriaArgs struct {
+	// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+	Accelerator pulumi.StringInput `pulumi:"accelerator"`
+	// Workload intent. Supported values: "training", "inference".
+	Intent pulumi.StringInput `pulumi:"intent"`
+	// Worker-node count hint used to size the recipe.
+	Nodes pulumi.IntPtrInput `pulumi:"nodes"`
+	// Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+	// resolution. Supported values: "ubuntu", "cos", "ol".
+	Os pulumi.StringPtrInput `pulumi:"os"`
+	// ML platform/framework. Supported values: "kubeflow" (training),
+	// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	Platform pulumi.StringPtrInput `pulumi:"platform"`
+	// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+	Service pulumi.StringInput `pulumi:"service"`
+}
+
+func (RecipeCriteriaArgs) ElementType() reflect.Type {
+	return reflect.TypeOf((*RecipeCriteria)(nil)).Elem()
+}
+
+func (i RecipeCriteriaArgs) ToRecipeCriteriaOutput() RecipeCriteriaOutput {
+	return i.ToRecipeCriteriaOutputWithContext(context.Background())
+}
+
+func (i RecipeCriteriaArgs) ToRecipeCriteriaOutputWithContext(ctx context.Context) RecipeCriteriaOutput {
+	return pulumi.ToOutputWithContext(ctx, i).(RecipeCriteriaOutput)
+}
+
+// Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+// output here so deployment and validation resolve the identical recipe.
+type RecipeCriteriaOutput struct{ *pulumi.OutputState }
+
+func (RecipeCriteriaOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*RecipeCriteria)(nil)).Elem()
+}
+
+func (o RecipeCriteriaOutput) ToRecipeCriteriaOutput() RecipeCriteriaOutput {
+	return o
+}
+
+func (o RecipeCriteriaOutput) ToRecipeCriteriaOutputWithContext(ctx context.Context) RecipeCriteriaOutput {
+	return o
+}
+
+// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+func (o RecipeCriteriaOutput) Accelerator() pulumi.StringOutput {
+	return o.ApplyT(func(v RecipeCriteria) string { return v.Accelerator }).(pulumi.StringOutput)
+}
+
+// Workload intent. Supported values: "training", "inference".
+func (o RecipeCriteriaOutput) Intent() pulumi.StringOutput {
+	return o.ApplyT(func(v RecipeCriteria) string { return v.Intent }).(pulumi.StringOutput)
+}
+
+// Worker-node count hint used to size the recipe.
+func (o RecipeCriteriaOutput) Nodes() pulumi.IntPtrOutput {
+	return o.ApplyT(func(v RecipeCriteria) *int { return v.Nodes }).(pulumi.IntPtrOutput)
+}
+
+// Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+// resolution. Supported values: "ubuntu", "cos", "ol".
+func (o RecipeCriteriaOutput) Os() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v RecipeCriteria) *string { return v.Os }).(pulumi.StringPtrOutput)
+}
+
+// ML platform/framework. Supported values: "kubeflow" (training),
+// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+func (o RecipeCriteriaOutput) Platform() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v RecipeCriteria) *string { return v.Platform }).(pulumi.StringPtrOutput)
+}
+
+// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+func (o RecipeCriteriaOutput) Service() pulumi.StringOutput {
+	return o.ApplyT(func(v RecipeCriteria) string { return v.Service }).(pulumi.StringOutput)
+}
+
+// A Kubernetes pod toleration applied to validation workload pods.
+type Toleration struct {
+	// The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+	// "NoExecute". Empty matches all effects.
+	Effect *string `pulumi:"effect"`
+	// The taint key the toleration applies to. Empty means match all keys
+	// (with operator "Exists").
+	Key *string `pulumi:"key"`
+	// Key-value relationship: "Exists" or "Equal". Default: "Equal".
+	Operator *string `pulumi:"operator"`
+	// How long the pod tolerates a "NoExecute" taint, in seconds.
+	TolerationSeconds *int `pulumi:"tolerationSeconds"`
+	// The taint value to match (with operator "Equal").
+	Value *string `pulumi:"value"`
+}
+
+// TolerationInput is an input type that accepts TolerationArgs and TolerationOutput values.
+// You can construct a concrete instance of `TolerationInput` via:
+//
+//	TolerationArgs{...}
+type TolerationInput interface {
+	pulumi.Input
+
+	ToTolerationOutput() TolerationOutput
+	ToTolerationOutputWithContext(context.Context) TolerationOutput
+}
+
+// A Kubernetes pod toleration applied to validation workload pods.
+type TolerationArgs struct {
+	// The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+	// "NoExecute". Empty matches all effects.
+	Effect pulumi.StringPtrInput `pulumi:"effect"`
+	// The taint key the toleration applies to. Empty means match all keys
+	// (with operator "Exists").
+	Key pulumi.StringPtrInput `pulumi:"key"`
+	// Key-value relationship: "Exists" or "Equal". Default: "Equal".
+	Operator pulumi.StringPtrInput `pulumi:"operator"`
+	// How long the pod tolerates a "NoExecute" taint, in seconds.
+	TolerationSeconds pulumi.IntPtrInput `pulumi:"tolerationSeconds"`
+	// The taint value to match (with operator "Equal").
+	Value pulumi.StringPtrInput `pulumi:"value"`
+}
+
+func (TolerationArgs) ElementType() reflect.Type {
+	return reflect.TypeOf((*Toleration)(nil)).Elem()
+}
+
+func (i TolerationArgs) ToTolerationOutput() TolerationOutput {
+	return i.ToTolerationOutputWithContext(context.Background())
+}
+
+func (i TolerationArgs) ToTolerationOutputWithContext(ctx context.Context) TolerationOutput {
+	return pulumi.ToOutputWithContext(ctx, i).(TolerationOutput)
+}
+
+// TolerationArrayInput is an input type that accepts TolerationArray and TolerationArrayOutput values.
+// You can construct a concrete instance of `TolerationArrayInput` via:
+//
+//	TolerationArray{ TolerationArgs{...} }
+type TolerationArrayInput interface {
+	pulumi.Input
+
+	ToTolerationArrayOutput() TolerationArrayOutput
+	ToTolerationArrayOutputWithContext(context.Context) TolerationArrayOutput
+}
+
+type TolerationArray []TolerationInput
+
+func (TolerationArray) ElementType() reflect.Type {
+	return reflect.TypeOf((*[]Toleration)(nil)).Elem()
+}
+
+func (i TolerationArray) ToTolerationArrayOutput() TolerationArrayOutput {
+	return i.ToTolerationArrayOutputWithContext(context.Background())
+}
+
+func (i TolerationArray) ToTolerationArrayOutputWithContext(ctx context.Context) TolerationArrayOutput {
+	return pulumi.ToOutputWithContext(ctx, i).(TolerationArrayOutput)
+}
+
+// A Kubernetes pod toleration applied to validation workload pods.
+type TolerationOutput struct{ *pulumi.OutputState }
+
+func (TolerationOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*Toleration)(nil)).Elem()
+}
+
+func (o TolerationOutput) ToTolerationOutput() TolerationOutput {
+	return o
+}
+
+func (o TolerationOutput) ToTolerationOutputWithContext(ctx context.Context) TolerationOutput {
+	return o
+}
+
+// The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+// "NoExecute". Empty matches all effects.
+func (o TolerationOutput) Effect() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v Toleration) *string { return v.Effect }).(pulumi.StringPtrOutput)
+}
+
+// The taint key the toleration applies to. Empty means match all keys
+// (with operator "Exists").
+func (o TolerationOutput) Key() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v Toleration) *string { return v.Key }).(pulumi.StringPtrOutput)
+}
+
+// Key-value relationship: "Exists" or "Equal". Default: "Equal".
+func (o TolerationOutput) Operator() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v Toleration) *string { return v.Operator }).(pulumi.StringPtrOutput)
+}
+
+// How long the pod tolerates a "NoExecute" taint, in seconds.
+func (o TolerationOutput) TolerationSeconds() pulumi.IntPtrOutput {
+	return o.ApplyT(func(v Toleration) *int { return v.TolerationSeconds }).(pulumi.IntPtrOutput)
+}
+
+// The taint value to match (with operator "Equal").
+func (o TolerationOutput) Value() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v Toleration) *string { return v.Value }).(pulumi.StringPtrOutput)
+}
+
+type TolerationArrayOutput struct{ *pulumi.OutputState }
+
+func (TolerationArrayOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*[]Toleration)(nil)).Elem()
+}
+
+func (o TolerationArrayOutput) ToTolerationArrayOutput() TolerationArrayOutput {
+	return o
+}
+
+func (o TolerationArrayOutput) ToTolerationArrayOutputWithContext(ctx context.Context) TolerationArrayOutput {
+	return o
+}
+
+func (o TolerationArrayOutput) Index(i pulumi.IntInput) TolerationOutput {
+	return pulumi.All(o, i).ApplyT(func(vs []interface{}) Toleration {
+		return vs[0].([]Toleration)[vs[1].(int)]
+	}).(TolerationOutput)
+}
+
 func init() {
 	pulumi.RegisterInputType(reflect.TypeOf((*ComponentOverrideInput)(nil)).Elem(), ComponentOverrideArgs{})
 	pulumi.RegisterInputType(reflect.TypeOf((*ComponentOverrideMapInput)(nil)).Elem(), ComponentOverrideMap{})
+	pulumi.RegisterInputType(reflect.TypeOf((*RecipeCriteriaInput)(nil)).Elem(), RecipeCriteriaArgs{})
+	pulumi.RegisterInputType(reflect.TypeOf((*TolerationInput)(nil)).Elem(), TolerationArgs{})
+	pulumi.RegisterInputType(reflect.TypeOf((*TolerationArrayInput)(nil)).Elem(), TolerationArray{})
+	pulumi.RegisterOutputType(CheckResultOutput{})
+	pulumi.RegisterOutputType(CheckResultArrayOutput{})
 	pulumi.RegisterOutputType(ComponentOverrideOutput{})
 	pulumi.RegisterOutputType(ComponentOverrideMapOutput{})
+	pulumi.RegisterOutputType(RecipeCriteriaOutput{})
+	pulumi.RegisterOutputType(TolerationOutput{})
+	pulumi.RegisterOutputType(TolerationArrayOutput{})
 }

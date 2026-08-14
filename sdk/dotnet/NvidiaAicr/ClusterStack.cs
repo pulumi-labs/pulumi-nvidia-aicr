@@ -20,6 +20,14 @@ namespace Pulumi.Labs.NvidiaAicr
         public Output<int> ComponentCount { get; private set; } = null!;
 
         /// <summary>
+        /// The canonicalized recipe criteria this stack resolved with. Wire it into a
+        /// ValidationRun's `criteria` input so deployment and validation share a single
+        /// source of truth.
+        /// </summary>
+        [Output("criteria")]
+        public Output<Outputs.RecipeCriteria> Criteria { get; private set; } = null!;
+
+        /// <summary>
         /// Names of all components deployed as part of this stack, in topological order.
         /// </summary>
         [Output("deployedComponents")]
@@ -132,7 +140,9 @@ namespace Pulumi.Labs.NvidiaAicr
         /// Operating system flavor of the worker nodes.
         /// 
         /// Supported values: "ubuntu", "cos" (Container-Optimized OS, GKE only), "ol"
-        /// (Oracle Linux, OKE), "rhel", "amazonlinux", "talos".
+        /// (Oracle Linux, OKE) — the values with backing recipes in this provider's
+        /// pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+        /// through AICR SDK upgrades.
         /// 
         /// Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
         /// tuning, driver constraints) are skipped and the OS-agnostic recipe is used.

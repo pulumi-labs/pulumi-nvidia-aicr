@@ -261,6 +261,43 @@ func TestNewClusterStackBuildsResourceGraph(t *testing.T) {
 	assert.True(t, releaseNames["stack-kubeflow-trainer"], "kubeflow-trainer release missing")
 }
 
+// TestNewClusterStackSetsDeterministicReleaseNames guards #18: every Helm
+// release must pin its physical name to the component name, so a
+// destroy -> up adopts resources Helm keeps on uninstall (CRDs, kai Queues)
+// instead of failing on ownership metadata from a dead random-suffixed
+// release.
+func TestNewClusterStackSetsDeterministicReleaseNames(t *testing.T) {
+	mon := &recordingMonitor{}
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		_, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "h100",
+			Service:     "eks",
+			Intent:      "training",
+			OS:          pulumi.StringRef("ubuntu"),
+			Platform:    pulumi.StringRef("kubeflow"),
+		})
+		return err
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	mon.mu.Lock()
+	defer mon.mu.Unlock()
+
+	checked := 0
+	for _, r := range mon.resources {
+		if !strings.HasPrefix(r.typeToken, "kubernetes:helm.sh/v3:Release") {
+			continue
+		}
+		checked++
+		component := strings.TrimPrefix(r.name, "stack-")
+		nameProp, ok := r.inputs["name"]
+		require.True(t, ok, "release %s must pin a physical name", r.name)
+		assert.Equal(t, component, nameProp.StringValue(),
+			"release %s physical name must equal the component name", r.name)
+	}
+	assert.Greater(t, checked, 5, "expected several releases to verify")
+}
+
 func TestNewClusterStackDedupesSharedNamespaces(t *testing.T) {
 	// kube-prometheus-stack and prometheus-adapter both target the
 	// "monitoring" namespace; aws-efa and aws-ebs-csi-driver both target

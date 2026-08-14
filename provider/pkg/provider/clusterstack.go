@@ -409,6 +409,17 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 			// but lacks RBAC to create Namespaces directly via the K8s
 			// provider. Helm's create-namespace is idempotent.
 			releaseArgs := &helmv3.ReleaseArgs{
+				// Deterministic physical release name (#18): Pulumi
+				// auto-naming appends a per-deployment random suffix, so a
+				// destroy -> up could never adopt resources Helm keeps on
+				// uninstall (cert-manager CRDs, kai-scheduler Queues, ...)
+				// — their meta.helm.sh/release-name annotation named a
+				// release that no longer existed. The component name is
+				// stable across deployments (and matches the aicr CLI's own
+				// installs). Coexistence of two ClusterStacks on one
+				// cluster was never possible anyway: components install
+				// into fixed namespaces.
+				Name:            pulumi.StringPtr(comp.Name),
 				Chart:           pulumi.String(chart),
 				Version:         pulumi.StringPtr(comp.Version),
 				Namespace:       pulumi.StringPtr(comp.Namespace),
@@ -424,6 +435,10 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 			}
 
 			releaseOpts := append([]pulumi.ResourceOption(nil), baseOpts...)
+			// With a fixed physical name, a replacement must uninstall the
+			// old release before installing the new one — create-before-
+			// delete would collide on the Helm release name.
+			releaseOpts = append(releaseOpts, pulumi.DeleteBeforeReplace(true))
 			// Sequence the release after this component's pre-manifests.
 			if existing := deployedResources[comp.Name]; len(existing) > 0 {
 				releaseOpts = append(releaseOpts, pulumi.DependsOn(existing))

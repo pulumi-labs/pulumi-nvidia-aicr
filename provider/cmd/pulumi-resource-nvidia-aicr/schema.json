@@ -212,7 +212,7 @@
         "accelerator": {
           "type": "string",
           "plain": true,
-          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\"."
+          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\"."
         },
         "componentOverrides": {
           "type": "object",
@@ -258,7 +258,7 @@
         "service": {
           "type": "string",
           "plain": true,
-          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\". Use \"kind\" for local\nhardware-free development of the deployment pipeline."
+          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"bcm\", \"eks\", \"gke\", \"kind\", \"lke\", \"oke\". bcm and\nlke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and\ndouble as stand-ins for providers without an AICR criteria value yet (e.g.\nCoreWeave CKS deploys the lke leaf). Use \"kind\" for local\nhardware-free development of the deployment pipeline."
         },
         "skipAwait": {
           "type": "boolean",

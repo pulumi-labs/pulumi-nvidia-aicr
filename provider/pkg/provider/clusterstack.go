@@ -46,9 +46,15 @@ var builtinNamespaces = map[string]bool{
 // validateArgs so users get a clear error rather than relying on the
 // resolver's wildcard-match semantics to surface the problem.
 var (
-	supportedAccelerators = []string{"h100", "gb200", "b200"}
-	supportedServices     = []string{"aks", "eks", "gke", "kind", "oke"}
-	supportedIntents      = []string{"training", "inference"}
+	supportedAccelerators = []string{"h100", "gb200", "b200", "rtx-pro-6000"}
+	// lke and bcm are the cloud-neutral leaves in the pinned SDK data (no
+	// hyperscaler CSI/EFA components); they double as stand-ins for
+	// providers AICR has no criteria value for yet — the CoreWeave CKS
+	// campaign deploys the lke leaf. A first-class "coreweave" value is an
+	// upstream AICR SDK change; when it lands, extend this list rather
+	// than aliasing.
+	supportedServices = []string{"aks", "bcm", "eks", "gke", "kind", "lke", "oke"}
+	supportedIntents  = []string{"training", "inference"}
 	// supportedOSes lists only OS values with backing recipes in the pinned
 	// SDK's data (the SDK's request schema names more — rhel, amazonlinux,
 	// talos — but v0.18.0 ships no leaves for them, and admitting them here
@@ -70,11 +76,11 @@ var (
 // ClusterStackArgs defines the inputs for the ClusterStack component.
 type ClusterStackArgs struct {
 	// The GPU accelerator type. Required.
-	// Supported values: "h100", "gb200", "b200".
+	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
 	Accelerator string `pulumi:"accelerator"`
 
 	// The Kubernetes service. Required.
-	// Supported values: "aks", "eks", "gke", "kind", "oke".
+	// Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 	// Use "kind" for local hardware-free development of the deployment pipeline.
 	Service string `pulumi:"service"`
 
@@ -148,10 +154,13 @@ type ClusterStack struct {
 func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
 	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
 
-Supported values: "h100", "gb200", "b200".`)
+Supported values: "h100", "gb200", "b200", "rtx-pro-6000".`)
 	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
 
-Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
+lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+double as stand-ins for providers without an AICR criteria value yet (e.g.
+CoreWeave CKS deploys the lke leaf). Use "kind" for local
 hardware-free development of the deployment pipeline.`)
 	an.Describe(&a.Intent, `Workload intent. Selects between training-oriented and inference-oriented
 component sets.

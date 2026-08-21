@@ -13,8 +13,10 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
 
     /// <summary>
     /// Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-    /// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-    /// output here so deployment and validation resolve the identical recipe.
+    /// intent / os / platform / nodes inputs, plus the skipComponents the stack
+    /// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+    /// and validation resolve the identical recipe and agree on which of its
+    /// components are in scope.
     /// </summary>
     public sealed class RecipeCriteriaArgs : global::Pulumi.ResourceArgs
     {
@@ -55,6 +57,26 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
         /// </summary>
         [Input("service", required: true)]
         public Input<string> Service { get; set; } = null!;
+
+        [Input("skipComponents")]
+        private InputList<string>? _skipComponents;
+
+        /// <summary>
+        /// Recipe components the stack intentionally did not deploy (ClusterStack's
+        /// `skipComponents`). ValidationRun treats them as out of scope rather than
+        /// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+        /// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+        /// "skipped" with a reason instead of failing, and the SDK's component-aware
+        /// checks see the components as disabled. A ClusterStack's `criteria` output
+        /// carries its own skipComponents, so wiring it keeps validation aligned with
+        /// the deployed subset automatically. Skipping does not verify a replacement
+        /// you run yourself — those checks are simply not made.
+        /// </summary>
+        public InputList<string> SkipComponents
+        {
+            get => _skipComponents ?? (_skipComponents = new InputList<string>());
+            set => _skipComponents = value;
+        }
 
         public RecipeCriteriaArgs()
         {

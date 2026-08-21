@@ -22,21 +22,21 @@ __all__ = ['ValidationRunArgs', 'ValidationRun']
 class ValidationRunArgs:
     def __init__(__self__, *,
                  criteria: pulumi.Input['RecipeCriteriaArgs'],
-                 context: pulumi.Input[Optional[_builtins.str]] = None,
-                 image_pull_secrets: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]] = None,
-                 image_registry: pulumi.Input[Optional[_builtins.str]] = None,
-                 include_ctrf_report: pulumi.Input[Optional[_builtins.bool]] = None,
-                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
-                 kubeconfig_path: pulumi.Input[Optional[_builtins.str]] = None,
-                 namespace: pulumi.Input[Optional[_builtins.str]] = None,
-                 node_selector: pulumi.Input[Optional[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
-                 phases: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]] = None,
-                 recipe_data_version: pulumi.Input[Optional[_builtins.str]] = None,
-                 require_gpu: pulumi.Input[Optional[_builtins.bool]] = None,
-                 strict: pulumi.Input[Optional[_builtins.bool]] = None,
-                 timeout_minutes: pulumi.Input[Optional[_builtins.int]] = None,
-                 tolerations: pulumi.Input[Optional[Sequence[pulumi.Input['TolerationArgs']]]] = None,
-                 triggers: pulumi.Input[Optional[Sequence[Any]]] = None):
+                 context: Optional[pulumi.Input[_builtins.str]] = None,
+                 image_pull_secrets: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 image_registry: Optional[pulumi.Input[_builtins.str]] = None,
+                 include_ctrf_report: Optional[pulumi.Input[_builtins.bool]] = None,
+                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
+                 kubeconfig_path: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 node_selector: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
+                 phases: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 recipe_data_version: Optional[pulumi.Input[_builtins.str]] = None,
+                 require_gpu: Optional[pulumi.Input[_builtins.bool]] = None,
+                 strict: Optional[pulumi.Input[_builtins.bool]] = None,
+                 timeout_minutes: Optional[pulumi.Input[_builtins.int]] = None,
+                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input['TolerationArgs']]]] = None,
+                 triggers: Optional[pulumi.Input[Sequence[Any]]] = None):
         """
         The set of arguments for constructing a ValidationRun resource.
 
@@ -139,19 +139,19 @@ class ValidationRunArgs:
 
     @_builtins.property
     @pulumi.getter
-    def context(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def context(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Kubeconfig context to select. Defaults to the kubeconfig's current-context.
         """
         return pulumi.get(self, "context")
 
     @context.setter
-    def context(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def context(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "context", value)
 
     @_builtins.property
     @pulumi.getter(name="imagePullSecrets")
-    def image_pull_secrets(self) -> pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]]:
+    def image_pull_secrets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
         Names of image pull Secrets (in the validation namespace) for the
         validation pods.
@@ -159,12 +159,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "image_pull_secrets")
 
     @image_pull_secrets.setter
-    def image_pull_secrets(self, value: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]]):
+    def image_pull_secrets(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
         pulumi.set(self, "image_pull_secrets", value)
 
     @_builtins.property
     @pulumi.getter(name="imageRegistry")
-    def image_registry(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def image_registry(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Registry override for the snapshot-agent and validator images (air-gapped
         mirrors). Unset keeps the default registry (ghcr.io).
@@ -172,12 +172,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "image_registry")
 
     @image_registry.setter
-    def image_registry(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def image_registry(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "image_registry", value)
 
     @_builtins.property
     @pulumi.getter(name="includeCtrfReport")
-    def include_ctrf_report(self) -> pulumi.Input[Optional[_builtins.bool]]:
+    def include_ctrf_report(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
         If true, the merged CTRF JSON report is stored in the `ctrfReport` output.
         Default: false (state-size control; per-check results are always in
@@ -186,12 +186,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "include_ctrf_report")
 
     @include_ctrf_report.setter
-    def include_ctrf_report(self, value: pulumi.Input[Optional[_builtins.bool]]):
+    def include_ctrf_report(self, value: Optional[pulumi.Input[_builtins.bool]]):
         pulumi.set(self, "include_ctrf_report", value)
 
     @_builtins.property
     @pulumi.getter
-    def kubeconfig(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def kubeconfig(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Kubeconfig contents for the target cluster. Mutually exclusive with
         `kubeconfigPath`. If neither is set, the ambient kubeconfig (KUBECONFIG env
@@ -201,24 +201,24 @@ class ValidationRunArgs:
         return pulumi.get(self, "kubeconfig")
 
     @kubeconfig.setter
-    def kubeconfig(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def kubeconfig(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "kubeconfig", value)
 
     @_builtins.property
     @pulumi.getter(name="kubeconfigPath")
-    def kubeconfig_path(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def kubeconfig_path(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`.
         """
         return pulumi.get(self, "kubeconfig_path")
 
     @kubeconfig_path.setter
-    def kubeconfig_path(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def kubeconfig_path(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "kubeconfig_path", value)
 
     @_builtins.property
     @pulumi.getter
-    def namespace(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Namespace for the validation harness — use a dedicated one: it hosts the
         privileged agent and cluster-admin-bound validator Jobs. The SDK creates it
@@ -228,12 +228,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "namespace")
 
     @namespace.setter
-    def namespace(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "namespace", value)
 
     @_builtins.property
     @pulumi.getter(name="nodeSelector")
-    def node_selector(self) -> pulumi.Input[Optional[Mapping[str, pulumi.Input[_builtins.str]]]]:
+    def node_selector(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]:
         """
         Node selector applied to the validation workload pods. Use when GPU nodes
         carry non-standard labels.
@@ -241,12 +241,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "node_selector")
 
     @node_selector.setter
-    def node_selector(self, value: pulumi.Input[Optional[Mapping[str, pulumi.Input[_builtins.str]]]]):
+    def node_selector(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]):
         pulumi.set(self, "node_selector", value)
 
     @_builtins.property
     @pulumi.getter
-    def phases(self) -> pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]]:
+    def phases(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
         Validation phases to run: any of "deployment", "conformance",
         "performance". Default: ["deployment", "conformance"] — "performance" is an
@@ -255,12 +255,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "phases")
 
     @phases.setter
-    def phases(self, value: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]]):
+    def phases(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
         pulumi.set(self, "phases", value)
 
     @_builtins.property
     @pulumi.getter(name="recipeDataVersion")
-    def recipe_data_version(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def recipe_data_version(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Recipe-data version assertion (not a pin). When set, it must equal this
         provider build's embedded AICR recipe-data version or Create fails before
@@ -270,12 +270,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "recipe_data_version")
 
     @recipe_data_version.setter
-    def recipe_data_version(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def recipe_data_version(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "recipe_data_version", value)
 
     @_builtins.property
     @pulumi.getter(name="requireGpu")
-    def require_gpu(self) -> pulumi.Input[Optional[_builtins.bool]]:
+    def require_gpu(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
         Whether the snapshot agent requires GPU nodes. Set false for
         hardware-free clusters (kind). Default: true.
@@ -283,12 +283,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "require_gpu")
 
     @require_gpu.setter
-    def require_gpu(self, value: pulumi.Input[Optional[_builtins.bool]]):
+    def require_gpu(self, value: Optional[pulumi.Input[_builtins.bool]]):
         pulumi.set(self, "require_gpu", value)
 
     @_builtins.property
     @pulumi.getter
-    def strict(self) -> pulumi.Input[Optional[_builtins.bool]]:
+    def strict(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
         If true, a failed (or readiness-failed) validation fails the update while
         still persisting the full results in state. The engine then re-runs
@@ -298,24 +298,24 @@ class ValidationRunArgs:
         return pulumi.get(self, "strict")
 
     @strict.setter
-    def strict(self, value: pulumi.Input[Optional[_builtins.bool]]):
+    def strict(self, value: Optional[pulumi.Input[_builtins.bool]]):
         pulumi.set(self, "strict", value)
 
     @_builtins.property
     @pulumi.getter(name="timeoutMinutes")
-    def timeout_minutes(self) -> pulumi.Input[Optional[_builtins.int]]:
+    def timeout_minutes(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
         Overall run timeout in minutes. Default: 30. Maximum: 1440 (24 hours).
         """
         return pulumi.get(self, "timeout_minutes")
 
     @timeout_minutes.setter
-    def timeout_minutes(self, value: pulumi.Input[Optional[_builtins.int]]):
+    def timeout_minutes(self, value: Optional[pulumi.Input[_builtins.int]]):
         pulumi.set(self, "timeout_minutes", value)
 
     @_builtins.property
     @pulumi.getter
-    def tolerations(self) -> pulumi.Input[Optional[Sequence[pulumi.Input['TolerationArgs']]]]:
+    def tolerations(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['TolerationArgs']]]]:
         """
         Tolerations applied to the validation workload pods (e.g. NCCL benchmark
         pods). Required in practice on tainted GPU node groups; when unset, the
@@ -324,12 +324,12 @@ class ValidationRunArgs:
         return pulumi.get(self, "tolerations")
 
     @tolerations.setter
-    def tolerations(self, value: pulumi.Input[Optional[Sequence[pulumi.Input['TolerationArgs']]]]):
+    def tolerations(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['TolerationArgs']]]]):
         pulumi.set(self, "tolerations", value)
 
     @_builtins.property
     @pulumi.getter
-    def triggers(self) -> pulumi.Input[Optional[Sequence[Any]]]:
+    def triggers(self) -> Optional[pulumi.Input[Sequence[Any]]]:
         """
         Arbitrary values; changing any of them replaces the resource and re-runs
         validation (every input change does). Wire `triggers: [stack.deployedComponents]`
@@ -338,7 +338,7 @@ class ValidationRunArgs:
         return pulumi.get(self, "triggers")
 
     @triggers.setter
-    def triggers(self, value: pulumi.Input[Optional[Sequence[Any]]]):
+    def triggers(self, value: Optional[pulumi.Input[Sequence[Any]]]):
         pulumi.set(self, "triggers", value)
 
 
@@ -348,22 +348,22 @@ class ValidationRun(pulumi.CustomResource):
     def __init__(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
-                 context: pulumi.Input[Optional[_builtins.str]] = None,
-                 criteria: pulumi.Input[Optional[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']]] = None,
-                 image_pull_secrets: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]] = None,
-                 image_registry: pulumi.Input[Optional[_builtins.str]] = None,
-                 include_ctrf_report: pulumi.Input[Optional[_builtins.bool]] = None,
-                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
-                 kubeconfig_path: pulumi.Input[Optional[_builtins.str]] = None,
-                 namespace: pulumi.Input[Optional[_builtins.str]] = None,
-                 node_selector: pulumi.Input[Optional[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
-                 phases: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]] = None,
-                 recipe_data_version: pulumi.Input[Optional[_builtins.str]] = None,
-                 require_gpu: pulumi.Input[Optional[_builtins.bool]] = None,
-                 strict: pulumi.Input[Optional[_builtins.bool]] = None,
-                 timeout_minutes: pulumi.Input[Optional[_builtins.int]] = None,
-                 tolerations: pulumi.Input[Optional[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]]] = None,
-                 triggers: pulumi.Input[Optional[Sequence[Any]]] = None,
+                 context: Optional[pulumi.Input[_builtins.str]] = None,
+                 criteria: Optional[pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']]] = None,
+                 image_pull_secrets: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 image_registry: Optional[pulumi.Input[_builtins.str]] = None,
+                 include_ctrf_report: Optional[pulumi.Input[_builtins.bool]] = None,
+                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
+                 kubeconfig_path: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 node_selector: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
+                 phases: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 recipe_data_version: Optional[pulumi.Input[_builtins.str]] = None,
+                 require_gpu: Optional[pulumi.Input[_builtins.bool]] = None,
+                 strict: Optional[pulumi.Input[_builtins.bool]] = None,
+                 timeout_minutes: Optional[pulumi.Input[_builtins.int]] = None,
+                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]]] = None,
+                 triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  __props__=None):
         """
         Runs an AICR recipe's empirical validation (cluster snapshot +
@@ -474,22 +474,22 @@ class ValidationRun(pulumi.CustomResource):
     def _internal_init(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
-                 context: pulumi.Input[Optional[_builtins.str]] = None,
-                 criteria: pulumi.Input[Optional[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']]] = None,
-                 image_pull_secrets: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]] = None,
-                 image_registry: pulumi.Input[Optional[_builtins.str]] = None,
-                 include_ctrf_report: pulumi.Input[Optional[_builtins.bool]] = None,
-                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
-                 kubeconfig_path: pulumi.Input[Optional[_builtins.str]] = None,
-                 namespace: pulumi.Input[Optional[_builtins.str]] = None,
-                 node_selector: pulumi.Input[Optional[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
-                 phases: pulumi.Input[Optional[Sequence[pulumi.Input[_builtins.str]]]] = None,
-                 recipe_data_version: pulumi.Input[Optional[_builtins.str]] = None,
-                 require_gpu: pulumi.Input[Optional[_builtins.bool]] = None,
-                 strict: pulumi.Input[Optional[_builtins.bool]] = None,
-                 timeout_minutes: pulumi.Input[Optional[_builtins.int]] = None,
-                 tolerations: pulumi.Input[Optional[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]]] = None,
-                 triggers: pulumi.Input[Optional[Sequence[Any]]] = None,
+                 context: Optional[pulumi.Input[_builtins.str]] = None,
+                 criteria: Optional[pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']]] = None,
+                 image_pull_secrets: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 image_registry: Optional[pulumi.Input[_builtins.str]] = None,
+                 include_ctrf_report: Optional[pulumi.Input[_builtins.bool]] = None,
+                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
+                 kubeconfig_path: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 node_selector: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
+                 phases: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 recipe_data_version: Optional[pulumi.Input[_builtins.str]] = None,
+                 require_gpu: Optional[pulumi.Input[_builtins.bool]] = None,
+                 strict: Optional[pulumi.Input[_builtins.bool]] = None,
+                 timeout_minutes: Optional[pulumi.Input[_builtins.int]] = None,
+                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]]] = None,
+                 triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  __props__=None):
         opts = pulumi.ResourceOptions.merge(_utilities.get_resource_opts_defaults(), opts)
         if not isinstance(opts, pulumi.ResourceOptions):

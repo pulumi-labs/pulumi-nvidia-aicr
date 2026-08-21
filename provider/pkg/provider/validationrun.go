@@ -90,13 +90,21 @@ type RecipeCriteria struct {
 	OS          *string `pulumi:"os,optional"`
 	Platform    *string `pulumi:"platform,optional"`
 	Nodes       *int    `pulumi:"nodes,optional"`
+	// SkipComponents is the deployed-subset dimension: a recipe minus these
+	// components is a different stack, and validation must see the same one
+	// ClusterStack deployed (issue #22). Carried on the criteria (rather than
+	// a separate ValidationRun input) so the documented wiring —
+	// `criteria: stack.criteria` — stays the single source of truth.
+	SkipComponents []string `pulumi:"skipComponents,optional"`
 }
 
 // Annotate populates schema metadata for RecipeCriteria.
 func (c *RecipeCriteria) Annotate(an infer.Annotator) {
 	an.Describe(c, `Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-intent / os / platform / nodes inputs. Wire a ClusterStack's `+"`criteria`"+`
-output here so deployment and validation resolve the identical recipe.`)
+intent / os / platform / nodes inputs, plus the skipComponents the stack
+deployed without. Wire a ClusterStack's `+"`criteria`"+` output here so deployment
+and validation resolve the identical recipe and agree on which of its
+components are in scope.`)
 	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200".`)
 	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".`)
 	an.Describe(&c.Intent, `Workload intent. Supported values: "training", "inference".`)
@@ -105,6 +113,15 @@ resolution. Supported values: "ubuntu", "cos", "ol".`)
 	an.Describe(&c.Platform, `ML platform/framework. Supported values: "kubeflow" (training),
 "dynamo" (inference), "nim" (inference, EKS+H100 only).`)
 	an.Describe(&c.Nodes, `Worker-node count hint used to size the recipe.`)
+	an.Describe(&c.SkipComponents, `Recipe components the stack intentionally did not deploy (ClusterStack's
+`+"`skipComponents`"+`). ValidationRun treats them as out of scope rather than
+missing: checks that presuppose one of them (e.g. the gpu-operator health,
+DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+"skipped" with a reason instead of failing, and the SDK's component-aware
+checks see the components as disabled. A ClusterStack's `+"`criteria`"+` output
+carries its own skipComponents, so wiring it keeps validation aligned with
+the deployed subset automatically. Skipping does not verify a replacement
+you run yourself — those checks are simply not made.`)
 }
 
 // Toleration is the standard Kubernetes toleration shape, provider-owned so
@@ -428,6 +445,7 @@ func runValidation(ctx context.Context, name string, args ValidationRunArgs) (st
 		ImagePullSecrets: args.ImagePullSecrets,
 		Phases:           normalizePhases(args.Phases),
 		RequireGPU:       derefBool(args.RequireGpu, true),
+		SkipComponents:   args.Criteria.SkipComponents,
 	})
 	if err != nil {
 		// Infrastructure error: the run couldn't happen. Plain failure,
@@ -483,7 +501,41 @@ func runValidation(ctx context.Context, name string, args ValidationRunArgs) (st
 			}}
 		}
 	}
+	warnFailedChecks(ctx, report)
 	return id, state, nil
+}
+
+// maxWarnMessageLen bounds each per-check message in the failed-checks
+// warning; the full text is always in state (phaseResults).
+const maxWarnMessageLen = 240
+
+// warnFailedChecks surfaces a non-strict failed verdict as a warning
+// diagnostic. Without it the only terminal signal is a `status: failed`
+// output and the per-check detail sits silently in state — operators had to
+// `pulumi stack export` to learn WHICH checks failed (issue #22).
+func warnFailedChecks(ctx context.Context, report *aicr.ValidationReport) {
+	if report == nil || report.Outcome != aicr.OutcomeFailed {
+		return
+	}
+	lines := make([]string, 0, report.Failed)
+	for _, c := range report.Checks {
+		if c.Status != "failed" {
+			continue
+		}
+		msg := strings.TrimSpace(c.Message)
+		if len(msg) > maxWarnMessageLen {
+			msg = msg[:maxWarnMessageLen] + "…"
+		}
+		if msg == "" {
+			lines = append(lines, fmt.Sprintf("%s (%s)", c.Name, c.Phase))
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s (%s): %s", c.Name, c.Phase, msg))
+	}
+	p.GetLogger(ctx).Warningf(
+		"validation of recipe %s failed: %d check(s) failed, %d passed, %d skipped "+
+			"(recorded in state as status \"failed\"; set strict: true to fail the update):\n  %s",
+		report.RecipeName, report.Failed, report.Passed, report.Skipped, strings.Join(lines, "\n  "))
 }
 
 // validateValidationRunArgs rejects invalid inputs with friendly errors
@@ -691,7 +743,8 @@ func toCoreTolerations(tolerations []Toleration) []corev1.Toleration {
 // isZeroCriteria reports whether criteria is entirely zero-valued — the
 // shape an unresolved output has at preview.
 func isZeroCriteria(c RecipeCriteria) bool {
-	return c == RecipeCriteria{}
+	return c.Accelerator == "" && c.Service == "" && c.Intent == "" &&
+		c.OS == nil && c.Platform == nil && c.Nodes == nil && len(c.SkipComponents) == 0
 }
 
 func derefString(s *string, def string) string {

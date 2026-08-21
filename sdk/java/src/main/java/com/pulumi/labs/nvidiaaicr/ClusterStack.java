@@ -32,18 +32,20 @@ public class ClusterStack extends com.pulumi.resources.ComponentResource {
         return this.componentCount;
     }
     /**
-     * The canonicalized recipe criteria this stack resolved with. Wire it into a
-     * ValidationRun&#39;s `criteria` input so deployment and validation share a single
-     * source of truth.
+     * The canonicalized recipe criteria this stack resolved with, including its
+     * `skipComponents`. Wire it into a ValidationRun&#39;s `criteria` input so deployment and
+     * validation share a single source of truth — the same recipe, and the same
+     * components in scope.
      * 
      */
     @Export(name="criteria", refs={RecipeCriteria.class}, tree="[0]")
     private Output<RecipeCriteria> criteria;
 
     /**
-     * @return The canonicalized recipe criteria this stack resolved with. Wire it into a
-     * ValidationRun&#39;s `criteria` input so deployment and validation share a single
-     * source of truth.
+     * @return The canonicalized recipe criteria this stack resolved with, including its
+     * `skipComponents`. Wire it into a ValidationRun&#39;s `criteria` input so deployment and
+     * validation share a single source of truth — the same recipe, and the same
+     * components in scope.
      * 
      */
     public Output<RecipeCriteria> criteria() {

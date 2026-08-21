@@ -111,7 +111,7 @@
       "type": "object"
     },
     "nvidia-aicr:index:RecipeCriteria": {
-      "description": "Recipe-selection criteria, mirroring ClusterStack's accelerator / service /\nintent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`\noutput here so deployment and validation resolve the identical recipe.",
+      "description": "Recipe-selection criteria, mirroring ClusterStack's accelerator / service /\nintent / os / platform / nodes inputs, plus the skipComponents the stack\ndeployed without. Wire a ClusterStack's `criteria` output here so deployment\nand validation resolve the identical recipe and agree on which of its\ncomponents are in scope.",
       "properties": {
         "accelerator": {
           "type": "string",
@@ -136,6 +136,13 @@
         "service": {
           "type": "string",
           "description": "Kubernetes service. Supported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\"."
+        },
+        "skipComponents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Recipe components the stack intentionally did not deploy (ClusterStack's\n`skipComponents`). ValidationRun treats them as out of scope rather than\nmissing: checks that presuppose one of them (e.g. the gpu-operator health,\nDCGM metrics, and GPU-HPA checks when \"gpu-operator\" is skipped) are reported\n\"skipped\" with a reason instead of failing, and the SDK's component-aware\nchecks see the components as disabled. A ClusterStack's `criteria` output\ncarries its own skipComponents, so wiring it keeps validation aligned with\nthe deployed subset automatically. Skipping does not verify a replacement\nyou run yourself — those checks are simply not made."
         }
       },
       "type": "object",
@@ -182,7 +189,7 @@
         },
         "criteria": {
           "$ref": "#/types/nvidia-aicr:index:RecipeCriteria",
-          "description": "The canonicalized recipe criteria this stack resolved with. Wire it into a\nValidationRun's `criteria` input so deployment and validation share a single\nsource of truth."
+          "description": "The canonicalized recipe criteria this stack resolved with, including its\n`skipComponents`. Wire it into a ValidationRun's `criteria` input so deployment and\nvalidation share a single source of truth — the same recipe, and the same\ncomponents in scope."
         },
         "deployedComponents": {
           "type": "array",

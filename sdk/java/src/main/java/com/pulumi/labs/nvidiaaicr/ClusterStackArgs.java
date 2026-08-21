@@ -25,7 +25,7 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * GPU accelerator type. Selects the AICR recipe family.
      * 
-     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
      * 
      */
     @Import(name="accelerator", required=true)
@@ -34,7 +34,7 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * @return GPU accelerator type. Selects the AICR recipe family.
      * 
-     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
      * 
      */
     public String accelerator() {
@@ -226,7 +226,10 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * Kubernetes service. Selects cloud-specific operators and storage drivers.
      * 
-     * Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;. Use &#34;kind&#34; for local
+     * Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;. bcm and
+     * lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+     * double as stand-ins for providers without an AICR criteria value yet (e.g.
+     * CoreWeave CKS deploys the lke leaf). Use &#34;kind&#34; for local
      * hardware-free development of the deployment pipeline.
      * 
      */
@@ -236,7 +239,10 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * @return Kubernetes service. Selects cloud-specific operators and storage drivers.
      * 
-     * Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;. Use &#34;kind&#34; for local
+     * Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;. bcm and
+     * lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+     * double as stand-ins for providers without an AICR criteria value yet (e.g.
+     * CoreWeave CKS deploys the lke leaf). Use &#34;kind&#34; for local
      * hardware-free development of the deployment pipeline.
      * 
      */
@@ -318,7 +324,7 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         /**
          * @param accelerator GPU accelerator type. Selects the AICR recipe family.
          * 
-         * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+         * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
          * 
          * @return builder
          * 
@@ -477,7 +483,10 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         /**
          * @param service Kubernetes service. Selects cloud-specific operators and storage drivers.
          * 
-         * Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;. Use &#34;kind&#34; for local
+         * Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;. bcm and
+         * lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+         * double as stand-ins for providers without an AICR criteria value yet (e.g.
+         * CoreWeave CKS deploys the lke leaf). Use &#34;kind&#34; for local
          * hardware-free development of the deployment pipeline.
          * 
          * @return builder

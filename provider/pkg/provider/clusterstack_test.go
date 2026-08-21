@@ -723,4 +723,32 @@ func TestNewClusterStackCriteriaOmitsUnsetOptionals(t *testing.T) {
 	assert.Nil(t, got.OS)
 	assert.Nil(t, got.Platform)
 	assert.Nil(t, got.Nodes)
+	assert.Nil(t, got.SkipComponents, "unset skipComponents must be omitted")
+}
+
+func TestNewClusterStackCriteriaCarriesSkipComponents(t *testing.T) {
+	// The criteria output must carry skipComponents verbatim so a wired
+	// ValidationRun scopes itself to the deployed subset (issue #22), and
+	// must be an independent copy of the input slice.
+	mon := &recordingMonitor{}
+	skip := []string{"cert-manager", "kube-prometheus-stack"}
+	var got RecipeCriteria
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		stack, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator:    "h100",
+			Service:        "eks",
+			Intent:         "training",
+			SkipComponents: skip,
+		})
+		if err != nil {
+			return err
+		}
+		got = stack.Criteria
+		return nil
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"cert-manager", "kube-prometheus-stack"}, got.SkipComponents)
+	skip[0] = "mutated"
+	assert.Equal(t, "cert-manager", got.SkipComponents[0], "output must not alias the input slice")
 }

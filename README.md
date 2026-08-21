@@ -366,6 +366,7 @@ whose embedded recipe data is pinned by the SDK module version. The
 | Provider Version | AICR SDK Module Version |
 |---|---|
 | 0.1.x | v0.18.0 |
+| 0.2.x (unreleased, `main` after the v0.19.0 bump) | v0.19.0 |
 
 ## License
 

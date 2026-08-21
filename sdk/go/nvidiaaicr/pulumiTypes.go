@@ -232,8 +232,10 @@ func (o ComponentOverrideMapOutput) MapIndex(k pulumi.StringInput) ComponentOver
 }
 
 // Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-// output here so deployment and validation resolve the identical recipe.
+// intent / os / platform / nodes inputs, plus the skipComponents the stack
+// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+// and validation resolve the identical recipe and agree on which of its
+// components are in scope.
 type RecipeCriteria struct {
 	// GPU accelerator type. Supported values: "h100", "gb200", "b200".
 	Accelerator string `pulumi:"accelerator"`
@@ -249,6 +251,16 @@ type RecipeCriteria struct {
 	Platform *string `pulumi:"platform"`
 	// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
 	Service string `pulumi:"service"`
+	// Recipe components the stack intentionally did not deploy (ClusterStack's
+	// `skipComponents`). ValidationRun treats them as out of scope rather than
+	// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+	// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+	// "skipped" with a reason instead of failing, and the SDK's component-aware
+	// checks see the components as disabled. A ClusterStack's `criteria` output
+	// carries its own skipComponents, so wiring it keeps validation aligned with
+	// the deployed subset automatically. Skipping does not verify a replacement
+	// you run yourself — those checks are simply not made.
+	SkipComponents []string `pulumi:"skipComponents"`
 }
 
 // RecipeCriteriaInput is an input type that accepts RecipeCriteriaArgs and RecipeCriteriaOutput values.
@@ -263,8 +275,10 @@ type RecipeCriteriaInput interface {
 }
 
 // Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-// output here so deployment and validation resolve the identical recipe.
+// intent / os / platform / nodes inputs, plus the skipComponents the stack
+// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+// and validation resolve the identical recipe and agree on which of its
+// components are in scope.
 type RecipeCriteriaArgs struct {
 	// GPU accelerator type. Supported values: "h100", "gb200", "b200".
 	Accelerator pulumi.StringInput `pulumi:"accelerator"`
@@ -280,6 +294,16 @@ type RecipeCriteriaArgs struct {
 	Platform pulumi.StringPtrInput `pulumi:"platform"`
 	// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
 	Service pulumi.StringInput `pulumi:"service"`
+	// Recipe components the stack intentionally did not deploy (ClusterStack's
+	// `skipComponents`). ValidationRun treats them as out of scope rather than
+	// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+	// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+	// "skipped" with a reason instead of failing, and the SDK's component-aware
+	// checks see the components as disabled. A ClusterStack's `criteria` output
+	// carries its own skipComponents, so wiring it keeps validation aligned with
+	// the deployed subset automatically. Skipping does not verify a replacement
+	// you run yourself — those checks are simply not made.
+	SkipComponents pulumi.StringArrayInput `pulumi:"skipComponents"`
 }
 
 func (RecipeCriteriaArgs) ElementType() reflect.Type {
@@ -295,8 +319,10 @@ func (i RecipeCriteriaArgs) ToRecipeCriteriaOutputWithContext(ctx context.Contex
 }
 
 // Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-// output here so deployment and validation resolve the identical recipe.
+// intent / os / platform / nodes inputs, plus the skipComponents the stack
+// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+// and validation resolve the identical recipe and agree on which of its
+// components are in scope.
 type RecipeCriteriaOutput struct{ *pulumi.OutputState }
 
 func (RecipeCriteriaOutput) ElementType() reflect.Type {
@@ -341,6 +367,19 @@ func (o RecipeCriteriaOutput) Platform() pulumi.StringPtrOutput {
 // Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
 func (o RecipeCriteriaOutput) Service() pulumi.StringOutput {
 	return o.ApplyT(func(v RecipeCriteria) string { return v.Service }).(pulumi.StringOutput)
+}
+
+// Recipe components the stack intentionally did not deploy (ClusterStack's
+// `skipComponents`). ValidationRun treats them as out of scope rather than
+// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+// "skipped" with a reason instead of failing, and the SDK's component-aware
+// checks see the components as disabled. A ClusterStack's `criteria` output
+// carries its own skipComponents, so wiring it keeps validation aligned with
+// the deployed subset automatically. Skipping does not verify a replacement
+// you run yourself — those checks are simply not made.
+func (o RecipeCriteriaOutput) SkipComponents() pulumi.StringArrayOutput {
+	return o.ApplyT(func(v RecipeCriteria) []string { return v.SkipComponents }).(pulumi.StringArrayOutput)
 }
 
 // A Kubernetes pod toleration applied to validation workload pods.

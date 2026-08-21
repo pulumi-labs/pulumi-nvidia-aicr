@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -840,4 +841,53 @@ func TestValidationPhaseAllowlistIsCaseInsensitive(t *testing.T) {
 	args := baseValidationArgs()
 	args.Phases = []string{" Deployment ", "CONFORMANCE"}
 	assert.NoError(t, validateValidationRunArgs(&args))
+}
+
+// TestCreateSkipComponentsReachAdapter: criteria.skipComponents (as wired
+// from ClusterStack.criteria) must reach aicr.Validate verbatim.
+func TestCreateSkipComponentsReachAdapter(t *testing.T) {
+	_, lastOpts := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		return passedReport(), nil
+	})
+	args := baseValidationArgs()
+	args.Criteria.SkipComponents = []string{"gpu-operator", "nfd"}
+
+	_, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: args,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gpu-operator", "nfd"}, lastOpts.SkipComponents)
+
+	// Unset stays nil (not an empty slice) so the adapter's no-op path runs.
+	_, err = (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr2",
+		Inputs: baseValidationArgs(),
+	})
+	require.NoError(t, err)
+	assert.Nil(t, lastOpts.SkipComponents)
+}
+
+// TestIsZeroCriteriaSkipComponents: criteria carrying only skipComponents is
+// not zero — preview must still validate it.
+func TestIsZeroCriteriaSkipComponents(t *testing.T) {
+	assert.True(t, isZeroCriteria(RecipeCriteria{}))
+	assert.False(t, isZeroCriteria(RecipeCriteria{SkipComponents: []string{"gpu-operator"}}))
+	assert.False(t, isZeroCriteria(RecipeCriteria{Service: "eks"}))
+	nodes := 0
+	assert.False(t, isZeroCriteria(RecipeCriteria{Nodes: &nodes}))
+}
+
+// TestWarnFailedChecksOnlyOnFailed: the warning is a no-op for passed /
+// readiness-failed reports and never panics without a host logger.
+func TestWarnFailedChecksOnlyOnFailed(t *testing.T) {
+	assert.NotPanics(t, func() {
+		warnFailedChecks(context.Background(), nil)
+		warnFailedChecks(context.Background(), passedReport())
+		warnFailedChecks(context.Background(), readinessFailedReport())
+		warnFailedChecks(context.Background(), failedReport())
+		long := failedReport()
+		long.Checks[1].Message = strings.Repeat("x", 2*maxWarnMessageLen)
+		warnFailedChecks(context.Background(), long)
+	})
 }

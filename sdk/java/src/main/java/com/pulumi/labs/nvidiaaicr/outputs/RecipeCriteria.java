@@ -7,6 +7,7 @@ import com.pulumi.core.annotations.CustomType;
 import com.pulumi.exceptions.MissingRequiredPropertyException;
 import java.lang.Integer;
 import java.lang.String;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -45,6 +46,19 @@ public final class RecipeCriteria {
      * 
      */
     private String service;
+    /**
+     * @return Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+     * `skipComponents`). ValidationRun treats them as out of scope rather than
+     * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+     * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+     * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+     * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+     * carries its own skipComponents, so wiring it keeps validation aligned with
+     * the deployed subset automatically. Skipping does not verify a replacement
+     * you run yourself — those checks are simply not made.
+     * 
+     */
+    private @Nullable List<String> skipComponents;
 
     private RecipeCriteria() {}
     /**
@@ -91,6 +105,21 @@ public final class RecipeCriteria {
     public String service() {
         return this.service;
     }
+    /**
+     * @return Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+     * `skipComponents`). ValidationRun treats them as out of scope rather than
+     * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+     * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+     * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+     * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+     * carries its own skipComponents, so wiring it keeps validation aligned with
+     * the deployed subset automatically. Skipping does not verify a replacement
+     * you run yourself — those checks are simply not made.
+     * 
+     */
+    public List<String> skipComponents() {
+        return this.skipComponents == null ? List.of() : this.skipComponents;
+    }
 
     public static Builder builder() {
         return new Builder();
@@ -107,6 +136,7 @@ public final class RecipeCriteria {
         private @Nullable String os;
         private @Nullable String platform;
         private String service;
+        private @Nullable List<String> skipComponents;
         public Builder() {}
         public Builder(RecipeCriteria defaults) {
     	      Objects.requireNonNull(defaults);
@@ -116,6 +146,7 @@ public final class RecipeCriteria {
     	      this.os = defaults.os;
     	      this.platform = defaults.platform;
     	      this.service = defaults.service;
+    	      this.skipComponents = defaults.skipComponents;
         }
 
         @CustomType.Setter
@@ -160,6 +191,15 @@ public final class RecipeCriteria {
             this.service = service;
             return this;
         }
+        @CustomType.Setter
+        public Builder skipComponents(@Nullable List<String> skipComponents) {
+
+            this.skipComponents = skipComponents;
+            return this;
+        }
+        public Builder skipComponents(String... skipComponents) {
+            return skipComponents(List.of(skipComponents));
+        }
         public RecipeCriteria build() {
             final var _resultValue = new RecipeCriteria();
             _resultValue.accelerator = accelerator;
@@ -168,6 +208,7 @@ public final class RecipeCriteria {
             _resultValue.os = os;
             _resultValue.platform = platform;
             _resultValue.service = service;
+            _resultValue.skipComponents = skipComponents;
             return _resultValue;
         }
     }

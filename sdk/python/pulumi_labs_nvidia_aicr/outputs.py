@@ -80,20 +80,42 @@ class CheckResult(dict):
 class RecipeCriteria(dict):
     """
     Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-    intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-    output here so deployment and validation resolve the identical recipe.
+    intent / os / platform / nodes inputs, plus the skipComponents the stack
+    deployed without. Wire a ClusterStack's `criteria` output here so deployment
+    and validation resolve the identical recipe and agree on which of its
+    components are in scope.
     """
+    @staticmethod
+    def __key_warning(key: str):
+        suggest = None
+        if key == "skipComponents":
+            suggest = "skip_components"
+
+        if suggest:
+            pulumi.log.warn(f"Key '{key}' not found in RecipeCriteria. Access the value via the '{suggest}' property getter instead.")
+
+    def __getitem__(self, key: str) -> Any:
+        RecipeCriteria.__key_warning(key)
+        return super().__getitem__(key)
+
+    def get(self, key: str, default = None) -> Any:
+        RecipeCriteria.__key_warning(key)
+        return super().get(key, default)
+
     def __init__(__self__, *,
                  accelerator: _builtins.str,
                  intent: _builtins.str,
                  service: _builtins.str,
                  nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
-                 platform: Optional[_builtins.str] = None):
+                 platform: Optional[_builtins.str] = None,
+                 skip_components: Optional[Sequence[_builtins.str]] = None):
         """
         Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-        intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-        output here so deployment and validation resolve the identical recipe.
+        intent / os / platform / nodes inputs, plus the skipComponents the stack
+        deployed without. Wire a ClusterStack's `criteria` output here so deployment
+        and validation resolve the identical recipe and agree on which of its
+        components are in scope.
 
         :param _builtins.str accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200".
         :param _builtins.str intent: Workload intent. Supported values: "training", "inference".
@@ -103,6 +125,15 @@ class RecipeCriteria(dict):
                resolution. Supported values: "ubuntu", "cos", "ol".
         :param _builtins.str platform: ML platform/framework. Supported values: "kubeflow" (training),
                "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        :param Sequence[_builtins.str] skip_components: Recipe components the stack intentionally did not deploy (ClusterStack's
+               `skipComponents`). ValidationRun treats them as out of scope rather than
+               missing: checks that presuppose one of them (e.g. the gpu-operator health,
+               DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+               "skipped" with a reason instead of failing, and the SDK's component-aware
+               checks see the components as disabled. A ClusterStack's `criteria` output
+               carries its own skipComponents, so wiring it keeps validation aligned with
+               the deployed subset automatically. Skipping does not verify a replacement
+               you run yourself — those checks are simply not made.
         """
         pulumi.set(__self__, "accelerator", accelerator)
         pulumi.set(__self__, "intent", intent)
@@ -113,6 +144,8 @@ class RecipeCriteria(dict):
             pulumi.set(__self__, "os", os)
         if platform is not None:
             pulumi.set(__self__, "platform", platform)
+        if skip_components is not None:
+            pulumi.set(__self__, "skip_components", skip_components)
 
     @_builtins.property
     @pulumi.getter
@@ -163,6 +196,22 @@ class RecipeCriteria(dict):
         "dynamo" (inference), "nim" (inference, EKS+H100 only).
         """
         return pulumi.get(self, "platform")
+
+    @_builtins.property
+    @pulumi.getter(name="skipComponents")
+    def skip_components(self) -> Optional[Sequence[_builtins.str]]:
+        """
+        Recipe components the stack intentionally did not deploy (ClusterStack's
+        `skipComponents`). ValidationRun treats them as out of scope rather than
+        missing: checks that presuppose one of them (e.g. the gpu-operator health,
+        DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+        "skipped" with a reason instead of failing, and the SDK's component-aware
+        checks see the components as disabled. A ClusterStack's `criteria` output
+        carries its own skipComponents, so wiring it keeps validation aligned with
+        the deployed subset automatically. Skipping does not verify a replacement
+        you run yourself — those checks are simply not made.
+        """
+        return pulumi.get(self, "skip_components")
 
 
 @pulumi.output_type

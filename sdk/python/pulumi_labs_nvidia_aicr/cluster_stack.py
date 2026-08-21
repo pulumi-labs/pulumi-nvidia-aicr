@@ -24,28 +24,31 @@ class ClusterStackArgs:
                  accelerator: _builtins.str,
                  intent: _builtins.str,
                  service: _builtins.str,
-                 component_overrides: pulumi.Input[Optional[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]] = None,
+                 component_overrides: Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]] = None,
                  context: Optional[_builtins.str] = None,
-                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
+                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
                  nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
-                 skip_components: pulumi.Input[Optional[Sequence[_builtins.str]]] = None):
+                 skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None):
         """
         The set of arguments for constructing a ClusterStack resource.
 
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "b200".
+               Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         :param _builtins.str intent: Workload intent. Selects between training-oriented and inference-oriented
                component sets.
                
                Supported values: "training", "inference".
         :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
                
-               Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+               Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
+               lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+               double as stand-ins for providers without an AICR criteria value yet (e.g.
+               CoreWeave CKS deploys the lke leaf). Use "kind" for local
                hardware-free development of the deployment pipeline.
         :param pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]] component_overrides: Per-component overrides. Map of AICR component name to override settings
                (version, namespace, Helm values). Values are deep-merged with the recipe
@@ -118,7 +121,7 @@ class ClusterStackArgs:
         """
         GPU accelerator type. Selects the AICR recipe family.
 
-        Supported values: "h100", "gb200", "b200".
+        Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         """
         return pulumi.get(self, "accelerator")
 
@@ -147,7 +150,10 @@ class ClusterStackArgs:
         """
         Kubernetes service. Selects cloud-specific operators and storage drivers.
 
-        Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+        Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
+        lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+        double as stand-ins for providers without an AICR criteria value yet (e.g.
+        CoreWeave CKS deploys the lke leaf). Use "kind" for local
         hardware-free development of the deployment pipeline.
         """
         return pulumi.get(self, "service")
@@ -158,7 +164,7 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter(name="componentOverrides")
-    def component_overrides(self) -> pulumi.Input[Optional[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]:
+    def component_overrides(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]:
         """
         Per-component overrides. Map of AICR component name to override settings
         (version, namespace, Helm values). Values are deep-merged with the recipe
@@ -167,7 +173,7 @@ class ClusterStackArgs:
         return pulumi.get(self, "component_overrides")
 
     @component_overrides.setter
-    def component_overrides(self, value: pulumi.Input[Optional[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]):
+    def component_overrides(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]]]):
         pulumi.set(self, "component_overrides", value)
 
     @_builtins.property
@@ -184,7 +190,7 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter
-    def kubeconfig(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def kubeconfig(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Kubeconfig contents (or path to a kubeconfig file) for the target cluster.
         Accepts computed outputs from cluster resources (e.g., an EKS cluster's
@@ -196,7 +202,7 @@ class ClusterStackArgs:
         return pulumi.get(self, "kubeconfig")
 
     @kubeconfig.setter
-    def kubeconfig(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def kubeconfig(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "kubeconfig", value)
 
     @_builtins.property
@@ -283,7 +289,7 @@ class ClusterStackArgs:
 
     @_builtins.property
     @pulumi.getter(name="skipComponents")
-    def skip_components(self) -> pulumi.Input[Optional[Sequence[_builtins.str]]]:
+    def skip_components(self) -> Optional[pulumi.Input[Sequence[_builtins.str]]]:
         """
         Component names to exclude from the deployment. Useful for swapping in your
         own installation of a component (e.g., bring-your-own cert-manager) or for
@@ -292,7 +298,7 @@ class ClusterStackArgs:
         return pulumi.get(self, "skip_components")
 
     @skip_components.setter
-    def skip_components(self, value: pulumi.Input[Optional[Sequence[_builtins.str]]]):
+    def skip_components(self, value: Optional[pulumi.Input[Sequence[_builtins.str]]]):
         pulumi.set(self, "skip_components", value)
 
 
@@ -303,17 +309,17 @@ class ClusterStack(pulumi.ComponentResource):
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  accelerator: Optional[_builtins.str] = None,
-                 component_overrides: pulumi.Input[Optional[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
+                 component_overrides: Optional[pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
                  context: Optional[_builtins.str] = None,
                  intent: Optional[_builtins.str] = None,
-                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
+                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
                  nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  service: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
-                 skip_components: pulumi.Input[Optional[Sequence[_builtins.str]]] = None,
+                 skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None,
                  __props__=None):
         """
         Create a ClusterStack resource with the given unique name, props, and options.
@@ -322,7 +328,7 @@ class ClusterStack(pulumi.ComponentResource):
         :param pulumi.ResourceOptions opts: Options for the resource.
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "b200".
+               Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         :param pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]] component_overrides: Per-component overrides. Map of AICR component name to override settings
                (version, namespace, Helm values). Values are deep-merged with the recipe
                defaults; only the keys you specify are changed.
@@ -364,7 +370,10 @@ class ClusterStack(pulumi.ComponentResource):
                entirely when platform is unset.
         :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
                
-               Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+               Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
+               lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+               double as stand-ins for providers without an AICR criteria value yet (e.g.
+               CoreWeave CKS deploys the lke leaf). Use "kind" for local
                hardware-free development of the deployment pipeline.
         :param _builtins.bool skip_await: If true, do not wait for each Helm release to become ready before continuing.
                Faster previews/updates at the cost of losing readiness signal. Default: false.
@@ -397,17 +406,17 @@ class ClusterStack(pulumi.ComponentResource):
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  accelerator: Optional[_builtins.str] = None,
-                 component_overrides: pulumi.Input[Optional[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
+                 component_overrides: Optional[pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]]] = None,
                  context: Optional[_builtins.str] = None,
                  intent: Optional[_builtins.str] = None,
-                 kubeconfig: pulumi.Input[Optional[_builtins.str]] = None,
+                 kubeconfig: Optional[pulumi.Input[_builtins.str]] = None,
                  kubeconfig_path: Optional[_builtins.str] = None,
                  nodes: Optional[_builtins.int] = None,
                  os: Optional[_builtins.str] = None,
                  platform: Optional[_builtins.str] = None,
                  service: Optional[_builtins.str] = None,
                  skip_await: Optional[_builtins.bool] = None,
-                 skip_components: pulumi.Input[Optional[Sequence[_builtins.str]]] = None,
+                 skip_components: Optional[pulumi.Input[Sequence[_builtins.str]]] = None,
                  __props__=None):
         opts = pulumi.ResourceOptions.merge(_utilities.get_resource_opts_defaults(), opts)
         if not isinstance(opts, pulumi.ResourceOptions):
@@ -463,9 +472,10 @@ class ClusterStack(pulumi.ComponentResource):
     @pulumi.getter
     def criteria(self) -> pulumi.Output['outputs.RecipeCriteria']:
         """
-        The canonicalized recipe criteria this stack resolved with. Wire it into a
-        ValidationRun's `criteria` input so deployment and validation share a single
-        source of truth.
+        The canonicalized recipe criteria this stack resolved with, including its
+        `skipComponents`. Wire it into a ValidationRun's `criteria` input so deployment and
+        validation share a single source of truth — the same recipe, and the same
+        components in scope.
         """
         return pulumi.get(self, "criteria")
 

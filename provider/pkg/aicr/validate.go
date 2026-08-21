@@ -117,6 +117,12 @@ type ValidateOptions struct {
 	// RunID identifies the run's cluster-side artifacts. "" generates one.
 	// Always passed to WithValidationRunID.
 	RunID string
+	// SkipComponents names recipe components the deployment intentionally
+	// left out (ClusterStack's skipComponents). They are marked disabled on
+	// the resolved recipe and checks that presuppose them are reported
+	// skipped instead of run — see skipcomponents.go. Unknown names are
+	// ignored with a warning, mirroring ClusterStack.
+	SkipComponents []string
 }
 
 // Outcome is the rollup verdict of a validation run.
@@ -223,6 +229,16 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 		RecipeVersion: sdkModuleVersion(),
 	}
 
+	// Reconcile the recipe with the deployed subset BEFORE the snapshot and
+	// ValidateState: ToValidationInput reads ComponentRefs and the phase
+	// check lists off this result at ValidateState time. Resolved() is
+	// documented "do not mutate", but the SDK exposes no other way to
+	// disable components or deselect checks on a validatable result, and
+	// applySkipComponents is copy-on-write on every slice/map it touches —
+	// only this per-resolve result (owned by the client closed on return)
+	// sees the change, never the embedded recipe data.
+	preSkipped := applySkipComponents(result.Resolved(), opts.SkipComponents, opts.Phases)
+
 	var snap *aicrclient.Snapshot
 	if opts.NoCluster {
 		// No cluster to snapshot in test mode; synthesize a snapshot that
@@ -302,6 +318,10 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 		}
 		return nil, fmt.Errorf("running AICR validation: %w", err)
 	}
+
+	// Pre-skipped checks join the SDK's results as ordinary skipped CTRF
+	// entries, so checks, counts, and the merged report all agree.
+	results = mergePreSkipped(results, preSkipped)
 
 	checks, counts, mergedCTRF, err := buildReport(results)
 	if err != nil {

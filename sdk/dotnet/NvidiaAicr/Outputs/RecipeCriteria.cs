@@ -13,8 +13,10 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
 
     /// <summary>
     /// Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-    /// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-    /// output here so deployment and validation resolve the identical recipe.
+    /// intent / os / platform / nodes inputs, plus the skipComponents the stack
+    /// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+    /// and validation resolve the identical recipe and agree on which of its
+    /// components are in scope.
     /// </summary>
     [OutputType]
     public sealed class RecipeCriteria
@@ -45,6 +47,18 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
         /// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
         /// </summary>
         public readonly string Service;
+        /// <summary>
+        /// Recipe components the stack intentionally did not deploy (ClusterStack's
+        /// `skipComponents`). ValidationRun treats them as out of scope rather than
+        /// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+        /// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+        /// "skipped" with a reason instead of failing, and the SDK's component-aware
+        /// checks see the components as disabled. A ClusterStack's `criteria` output
+        /// carries its own skipComponents, so wiring it keeps validation aligned with
+        /// the deployed subset automatically. Skipping does not verify a replacement
+        /// you run yourself — those checks are simply not made.
+        /// </summary>
+        public readonly ImmutableArray<string> SkipComponents;
 
         [OutputConstructor]
         private RecipeCriteria(
@@ -58,7 +72,9 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
 
             string? platform,
 
-            string service)
+            string service,
+
+            ImmutableArray<string> skipComponents)
         {
             Accelerator = accelerator;
             Intent = intent;
@@ -66,6 +82,7 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
             Os = os;
             Platform = platform;
             Service = service;
+            SkipComponents = skipComponents;
         }
     }
 }

@@ -234,9 +234,10 @@ func (s *ClusterStack) Annotate(an infer.Annotator) {
 	an.Describe(&s.RecipeVersion, `The AICR recipe data version embedded in this provider build.`)
 	an.Describe(&s.DeployedComponents, `Names of all components deployed as part of this stack, in topological order.`)
 	an.Describe(&s.ComponentCount, `Number of components deployed.`)
-	an.Describe(&s.Criteria, `The canonicalized recipe criteria this stack resolved with. Wire it into a
-ValidationRun's `+"`criteria`"+` input so deployment and validation share a single
-source of truth.`)
+	an.Describe(&s.Criteria, `The canonicalized recipe criteria this stack resolved with, including its
+`+"`skipComponents`"+`. Wire it into a ValidationRun's `+"`criteria`"+` input so deployment and
+validation share a single source of truth — the same recipe, and the same
+components in scope.`)
 }
 
 // NewClusterStack creates a new NVIDIA AICR ClusterStack component.
@@ -525,7 +526,7 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	state.RecipeVersion = pulumi.String(resolved.Version).ToStringOutput()
 	state.DeployedComponents = pulumi.ToStringArray(deployedNames).ToStringArrayOutput()
 	state.ComponentCount = pulumi.Int(len(deployedNames)).ToIntOutput()
-	state.Criteria = criteriaOutput(criteria, args.Nodes)
+	state.Criteria = criteriaOutput(criteria, args.Nodes, args.SkipComponents)
 
 	// Mirror the criteria into the registered outputs map, omitting unset
 	// optionals (matching the RecipeCriteria pointer fields).
@@ -543,6 +544,9 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	if args.Nodes != nil {
 		criteriaMap["nodes"] = pulumi.Int(*args.Nodes)
 	}
+	if len(args.SkipComponents) > 0 {
+		criteriaMap["skipComponents"] = pulumi.ToStringArray(args.SkipComponents)
+	}
 
 	if err := ctx.RegisterResourceOutputs(state, pulumi.Map{
 		"recipeName":         pulumi.String(resolved.Name),
@@ -559,8 +563,10 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 
 // criteriaOutput builds the RecipeCriteria output from the canonicalized
 // resolution criteria. Optionals stay nil when unset so wiring the output
-// into a ValidationRun re-resolves identical criteria.
-func criteriaOutput(criteria aicr.Criteria, nodes *int) RecipeCriteria {
+// into a ValidationRun re-resolves identical criteria; skipComponents is
+// echoed verbatim (the names ApplyOverrides matched on) so validation scopes
+// itself to the same component subset.
+func criteriaOutput(criteria aicr.Criteria, nodes *int, skipComponents []string) RecipeCriteria {
 	out := RecipeCriteria{
 		Accelerator: criteria.Accelerator,
 		Service:     criteria.Service,
@@ -577,6 +583,9 @@ func criteriaOutput(criteria aicr.Criteria, nodes *int) RecipeCriteria {
 	if nodes != nil {
 		n := *nodes
 		out.Nodes = &n
+	}
+	if len(skipComponents) > 0 {
+		out.SkipComponents = append([]string(nil), skipComponents...)
 	}
 	return out
 }

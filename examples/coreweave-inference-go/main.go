@@ -78,10 +78,38 @@ func main() {
 			return err
 		}
 
+		// Validate the deployed stack empirically: a snapshot agent captures cluster
+		// state, then the recipe's deployment and conformance checks run as Jobs in
+		// the cluster (~10 minutes). With the default strict=false the update always
+		// succeeds and the verdict is data -- read the exported status and per-check
+		// results. Set Strict: pulumi.Bool(true) to fail the update on failed checks
+		// instead.
+		//
+		// Validation pods tolerate all taints by default, so tainted GPU node groups
+		// need no configuration; the `Tolerations` input exists to narrow that.
+		validation, err := aicr.NewValidationRun(ctx, "nvidia-inference-validation", &aicr.ValidationRunArgs{
+			// Keep in sync with the ClusterStack criteria above (Python/TS wire the stack's `criteria` output directly; Go cannot).
+			Criteria: aicr.RecipeCriteriaArgs{
+				Accelerator: pulumi.String("h100"),
+				Service:     pulumi.String("eks"), // closest match; mirrors the ClusterStack
+				Intent:      pulumi.String("inference"),
+				Platform:    pulumi.StringPtr("dynamo"),
+				Os:          pulumi.StringPtr("ubuntu"),
+			},
+			RecipeDataVersion: inferenceStack.RecipeVersion, // assert same recipe data as deployed
+			KubeconfigPath:    pulumi.StringPtr(kubeconfigPath),
+			Triggers:          pulumi.Array{inferenceStack.DeployedComponents}, // re-validate when the stack changes
+		})
+		if err != nil {
+			return err
+		}
+
 		// Exports
 		ctx.Export("recipeName", inferenceStack.RecipeName)
 		ctx.Export("deployedComponents", inferenceStack.DeployedComponents)
 		ctx.Export("componentCount", inferenceStack.ComponentCount)
+		ctx.Export("validationStatus", validation.Status)
+		ctx.Export("validationChecks", validation.PhaseResults)
 		return nil
 	})
 }

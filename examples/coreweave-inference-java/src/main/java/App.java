@@ -9,12 +9,16 @@
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.pulumi.Context;
 import com.pulumi.Pulumi;
 import com.pulumi.labs.nvidiaaicr.ClusterStack;
 import com.pulumi.labs.nvidiaaicr.ClusterStackArgs;
+import com.pulumi.labs.nvidiaaicr.ValidationRun;
+import com.pulumi.labs.nvidiaaicr.ValidationRunArgs;
 import com.pulumi.labs.nvidiaaicr.inputs.ComponentOverrideArgs;
+import com.pulumi.labs.nvidiaaicr.inputs.RecipeCriteriaArgs;
 
 public class App {
     public static void main(String[] args) {
@@ -46,8 +50,43 @@ public class App {
                     .build()))
             .build());
 
+        // Validate the deployed stack empirically: a snapshot agent captures
+        // cluster state, then the recipe's deployment and conformance checks run
+        // as Jobs in the cluster (~10 minutes). With the default strict=false the
+        // update always succeeds and the verdict is data -- read the exported
+        // status and per-check results. Set strict=true to fail the update on
+        // failed checks instead.
+        //
+        // Validation pods tolerate all taints by default, so tainted GPU node
+        // groups need no configuration; the `tolerations` input exists to narrow
+        // that.
+        var validation = new ValidationRun("nvidia-inference-validation", ValidationRunArgs.builder()
+            // Keep in sync with the ClusterStack criteria above (Python/TS wire
+            // the stack's `criteria` output directly; Java cannot).
+            .criteria(RecipeCriteriaArgs.builder()
+                .accelerator("h100")
+                .service("eks") // closest match, same as the ClusterStack
+                .intent("inference")
+                .platform("dynamo")
+                .os("ubuntu")
+                .build())
+            .recipeDataVersion(inferenceStack.recipeVersion())        // assert same recipe data as deployed
+            .kubeconfigPath(kubeconfigPath)                 // same kubeconfig as the ClusterStack
+            .triggers(inferenceStack.deployedComponents())  // re-validate when the stack changes
+            .build());
+
         ctx.export("recipeName", inferenceStack.recipeName());
         ctx.export("deployedComponents", inferenceStack.deployedComponents());
         ctx.export("componentCount", inferenceStack.componentCount());
+        ctx.export("validationStatus", validation.status());
+        // pulumi-java cannot serialize generated output types (CheckResult) as
+        // stack outputs -- project to plain maps first.
+        ctx.export("validationChecks", validation.phaseResults().applyValue(rs ->
+            rs.stream().map(c -> Map.of(
+                "name", c.name(),
+                "phase", c.phase(),
+                "status", c.status(),
+                "message", c.message()))
+              .collect(Collectors.toList())));
     }
 }

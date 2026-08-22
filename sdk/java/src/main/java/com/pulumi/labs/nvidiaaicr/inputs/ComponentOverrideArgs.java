@@ -38,14 +38,34 @@ public final class ComponentOverrideArgs extends com.pulumi.resources.ResourceAr
     }
 
     /**
-     * Additional or override Helm values, deep-merged with the recipe defaults.
+     * Additional or override Helm values, deep-merged on top of the
+     * recipe-resolved values.
+     * 
+     * Merge semantics: nested maps merge recursively; scalars and arrays replace
+     * the recipe&#39;s value; setting a key to null removes it from the
+     * recipe-resolved values, restoring the chart&#39;s own default for that key.
+     * Note the null asymmetry: a null *in the recipe data* is passed through to
+     * Helm (explicitly clearing the chart default), while a null *here* removes
+     * the recipe&#39;s setting. There is currently no way to pass a literal null
+     * through to Helm from this input — and some language SDKs drop null map
+     * entries during serialization before they reach the provider at all.
      * 
      */
     @Import(name="values")
     private @Nullable Output<Map<String,Object>> values;
 
     /**
-     * @return Additional or override Helm values, deep-merged with the recipe defaults.
+     * @return Additional or override Helm values, deep-merged on top of the
+     * recipe-resolved values.
+     * 
+     * Merge semantics: nested maps merge recursively; scalars and arrays replace
+     * the recipe&#39;s value; setting a key to null removes it from the
+     * recipe-resolved values, restoring the chart&#39;s own default for that key.
+     * Note the null asymmetry: a null *in the recipe data* is passed through to
+     * Helm (explicitly clearing the chart default), while a null *here* removes
+     * the recipe&#39;s setting. There is currently no way to pass a literal null
+     * through to Helm from this input — and some language SDKs drop null map
+     * entries during serialization before they reach the provider at all.
      * 
      */
     public Optional<Output<Map<String,Object>>> values() {
@@ -115,7 +135,17 @@ public final class ComponentOverrideArgs extends com.pulumi.resources.ResourceAr
         }
 
         /**
-         * @param values Additional or override Helm values, deep-merged with the recipe defaults.
+         * @param values Additional or override Helm values, deep-merged on top of the
+         * recipe-resolved values.
+         * 
+         * Merge semantics: nested maps merge recursively; scalars and arrays replace
+         * the recipe&#39;s value; setting a key to null removes it from the
+         * recipe-resolved values, restoring the chart&#39;s own default for that key.
+         * Note the null asymmetry: a null *in the recipe data* is passed through to
+         * Helm (explicitly clearing the chart default), while a null *here* removes
+         * the recipe&#39;s setting. There is currently no way to pass a literal null
+         * through to Helm from this input — and some language SDKs drop null map
+         * entries during serialization before they reach the provider at all.
          * 
          * @return builder
          * 
@@ -126,7 +156,17 @@ public final class ComponentOverrideArgs extends com.pulumi.resources.ResourceAr
         }
 
         /**
-         * @param values Additional or override Helm values, deep-merged with the recipe defaults.
+         * @param values Additional or override Helm values, deep-merged on top of the
+         * recipe-resolved values.
+         * 
+         * Merge semantics: nested maps merge recursively; scalars and arrays replace
+         * the recipe&#39;s value; setting a key to null removes it from the
+         * recipe-resolved values, restoring the chart&#39;s own default for that key.
+         * Note the null asymmetry: a null *in the recipe data* is passed through to
+         * Helm (explicitly clearing the chart default), while a null *here* removes
+         * the recipe&#39;s setting. There is currently no way to pass a literal null
+         * through to Helm from this input — and some language SDKs drop null map
+         * entries during serialization before they reach the provider at all.
          * 
          * @return builder
          * 

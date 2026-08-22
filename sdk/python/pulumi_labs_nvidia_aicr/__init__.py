@@ -8,7 +8,9 @@ import typing
 # Export this package's modules as members:
 from .cluster_stack import *
 from .provider import *
+from .validation_run import *
 from ._inputs import *
+from . import outputs
 _utilities.register(
     resource_modules="""
 [
@@ -17,7 +19,8 @@ _utilities.register(
   "mod": "index",
   "fqn": "pulumi_labs_nvidia_aicr",
   "classes": {
-   "nvidia-aicr:index:ClusterStack": "ClusterStack"
+   "nvidia-aicr:index:ClusterStack": "ClusterStack",
+   "nvidia-aicr:index:ValidationRun": "ValidationRun"
   }
  }
 ]

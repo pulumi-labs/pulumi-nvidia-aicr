@@ -7,6 +7,7 @@
 // Default nodeCount is 2, so plan on ~$60/hr while the cluster is up.
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.pulumi.Context;
 import com.pulumi.Pulumi;
@@ -20,7 +21,10 @@ import com.pulumi.gcp.container.inputs.NodePoolNodeConfigArgs;
 import com.pulumi.gcp.container.inputs.NodePoolNodeConfigGuestAcceleratorArgs;
 import com.pulumi.labs.nvidiaaicr.ClusterStack;
 import com.pulumi.labs.nvidiaaicr.ClusterStackArgs;
+import com.pulumi.labs.nvidiaaicr.ValidationRun;
+import com.pulumi.labs.nvidiaaicr.ValidationRunArgs;
 import com.pulumi.labs.nvidiaaicr.inputs.ComponentOverrideArgs;
+import com.pulumi.labs.nvidiaaicr.inputs.RecipeCriteriaArgs;
 
 public class App {
     public static void main(String[] args) {
@@ -114,8 +118,40 @@ public class App {
                 .dependsOn(gpuNodePool)
                 .build());
 
+        // Validate the deployed stack empirically: a snapshot agent captures
+        // cluster state, then the recipe's deployment and conformance checks run
+        // as Jobs in the cluster (~10 minutes; GKE's automatic nvidia.com/gpu
+        // taint needs no configuration -- validation pods tolerate all taints by
+        // default). With the default strict=false the update always succeeds and
+        // the verdict is data; set strict=true to gate downstream resources on a
+        // passing run instead.
+        var validation = new ValidationRun("nvidia-aicr-validation", ValidationRunArgs.builder()
+            // Keep in sync with the ClusterStack criteria above (Python/TS wire
+            // the stack's `criteria` output directly; Java cannot).
+            .criteria(RecipeCriteriaArgs.builder()
+                .accelerator("h100")
+                .service("gke")
+                .intent("training")
+                .platform("kubeflow")
+                .os("cos")
+                .build())
+            .recipeDataVersion(gpuStack.recipeVersion())        // assert same recipe data as deployed
+            .kubeconfig(kubeconfig)
+            .triggers(gpuStack.deployedComponents())  // re-validate when the stack changes
+            .build());
+
         ctx.export("recipeName", gpuStack.recipeName());
         ctx.export("deployedComponents", gpuStack.deployedComponents());
         ctx.export("componentCount", gpuStack.componentCount());
+        ctx.export("validationStatus", validation.status());
+        // pulumi-java cannot serialize generated output types (CheckResult) as
+        // stack outputs -- project to plain maps first.
+        ctx.export("validationChecks", validation.phaseResults().applyValue(rs ->
+            rs.stream().map(c -> Map.of(
+                "name", c.name(),
+                "phase", c.phase(),
+                "status", c.status(),
+                "message", c.message()))
+              .collect(Collectors.toList())));
     }
 }

@@ -5,3 +5,87 @@ import * as pulumi from "@pulumi/pulumi";
 import * as inputs from "../types/input";
 import * as outputs from "../types/output";
 
+/**
+ * The outcome of one validator check.
+ */
+export interface CheckResult {
+    /**
+     * The check's failure or diagnostic message, if any.
+     */
+    message: string;
+    /**
+     * The check's name (e.g. "gpu-operator-health").
+     */
+    name: string;
+    /**
+     * The validation phase the check ran in.
+     */
+    phase: string;
+    /**
+     * The check's status: "passed", "failed", "skipped", "pending", or "other".
+     */
+    status: string;
+}
+
+/**
+ * Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
+ * intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
+ * output here so deployment and validation resolve the identical recipe.
+ */
+export interface RecipeCriteria {
+    /**
+     * GPU accelerator type. Supported values: "h100", "gb200", "b200".
+     */
+    accelerator: string;
+    /**
+     * Workload intent. Supported values: "training", "inference".
+     */
+    intent: string;
+    /**
+     * Worker-node count hint used to size the recipe.
+     */
+    nodes?: number;
+    /**
+     * Operating system flavor of the worker nodes. Leave unset for OS-agnostic
+     * resolution. Supported values: "ubuntu", "cos", "ol".
+     */
+    os?: string;
+    /**
+     * ML platform/framework. Supported values: "kubeflow" (training),
+     * "dynamo" (inference), "nim" (inference, EKS+H100 only).
+     */
+    platform?: string;
+    /**
+     * Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+     */
+    service: string;
+}
+
+/**
+ * A Kubernetes pod toleration applied to validation workload pods.
+ */
+export interface Toleration {
+    /**
+     * The taint effect to match: "NoSchedule", "PreferNoSchedule", or
+     * "NoExecute". Empty matches all effects.
+     */
+    effect?: string;
+    /**
+     * The taint key the toleration applies to. Empty means match all keys
+     * (with operator "Exists").
+     */
+    key?: string;
+    /**
+     * Key-value relationship: "Exists" or "Equal". Default: "Equal".
+     */
+    operator?: string;
+    /**
+     * How long the pod tolerates a "NoExecute" taint, in seconds.
+     */
+    tolerationSeconds?: number;
+    /**
+     * The taint value to match (with operator "Equal").
+     */
+    value?: string;
+}
+

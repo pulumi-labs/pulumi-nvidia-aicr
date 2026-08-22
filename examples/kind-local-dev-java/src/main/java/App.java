@@ -12,11 +12,16 @@
 // install -- which is enough for iterating on the deployment graph.
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.pulumi.Context;
 import com.pulumi.Pulumi;
 import com.pulumi.labs.nvidiaaicr.ClusterStack;
 import com.pulumi.labs.nvidiaaicr.ClusterStackArgs;
+import com.pulumi.labs.nvidiaaicr.ValidationRun;
+import com.pulumi.labs.nvidiaaicr.ValidationRunArgs;
+import com.pulumi.labs.nvidiaaicr.inputs.RecipeCriteriaArgs;
 
 public class App {
     public static void main(String[] args) {
@@ -41,5 +46,38 @@ public class App {
         ctx.export("recipeVersion", gpuStack.recipeVersion());
         ctx.export("deployedComponents", gpuStack.deployedComponents());
         ctx.export("componentCount", gpuStack.componentCount());
+
+        // Optional: run the recipe's empirical validation against the cluster
+        // (config: `pulumi config set validate true`). Adds ~10 minutes to the update.
+        //
+        // Honest expectations on a GPU-less kind cluster: the readiness pre-flight
+        // passes (kind recipes bind no OS or GPU constraints), but deployment health
+        // checks for GPU components fail or skip, and GPU conformance checks skip --
+        // there is no GPU to validate. Useful for exercising the validation pipeline
+        // itself; a real verdict needs real hardware (see the EKS/GKE examples).
+        if (config.getBoolean("validate").orElse(false)) {
+            var validation = new ValidationRun("kind-validation", ValidationRunArgs.builder()
+                // Keep in sync with the ClusterStack criteria above (Python/TS wire
+                // the stack's `criteria` output directly; Java cannot).
+                .criteria(RecipeCriteriaArgs.builder()
+                    .accelerator("h100")
+                    .service("kind")
+                    .intent(intent)
+                    .build())
+                .recipeDataVersion(gpuStack.recipeVersion())        // assert same recipe data as deployed
+                .requireGpu(false)                        // kind has no GPU nodes
+                .triggers(gpuStack.deployedComponents())  // re-run when the stack changes
+                .build());
+            ctx.export("validationStatus", validation.status());
+            // pulumi-java cannot serialize generated output types (CheckResult) as
+            // stack outputs -- project to plain maps first.
+            ctx.export("validationChecks", validation.phaseResults().applyValue(rs ->
+                rs.stream().map(c -> Map.of(
+                    "name", c.name(),
+                    "phase", c.phase(),
+                    "status", c.status(),
+                    "message", c.message()))
+                  .collect(Collectors.toList())));
+        }
     }
 }

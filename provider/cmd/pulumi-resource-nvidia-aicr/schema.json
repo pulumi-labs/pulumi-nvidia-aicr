@@ -61,6 +61,34 @@
   },
   "config": {},
   "types": {
+    "nvidia-aicr:index:CheckResult": {
+      "description": "The outcome of one validator check.",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The check's failure or diagnostic message, if any."
+        },
+        "name": {
+          "type": "string",
+          "description": "The check's name (e.g. \"gpu-operator-health\")."
+        },
+        "phase": {
+          "type": "string",
+          "description": "The validation phase the check ran in."
+        },
+        "status": {
+          "type": "string",
+          "description": "The check's status: \"passed\", \"failed\", \"skipped\", \"pending\", or \"other\"."
+        }
+      },
+      "type": "object",
+      "required": [
+        "name",
+        "phase",
+        "status",
+        "message"
+      ]
+    },
     "nvidia-aicr:index:ComponentOverride": {
       "description": "Per-component override settings. Each field is optional; only the fields\nyou set are applied on top of the recipe defaults.",
       "properties": {
@@ -81,6 +109,67 @@
         }
       },
       "type": "object"
+    },
+    "nvidia-aicr:index:RecipeCriteria": {
+      "description": "Recipe-selection criteria, mirroring ClusterStack's accelerator / service /\nintent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`\noutput here so deployment and validation resolve the identical recipe.",
+      "properties": {
+        "accelerator": {
+          "type": "string",
+          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\"."
+        },
+        "intent": {
+          "type": "string",
+          "description": "Workload intent. Supported values: \"training\", \"inference\"."
+        },
+        "nodes": {
+          "type": "integer",
+          "description": "Worker-node count hint used to size the recipe."
+        },
+        "os": {
+          "type": "string",
+          "description": "Operating system flavor of the worker nodes. Leave unset for OS-agnostic\nresolution. Supported values: \"ubuntu\", \"cos\", \"ol\"."
+        },
+        "platform": {
+          "type": "string",
+          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, EKS+H100 only)."
+        },
+        "service": {
+          "type": "string",
+          "description": "Kubernetes service. Supported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\"."
+        }
+      },
+      "type": "object",
+      "required": [
+        "accelerator",
+        "service",
+        "intent"
+      ]
+    },
+    "nvidia-aicr:index:Toleration": {
+      "description": "A Kubernetes pod toleration applied to validation workload pods.",
+      "properties": {
+        "effect": {
+          "type": "string",
+          "description": "The taint effect to match: \"NoSchedule\", \"PreferNoSchedule\", or\n\"NoExecute\". Empty matches all effects."
+        },
+        "key": {
+          "type": "string",
+          "description": "The taint key the toleration applies to. Empty means match all keys\n(with operator \"Exists\")."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Key-value relationship: \"Exists\" or \"Equal\". Default: \"Equal\"."
+        },
+        "tolerationSeconds": {
+          "type": "integer",
+          "description": "How long the pod tolerates a \"NoExecute\" taint, in seconds."
+        },
+        "value": {
+          "type": "string",
+          "description": "The taint value to match (with operator \"Equal\")."
+        }
+      },
+      "type": "object"
     }
   },
   "provider": {},
@@ -90,6 +179,10 @@
         "componentCount": {
           "type": "integer",
           "description": "Number of components deployed."
+        },
+        "criteria": {
+          "$ref": "#/types/nvidia-aicr:index:RecipeCriteria",
+          "description": "The canonicalized recipe criteria this stack resolved with. Wire it into a\nValidationRun's `criteria` input so deployment and validation share a single\nsource of truth."
         },
         "deployedComponents": {
           "type": "array",
@@ -112,7 +205,8 @@
         "recipeName",
         "recipeVersion",
         "deployedComponents",
-        "componentCount"
+        "componentCount",
+        "criteria"
       ],
       "inputProperties": {
         "accelerator": {
@@ -187,6 +281,251 @@
         "intent"
       ],
       "isComponent": true
+    },
+    "nvidia-aicr:index:ValidationRun": {
+      "description": "Runs an AICR recipe's empirical validation (cluster snapshot +\ndeployment/conformance/performance checks) against a live cluster and\nrecords structured per-check results in Pulumi state.\n\nThe run happens at deploy time (never at preview). The validation harness\ndeploys short-lived agent and validator Jobs plus per-run RBAC on the target\ncluster and cleans them up afterward; the validation namespace (default\n\"aicr-validation\") is created on first run and deliberately persists.\n\nPrivilege level: the snapshot-agent Job runs as a privileged container\n(bound to a read-only node-inspection ClusterRole), and validator Jobs run\nunder a per-run cluster-admin ClusterRoleBinding — both removed after the\nrun, including on cancellation. The kubeconfig identity needs RBAC to\ncreate/patch Namespaces, ClusterRoles, and ClusterRoleBindings.\n\nAny input change replaces the resource, which re-runs validation (delete is\na no-op). With `strict: true`, a failed run fails the update while persisting\nfull results, and validation re-runs on every subsequent `pulumi up` until it\npasses — use `dependsOn` to gate downstream resources on it.",
+      "properties": {
+        "completedAt": {
+          "type": "string",
+          "description": "When the run completed, RFC 3339."
+        },
+        "context": {
+          "type": "string",
+          "description": "Kubeconfig context to select. Defaults to the kubeconfig's current-context."
+        },
+        "criteria": {
+          "$ref": "#/types/nvidia-aicr:index:RecipeCriteria",
+          "description": "Recipe criteria. Wire a ClusterStack's `criteria` output here, or build\nthe object inline."
+        },
+        "ctrfReport": {
+          "type": "string",
+          "description": "The merged CTRF JSON report. Set only when `includeCtrfReport` is true."
+        },
+        "failed": {
+          "type": "integer",
+          "description": "Number of checks that failed."
+        },
+        "imagePullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Names of image pull Secrets (in the validation namespace) for the\nvalidation pods."
+        },
+        "imageRegistry": {
+          "type": "string",
+          "description": "Registry override for the snapshot-agent and validator images (air-gapped\nmirrors). Unset keeps the default registry (ghcr.io)."
+        },
+        "includeCtrfReport": {
+          "type": "boolean",
+          "description": "If true, the merged CTRF JSON report is stored in the `ctrfReport` output.\nDefault: false (state-size control; per-check results are always in\n`phaseResults`).",
+          "default": false
+        },
+        "kubeconfig": {
+          "type": "string",
+          "description": "Kubeconfig contents for the target cluster. Mutually exclusive with\n`kubeconfigPath`. If neither is set, the ambient kubeconfig (KUBECONFIG env\nvar or ~/.kube/config) is used. Written to a mode-0600 temp file for the\nduration of the run and removed afterward.",
+          "secret": true
+        },
+        "kubeconfigPath": {
+          "type": "string",
+          "description": "Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace for the validation harness — use a dedicated one: it hosts the\nprivileged agent and cluster-admin-bound validator Jobs. The SDK creates it\non first run and deliberately never deletes it. Must be a valid DNS-1123\nlabel and not a \"kube-\" system namespace. Default: \"aicr-validation\".",
+          "default": "aicr-validation"
+        },
+        "nodeSelector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Node selector applied to the validation workload pods. Use when GPU nodes\ncarry non-standard labels."
+        },
+        "other": {
+          "type": "integer",
+          "description": "Number of checks with an inconclusive outcome (crash, OOM, timeout;\nincludes CTRF \"pending\")."
+        },
+        "passed": {
+          "type": "integer",
+          "description": "Number of checks that passed."
+        },
+        "phaseResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/nvidia-aicr:index:CheckResult"
+          },
+          "description": "Per-check results across all phases run."
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Validation phases to run: any of \"deployment\", \"conformance\",\n\"performance\". Default: [\"deployment\", \"conformance\"] — \"performance\" is an\nexplicit opt-in (long-running and hardware-bound)."
+        },
+        "readinessMessage": {
+          "type": "string",
+          "description": "The readiness pre-flight failure message; empty unless status is\n\"readiness-failed\"."
+        },
+        "recipeDataVersion": {
+          "type": "string",
+          "description": "Recipe-data version assertion (not a pin). When set, it must equal this\nprovider build's embedded AICR recipe-data version or Create fails before\nany cluster work — wire `recipeDataVersion: stack.recipeVersion` to catch a\nprovider upgrade between deploy and validate."
+        },
+        "recipeName": {
+          "type": "string",
+          "description": "The resolved AICR recipe name that was validated."
+        },
+        "recipeVersion": {
+          "type": "string",
+          "description": "The AICR recipe data version that was validated."
+        },
+        "requireGpu": {
+          "type": "boolean",
+          "description": "Whether the snapshot agent requires GPU nodes. Set false for\nhardware-free clusters (kind). Default: true.",
+          "default": true
+        },
+        "runId": {
+          "type": "string",
+          "description": "The run identifier labeling this run's cluster-side artifacts."
+        },
+        "skipped": {
+          "type": "integer",
+          "description": "Number of checks that were skipped."
+        },
+        "status": {
+          "type": "string",
+          "description": "Rollup verdict: \"passed\", \"failed\", or \"readiness-failed\". Checks with\nstatus \"other\" never flip the rollup (they are counted and listed).\nInfrastructure errors have no status — they fail the update outright."
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "If true, a failed (or readiness-failed) validation fails the update while\nstill persisting the full results in state. The engine then re-runs\nvalidation on every subsequent `pulumi up` until it passes. Default: false —\nresults are recorded and the update succeeds; read the `status` output.",
+          "default": false
+        },
+        "timeoutMinutes": {
+          "type": "integer",
+          "description": "Overall run timeout in minutes. Default: 30. Maximum: 1440 (24 hours).",
+          "default": 30
+        },
+        "tolerations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/nvidia-aicr:index:Toleration"
+          },
+          "description": "Tolerations applied to the validation workload pods (e.g. NCCL benchmark\npods). Required in practice on tainted GPU node groups; when unset, the\nvalidator's default tolerate-all is kept."
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Arbitrary values; changing any of them replaces the resource and re-runs\nvalidation (every input change does). Wire `triggers: [stack.deployedComponents]`\nfor re-validation cadence."
+        }
+      },
+      "required": [
+        "criteria",
+        "status",
+        "readinessMessage",
+        "phaseResults",
+        "passed",
+        "failed",
+        "skipped",
+        "other",
+        "runId",
+        "completedAt",
+        "recipeName",
+        "recipeVersion"
+      ],
+      "inputProperties": {
+        "context": {
+          "type": "string",
+          "description": "Kubeconfig context to select. Defaults to the kubeconfig's current-context."
+        },
+        "criteria": {
+          "$ref": "#/types/nvidia-aicr:index:RecipeCriteria",
+          "description": "Recipe criteria. Wire a ClusterStack's `criteria` output here, or build\nthe object inline."
+        },
+        "imagePullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Names of image pull Secrets (in the validation namespace) for the\nvalidation pods."
+        },
+        "imageRegistry": {
+          "type": "string",
+          "description": "Registry override for the snapshot-agent and validator images (air-gapped\nmirrors). Unset keeps the default registry (ghcr.io)."
+        },
+        "includeCtrfReport": {
+          "type": "boolean",
+          "description": "If true, the merged CTRF JSON report is stored in the `ctrfReport` output.\nDefault: false (state-size control; per-check results are always in\n`phaseResults`).",
+          "default": false
+        },
+        "kubeconfig": {
+          "type": "string",
+          "description": "Kubeconfig contents for the target cluster. Mutually exclusive with\n`kubeconfigPath`. If neither is set, the ambient kubeconfig (KUBECONFIG env\nvar or ~/.kube/config) is used. Written to a mode-0600 temp file for the\nduration of the run and removed afterward.",
+          "secret": true
+        },
+        "kubeconfigPath": {
+          "type": "string",
+          "description": "Path to a kubeconfig file on disk. Mutually exclusive with `kubeconfig`."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace for the validation harness — use a dedicated one: it hosts the\nprivileged agent and cluster-admin-bound validator Jobs. The SDK creates it\non first run and deliberately never deletes it. Must be a valid DNS-1123\nlabel and not a \"kube-\" system namespace. Default: \"aicr-validation\".",
+          "default": "aicr-validation"
+        },
+        "nodeSelector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Node selector applied to the validation workload pods. Use when GPU nodes\ncarry non-standard labels."
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Validation phases to run: any of \"deployment\", \"conformance\",\n\"performance\". Default: [\"deployment\", \"conformance\"] — \"performance\" is an\nexplicit opt-in (long-running and hardware-bound)."
+        },
+        "recipeDataVersion": {
+          "type": "string",
+          "description": "Recipe-data version assertion (not a pin). When set, it must equal this\nprovider build's embedded AICR recipe-data version or Create fails before\nany cluster work — wire `recipeDataVersion: stack.recipeVersion` to catch a\nprovider upgrade between deploy and validate."
+        },
+        "requireGpu": {
+          "type": "boolean",
+          "description": "Whether the snapshot agent requires GPU nodes. Set false for\nhardware-free clusters (kind). Default: true.",
+          "default": true
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "If true, a failed (or readiness-failed) validation fails the update while\nstill persisting the full results in state. The engine then re-runs\nvalidation on every subsequent `pulumi up` until it passes. Default: false —\nresults are recorded and the update succeeds; read the `status` output.",
+          "default": false
+        },
+        "timeoutMinutes": {
+          "type": "integer",
+          "description": "Overall run timeout in minutes. Default: 30. Maximum: 1440 (24 hours).",
+          "default": 30
+        },
+        "tolerations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/nvidia-aicr:index:Toleration"
+          },
+          "description": "Tolerations applied to the validation workload pods (e.g. NCCL benchmark\npods). Required in practice on tainted GPU node groups; when unset, the\nvalidator's default tolerate-all is kept."
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "pulumi.json#/Any"
+          },
+          "description": "Arbitrary values; changing any of them replaces the resource and re-runs\nvalidation (every input change does). Wire `triggers: [stack.deployedComponents]`\nfor re-validation cadence."
+        }
+      },
+      "requiredInputs": [
+        "criteria"
+      ]
     }
   }
 }

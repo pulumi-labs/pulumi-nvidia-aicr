@@ -159,7 +159,9 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
      * Operating system flavor of the worker nodes.
      * 
      * Supported values: &#34;ubuntu&#34;, &#34;cos&#34; (Container-Optimized OS, GKE only), &#34;ol&#34;
-     * (Oracle Linux, OKE), &#34;rhel&#34;, &#34;amazonlinux&#34;, &#34;talos&#34;.
+     * (Oracle Linux, OKE) — the values with backing recipes in this provider&#39;s
+     * pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+     * through AICR SDK upgrades.
      * 
      * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
      * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
@@ -175,7 +177,9 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
      * @return Operating system flavor of the worker nodes.
      * 
      * Supported values: &#34;ubuntu&#34;, &#34;cos&#34; (Container-Optimized OS, GKE only), &#34;ol&#34;
-     * (Oracle Linux, OKE), &#34;rhel&#34;, &#34;amazonlinux&#34;, &#34;talos&#34;.
+     * (Oracle Linux, OKE) — the values with backing recipes in this provider&#39;s
+     * pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+     * through AICR SDK upgrades.
      * 
      * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
      * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
@@ -433,7 +437,9 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
          * @param os Operating system flavor of the worker nodes.
          * 
          * Supported values: &#34;ubuntu&#34;, &#34;cos&#34; (Container-Optimized OS, GKE only), &#34;ol&#34;
-         * (Oracle Linux, OKE), &#34;rhel&#34;, &#34;amazonlinux&#34;, &#34;talos&#34;.
+         * (Oracle Linux, OKE) — the values with backing recipes in this provider&#39;s
+         * pinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive
+         * through AICR SDK upgrades.
          * 
          * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
          * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.

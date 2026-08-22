@@ -1,0 +1,4 @@
+environment:
+  - default/aws-dev-sandbox
+config:
+  aws-eks-h100-inference:validate: "true"

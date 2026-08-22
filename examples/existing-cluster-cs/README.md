@@ -19,8 +19,21 @@ pulumi config set intent training    # training | inference
 pulumi up
 ```
 
+## Validation
+
+The example ends with a `ValidationRun` that snapshots the cluster and runs
+the recipe's deployment and conformance checks in-cluster (~10 minutes,
+non-strict: the update succeeds and the verdict lands in the
+`validationStatus` / `validationChecks` outputs). It re-runs whenever the
+deployed component set changes. Requires provider/SDK >= 0.3.0.
+
 ## Clean up
 
 ```bash
 pulumi destroy
 ```
+
+> **Note:** `pulumi destroy` uninstalls the Helm releases but leaves their
+> CRDs on the cluster (Helm never removes CRDs on uninstall). A later
+> `pulumi up` onto the same cluster fails with `invalid ownership metadata`;
+> delete the leftover CRDs first. See "Known Limitations" in the main README.

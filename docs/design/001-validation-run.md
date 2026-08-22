@@ -162,7 +162,7 @@ inputs:
     os: ubuntu               # optional; same unset-is-OS-agnostic semantics
     platform: kubeflow       # optional
     nodes: 2                 # optional
-  version: <Input[string]>   # optional recipe pin. Wire from
+  recipeDataVersion: <Input[string]>  # optional recipe pin. Wire from
                              # stack.recipeVersion to validate exactly the
                              # deployed recipe, not whatever the criteria
                              # resolve to after a provider upgrade.
@@ -245,7 +245,7 @@ stack = aicr.ClusterStack("gpu", kubeconfig=cluster.kubeconfig_json, ...)
 
 validation = aicr.ValidationRun("gpu-validation",
     criteria=stack.criteria,                # single source of truth — no drift
-    version=stack.recipe_version,           # pin to the deployed recipe
+    recipe_data_version=stack.recipe_version,  # pin to the deployed recipe
     kubeconfig=cluster.kubeconfig_json,
     tolerations=[{"key": "nvidia.com/gpu", "operator": "Exists",
                   "effect": "NoSchedule"}],

@@ -9,6 +9,7 @@ import com.pulumi.core.annotations.ResourceType;
 import com.pulumi.core.internal.Codegen;
 import com.pulumi.labs.nvidiaaicr.ClusterStackArgs;
 import com.pulumi.labs.nvidiaaicr.Utilities;
+import com.pulumi.labs.nvidiaaicr.outputs.RecipeCriteria;
 import java.lang.Integer;
 import java.lang.String;
 import java.util.List;
@@ -29,6 +30,24 @@ public class ClusterStack extends com.pulumi.resources.ComponentResource {
      */
     public Output<Integer> componentCount() {
         return this.componentCount;
+    }
+    /**
+     * The canonicalized recipe criteria this stack resolved with. Wire it into a
+     * ValidationRun&#39;s `criteria` input so deployment and validation share a single
+     * source of truth.
+     * 
+     */
+    @Export(name="criteria", refs={RecipeCriteria.class}, tree="[0]")
+    private Output<RecipeCriteria> criteria;
+
+    /**
+     * @return The canonicalized recipe criteria this stack resolved with. Wire it into a
+     * ValidationRun&#39;s `criteria` input so deployment and validation share a single
+     * source of truth.
+     * 
+     */
+    public Output<RecipeCriteria> criteria() {
+        return this.criteria;
     }
     /**
      * Names of all components deployed as part of this stack, in topological order.

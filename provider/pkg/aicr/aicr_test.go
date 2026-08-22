@@ -209,7 +209,7 @@ func TestApplyOverrides(t *testing.T) {
 				Name: "gpu-operator", Chart: "gpu-operator", Version: "v1.0.0",
 				Namespace: "gpu-operator",
 				Values: map[string]interface{}{
-					"driver": map[string]interface{}{"enabled": true, "version": "550"},
+					"driver":  map[string]interface{}{"enabled": true, "version": "550"},
 					"toolkit": map[string]interface{}{"enabled": true},
 				},
 			},
@@ -222,7 +222,7 @@ func TestApplyOverrides(t *testing.T) {
 			Version:   &newVersion,
 			Namespace: &newNamespace,
 			Values: map[string]interface{}{
-				"driver": map[string]interface{}{"version": "570"},
+				"driver":  map[string]interface{}{"version": "570"},
 				"toolkit": nil,
 			},
 		},

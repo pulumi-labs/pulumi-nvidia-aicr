@@ -21,8 +21,23 @@ pulumi config set intent training    # training | inference
 pulumi up
 ```
 
+## Validation
+
+Uncomment the `aicr-validation` block (and its outputs) in `Pulumi.yaml` to
+run a `ValidationRun` that snapshots the cluster and runs the recipe's
+deployment and conformance checks in-cluster (~10 minutes, non-strict: the
+update succeeds and the verdict lands in the `validationStatus` /
+`validationChecks` outputs, needs provider >= 0.3.0). It validates the same
+criteria the stack resolved from `pulumi config`, uses the same ambient
+kubeconfig, and re-runs whenever the deployed component set changes.
+
 ## Clean up
 
 ```bash
 pulumi destroy
 ```
+
+> **Note:** `pulumi destroy` uninstalls the Helm releases but leaves their
+> CRDs on the cluster (Helm never removes CRDs on uninstall). A later
+> `pulumi up` onto the same cluster fails with `invalid ownership metadata`;
+> delete the leftover CRDs first. See "Known Limitations" in the main README.

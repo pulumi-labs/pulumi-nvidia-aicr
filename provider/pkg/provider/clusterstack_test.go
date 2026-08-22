@@ -618,3 +618,58 @@ func TestNewClusterStackRejectsUnsupportedCriteria(t *testing.T) {
 	assert.Contains(t, err.Error(), "accelerator")
 	assert.Contains(t, err.Error(), "not supported")
 }
+
+func TestNewClusterStackEchoesCanonicalizedCriteria(t *testing.T) {
+	// The criteria output must carry the canonicalized values actually used
+	// for resolution — so wiring it into a ValidationRun re-resolves the
+	// identical recipe — with unset optionals omitted and nodes echoed.
+	mon := &recordingMonitor{}
+	nodes := 4
+	var got RecipeCriteria
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		stack, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: " H100 ",
+			Service:     " EKS ",
+			Intent:      "training",
+			OS:          pulumi.StringRef("ubuntu"),
+			Nodes:       &nodes,
+		})
+		if err != nil {
+			return err
+		}
+		got = stack.Criteria
+		return nil
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	assert.Equal(t, "h100", got.Accelerator)
+	assert.Equal(t, "eks", got.Service)
+	assert.Equal(t, "training", got.Intent)
+	require.NotNil(t, got.OS)
+	assert.Equal(t, "ubuntu", *got.OS)
+	assert.Nil(t, got.Platform, "unset platform must be omitted")
+	require.NotNil(t, got.Nodes)
+	assert.Equal(t, 4, *got.Nodes)
+}
+
+func TestNewClusterStackCriteriaOmitsUnsetOptionals(t *testing.T) {
+	mon := &recordingMonitor{}
+	var got RecipeCriteria
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		stack, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator: "h100",
+			Service:     "kind",
+			Intent:      "inference",
+		})
+		if err != nil {
+			return err
+		}
+		got = stack.Criteria
+		return nil
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	assert.Nil(t, got.OS)
+	assert.Nil(t, got.Platform)
+	assert.Nil(t, got.Nodes)
+}

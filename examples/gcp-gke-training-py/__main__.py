@@ -8,6 +8,13 @@ This example creates a complete GPU training environment:
 COST WARNING: a3-highgpu-8g instances cost approximately $30/hr each
 (8x NVIDIA H100 80GB per node). This example provisions 2 nodes (~$60/hr).
 Remember to run `pulumi destroy` when finished to avoid unexpected charges.
+
+Budget variant -- a single Spot H100 (needs only 1 GPU of quota,
+PREEMPTIBLE_NVIDIA_H100_GPUS + GPUS_ALL_REGIONS):
+    pulumi config set machineType a3-highgpu-1g
+    pulumi config set gpuCount 1
+    pulumi config set nodeCount 1
+    pulumi config set spot true
 """
 
 import pulumi
@@ -17,6 +24,9 @@ import pulumi_labs_nvidia_aicr as aicr
 config = pulumi.Config()
 cluster_name = config.get("clusterName") or "aicr-training"
 node_count = config.get_int("nodeCount") or 2
+machine_type = config.get("machineType") or "a3-highgpu-8g"
+gpu_count = config.get_int("gpuCount") or 8
+spot = config.get_bool("spot") or False
 
 # Create the GKE cluster (we remove the default node pool and manage our own)
 cluster = gcp.container.Cluster(cluster_name,
@@ -29,15 +39,16 @@ cluster = gcp.container.Cluster(cluster_name,
     },
 )
 
-# Create a GPU node pool with A3 High-GPU machines (8x H100 80GB each)
+# Create a GPU node pool with A3 High-GPU machines (H100 80GB)
 gpu_node_pool = gcp.container.NodePool("gpu-pool",
     cluster=cluster.name,
     node_count=node_count,
     node_config=gcp.container.NodePoolNodeConfigArgs(
-        machine_type="a3-highgpu-8g",  # 8x NVIDIA H100 80GB per node
+        machine_type=machine_type,
+        spot=spot,  # Spot capacity is often the only way to get scarce H100s
         guest_accelerators=[gcp.container.NodePoolNodeConfigGuestAcceleratorArgs(
             type="nvidia-h100-80gb",
-            count=8,
+            count=gpu_count,
         )],
         oauth_scopes=[
             "https://www.googleapis.com/auth/cloud-platform",
@@ -104,8 +115,28 @@ gpu_stack = aicr.ClusterStack("nvidia-aicr",
     opts=pulumi.ResourceOptions(depends_on=[gpu_node_pool]),
 )
 
+# Validate the deployed stack empirically: a snapshot agent captures cluster
+# state, then the recipe's deployment and conformance checks run as Jobs in
+# the cluster (~10 minutes; GKE's automatic nvidia.com/gpu taint needs no
+# configuration -- validation pods tolerate all taints by default). With the
+# default strict=False the update always succeeds and the verdict is data;
+# set strict=True to gate downstream resources on a passing run instead.
+#
+# On the single-GPU Spot variant this is the cheapest real H100 validation
+# run: one node, one GPU, deployment + conformance phases only (the
+# performance phase is a separate opt-in and wants recipe-matched multi-GPU
+# hardware).
+validation = aicr.ValidationRun("nvidia-aicr-validation",
+    criteria=gpu_stack.criteria,           # same recipe as the stack -- no drift
+    recipe_data_version=gpu_stack.recipe_version,      # assert same recipe data as deployed
+    kubeconfig=kubeconfig,
+    triggers=[gpu_stack.deployed_components],  # re-validate when the stack changes
+)
+
 # Exports
 pulumi.export("kubeconfig", pulumi.Output.secret(kubeconfig))
 pulumi.export("recipe_name", gpu_stack.recipe_name)
 pulumi.export("deployed_components", gpu_stack.deployed_components)
 pulumi.export("component_count", gpu_stack.component_count)
+pulumi.export("validation_status", validation.status)
+pulumi.export("validation_checks", validation.phase_results)

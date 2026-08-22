@@ -4,12 +4,16 @@ go 1.26.5
 
 require (
 	github.com/NVIDIA/aicr v0.18.0
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/pulumi/pulumi-go-provider v1.3.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.32.0
 	github.com/pulumi/pulumi/sdk/v3 v3.245.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.21.3
+	k8s.io/api v0.36.3
+	k8s.io/apimachinery v0.36.3
+	k8s.io/client-go v0.36.3
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -59,7 +63,6 @@ require (
 	github.com/aws/smithy-go v1.27.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -127,6 +130,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/certificate-transparency-go v1.3.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-containerregistry v0.21.7 // indirect
@@ -280,10 +284,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.36.3 // indirect
 	k8s.io/apiextensions-apiserver v0.36.3 // indirect
-	k8s.io/apimachinery v0.36.3 // indirect
-	k8s.io/client-go v0.36.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	k8s.io/kubernetes v1.36.3 // indirect

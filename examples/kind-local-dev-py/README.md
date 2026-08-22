@@ -27,8 +27,18 @@ workloads.
 pip install -r requirements.txt
 # Optional:
 # pulumi config set intent training   # default: inference
+# pulumi config set validate true     # run empirical validation (see below)
 pulumi up
 ```
+
+## Validation
+
+With `validate: true` a `ValidationRun` snapshots the cluster and runs the
+recipe's deployment and conformance checks in-cluster (~10 minutes, needs
+provider/SDK >= 0.3.0). On a GPU-less kind cluster expect an honest result:
+readiness passes, GPU deployment checks fail or skip, GPU conformance checks
+skip. Useful for exercising the validation pipeline itself — a real verdict
+needs real hardware (see the EKS/GKE examples).
 
 ## Clean up
 
@@ -36,3 +46,8 @@ pulumi up
 pulumi destroy
 kind delete cluster --name aicr-dev
 ```
+
+> **Note:** if you keep the cluster (skipping `kind delete cluster`) after a
+> `pulumi destroy`, a later `pulumi up` fails on leftover CRDs
+> (`invalid ownership metadata`) -- Helm never removes CRDs on uninstall.
+> Recreate the kind cluster instead; see "Known Limitations" in the main README.

@@ -324,6 +324,26 @@ The `kind` service overlay targets local development with [kind](https://kind.si
 clusters -- useful for exercising the deployment pipeline without provisioning
 real GPU hardware.
 
+## Known Limitations
+
+**Redeploying to a cluster that previously hosted a ClusterStack fails on
+leftover CRDs.** `pulumi destroy` uninstalls the Helm releases but leaves
+their CRDs on the cluster (standard Helm semantics -- CRDs are never removed
+on uninstall, to protect the custom resources built on them). Because Helm
+release names currently carry a per-deployment random suffix, a later
+`pulumi up` against the same cluster cannot adopt those CRDs and fails with:
+
+```
+... exists and cannot be imported into the current release: invalid ownership
+metadata; annotation validation error: key "meta.helm.sh/release-name" must
+equal "<new release>": current value is "<old release>"
+```
+
+Workarounds: recreate the cluster (kind), or delete the leftover CRDs before
+re-deploying (`kubectl get crds | grep -e cert-manager -e nvidia` and
+`kubectl delete crd ...`). The proper fix -- deterministic Helm release names --
+is tracked in [#18](https://github.com/pulumi-labs/pulumi-nvidia-aicr/issues/18).
+
 ## Development
 
 ```bash

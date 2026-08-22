@@ -7,6 +7,6 @@
     "dependencies": {
         "@pulumi/pulumi": "^3.142.0",
         "@pulumi/azure-native": "^2.0.0",
-        "@pulumi-labs/nvidia-aicr": "^0.1.0"
+        "@pulumi-labs/nvidia-aicr": "^0.3.0"
     }
 }

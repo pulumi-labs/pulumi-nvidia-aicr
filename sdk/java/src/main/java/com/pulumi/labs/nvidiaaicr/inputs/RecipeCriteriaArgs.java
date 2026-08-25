@@ -27,14 +27,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     public static final RecipeCriteriaArgs Empty = new RecipeCriteriaArgs();
 
     /**
-     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
      * 
      */
     @Import(name="accelerator", required=true)
     private Output<String> accelerator;
 
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
      * 
      */
     public Output<String> accelerator() {
@@ -106,14 +106,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     }
 
     /**
-     * Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+     * Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
      * 
      */
     @Import(name="service", required=true)
     private Output<String> service;
 
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
      * 
      */
     public Output<String> service() {
@@ -182,7 +182,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
          * 
          * @return builder
          * 
@@ -193,7 +193,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
          * 
          * @return builder
          * 
@@ -291,7 +291,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
          * 
          * @return builder
          * 
@@ -302,7 +302,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
          * 
          * @return builder
          * 

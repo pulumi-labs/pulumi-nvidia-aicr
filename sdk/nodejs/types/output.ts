@@ -36,7 +36,7 @@ export interface CheckResult {
  */
 export interface RecipeCriteria {
     /**
-     * GPU accelerator type. Supported values: "h100", "gb200", "b200".
+     * GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
      */
     accelerator: string;
     /**
@@ -58,7 +58,7 @@ export interface RecipeCriteria {
      */
     platform?: string;
     /**
-     * Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+     * Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
      */
     service: string;
     /**

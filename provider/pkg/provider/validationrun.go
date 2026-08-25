@@ -105,8 +105,8 @@ intent / os / platform / nodes inputs, plus the skipComponents the stack
 deployed without. Wire a ClusterStack's `+"`criteria`"+` output here so deployment
 and validation resolve the identical recipe and agree on which of its
 components are in scope.`)
-	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200".`)
-	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".`)
+	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".`)
+	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".`)
 	an.Describe(&c.Intent, `Workload intent. Supported values: "training", "inference".`)
 	an.Describe(&c.OS, `Operating system flavor of the worker nodes. Leave unset for OS-agnostic
 resolution. Supported values: "ubuntu", "cos", "ol".`)
@@ -524,7 +524,9 @@ func warnFailedChecks(ctx context.Context, report *aicr.ValidationReport) {
 		}
 		msg := strings.TrimSpace(c.Message)
 		if len(msg) > maxWarnMessageLen {
-			msg = msg[:maxWarnMessageLen] + "…"
+			// Byte slicing can cut a multi-byte rune in half (SDK messages
+			// carry "≥" and "—"); drop any trailing partial rune.
+			msg = strings.ToValidUTF8(msg[:maxWarnMessageLen], "") + "…"
 		}
 		if msg == "" {
 			lines = append(lines, fmt.Sprintf("%s (%s)", c.Name, c.Phase))

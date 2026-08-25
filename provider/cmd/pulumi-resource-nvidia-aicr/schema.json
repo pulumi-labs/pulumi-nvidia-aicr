@@ -115,7 +115,7 @@
       "properties": {
         "accelerator": {
           "type": "string",
-          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\"."
+          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\"."
         },
         "intent": {
           "type": "string",
@@ -135,7 +135,7 @@
         },
         "service": {
           "type": "string",
-          "description": "Kubernetes service. Supported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\"."
+          "description": "Kubernetes service. Supported values: \"aks\", \"bcm\", \"eks\", \"gke\", \"kind\", \"lke\", \"oke\"."
         },
         "skipComponents": {
           "type": "array",

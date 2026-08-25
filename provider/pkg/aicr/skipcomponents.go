@@ -270,11 +270,16 @@ func phaseSlot(cfg *recipe.ValidationConfig, phase string) **recipe.ValidationPh
 	return nil
 }
 
-// skipSet builds a lookup set from skipComponents, dropping blank entries.
+// skipSet builds a lookup set from skipComponents, dropping empty entries.
+// Names are matched VERBATIM — no trimming — because the deployment side
+// (ApplyOverrides) matches verbatim too: trimming here would let a name
+// with stray whitespace deploy the component while reporting its checks
+// skipped, masking real failures. Validation's skip set must never exceed
+// deployment's.
 func skipSet(skipComponents []string) map[string]bool {
 	set := make(map[string]bool, len(skipComponents))
 	for _, name := range skipComponents {
-		if name = strings.TrimSpace(name); name != "" {
+		if name != "" {
 			set[name] = true
 		}
 	}

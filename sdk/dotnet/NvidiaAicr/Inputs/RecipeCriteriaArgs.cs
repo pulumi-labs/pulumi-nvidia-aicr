@@ -21,7 +21,7 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
     public sealed class RecipeCriteriaArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
-        /// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        /// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         /// </summary>
         [Input("accelerator", required: true)]
         public Input<string> Accelerator { get; set; } = null!;
@@ -53,7 +53,7 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
         public Input<string>? Platform { get; set; }
 
         /// <summary>
-        /// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        /// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         /// </summary>
         [Input("service", required: true)]
         public Input<string> Service { get; set; } = null!;

@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
@@ -889,5 +890,20 @@ func TestWarnFailedChecksOnlyOnFailed(t *testing.T) {
 		long := failedReport()
 		long.Checks[1].Message = strings.Repeat("x", 2*maxWarnMessageLen)
 		warnFailedChecks(context.Background(), long)
+		multibyte := failedReport()
+		// "≥" is 3 bytes; place one so the byte cut lands mid-rune.
+		multibyte.Checks[1].Message = strings.Repeat("x", maxWarnMessageLen-1) + strings.Repeat("≥", maxWarnMessageLen)
+		warnFailedChecks(context.Background(), multibyte)
 	})
+}
+
+// TestWarnTruncationIsValidUTF8: the truncated per-check message must never
+// contain a partial rune (SDK messages carry "≥" and "—").
+func TestWarnTruncationIsValidUTF8(t *testing.T) {
+	msg := strings.Repeat("x", maxWarnMessageLen-1) + strings.Repeat("≥", 4)
+	require.Greater(t, len(msg), maxWarnMessageLen)
+	truncated := strings.ToValidUTF8(msg[:maxWarnMessageLen], "") + "…"
+	assert.True(t, utf8.ValidString(truncated))
+	assert.True(t, strings.HasSuffix(truncated, "…"))
+	assert.NotContains(t, truncated, "\uFFFD")
 }

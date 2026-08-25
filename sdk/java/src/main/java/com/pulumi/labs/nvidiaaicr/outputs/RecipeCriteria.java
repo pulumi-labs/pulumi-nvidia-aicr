@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 @CustomType
 public final class RecipeCriteria {
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
      * 
      */
     private String accelerator;
@@ -42,7 +42,7 @@ public final class RecipeCriteria {
      */
     private @Nullable String platform;
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
      * 
      */
     private String service;
@@ -62,7 +62,7 @@ public final class RecipeCriteria {
 
     private RecipeCriteria() {}
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
      * 
      */
     public String accelerator() {
@@ -99,7 +99,7 @@ public final class RecipeCriteria {
         return Optional.ofNullable(this.platform);
     }
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
      * 
      */
     public String service() {

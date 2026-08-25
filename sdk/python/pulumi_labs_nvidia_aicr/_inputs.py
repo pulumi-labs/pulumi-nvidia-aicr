@@ -139,7 +139,7 @@ class RecipeCriteriaArgsDict(TypedDict):
     """
     accelerator: pulumi.Input[_builtins.str]
     """
-    GPU accelerator type. Supported values: "h100", "gb200", "b200".
+    GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
     """
     intent: pulumi.Input[_builtins.str]
     """
@@ -147,7 +147,7 @@ class RecipeCriteriaArgsDict(TypedDict):
     """
     service: pulumi.Input[_builtins.str]
     """
-    Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+    Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
     """
     nodes: NotRequired[Optional[pulumi.Input[_builtins.int]]]
     """
@@ -193,9 +193,9 @@ class RecipeCriteriaArgs:
         and validation resolve the identical recipe and agree on which of its
         components are in scope.
 
-        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         :param pulumi.Input[_builtins.str] intent: Workload intent. Supported values: "training", "inference".
-        :param pulumi.Input[_builtins.str] service: Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        :param pulumi.Input[_builtins.str] service: Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         :param pulumi.Input[_builtins.int] nodes: Worker-node count hint used to size the recipe.
         :param pulumi.Input[_builtins.str] os: Operating system flavor of the worker nodes. Leave unset for OS-agnostic
                resolution. Supported values: "ubuntu", "cos", "ol".
@@ -227,7 +227,7 @@ class RecipeCriteriaArgs:
     @pulumi.getter
     def accelerator(self) -> pulumi.Input[_builtins.str]:
         """
-        GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         """
         return pulumi.get(self, "accelerator")
 
@@ -251,7 +251,7 @@ class RecipeCriteriaArgs:
     @pulumi.getter
     def service(self) -> pulumi.Input[_builtins.str]:
         """
-        Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         """
         return pulumi.get(self, "service")
 

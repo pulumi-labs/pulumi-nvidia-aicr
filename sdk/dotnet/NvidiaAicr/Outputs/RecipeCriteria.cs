@@ -22,7 +22,7 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
     public sealed class RecipeCriteria
     {
         /// <summary>
-        /// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        /// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
         /// </summary>
         public readonly string Accelerator;
         /// <summary>
@@ -44,7 +44,7 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
         /// </summary>
         public readonly string? Platform;
         /// <summary>
-        /// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        /// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         /// </summary>
         public readonly string Service;
         /// <summary>

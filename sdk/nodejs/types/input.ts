@@ -43,7 +43,7 @@ export interface ComponentOverrideArgs {
  */
 export interface RecipeCriteriaArgs {
     /**
-     * GPU accelerator type. Supported values: "h100", "gb200", "b200".
+     * GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
      */
     accelerator: pulumi.Input<string>;
     /**
@@ -65,7 +65,7 @@ export interface RecipeCriteriaArgs {
      */
     platform?: pulumi.Input<string | undefined>;
     /**
-     * Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+     * Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
      */
     service: pulumi.Input<string>;
     /**

@@ -104,7 +104,7 @@ func TestApplySkipComponents(t *testing.T) {
 		origValidation := r.Validation
 		origDeployChecks := r.Validation.Deployment.Checks
 
-		pre := applySkipComponents(r, []string{"gpu-operator", " kube-prometheus-stack "}, []string{"deployment", "conformance"})
+		pre := applySkipComponents(r, []string{"gpu-operator", "kube-prometheus-stack"}, []string{"deployment", "conformance"})
 
 		// Refs: a skipped advertiser stays enabled (policy resolution) but is
 		// blanked; any other skipped component is disabled; the rest untouched.
@@ -116,7 +116,7 @@ func TestApplySkipComponents(t *testing.T) {
 		assert.Empty(t, gpuOp.HealthCheckAsserts)
 		assert.True(t, gpuOp.HealthCheckSkip)
 		assert.Equal(t, map[string]interface{}{"enabled": true}, gpuOp.Overrides["driver"], "advertiser overrides untouched")
-		assert.False(t, r.ComponentRefs[1].IsEnabled(), "kube-prometheus-stack must be disabled (name trimmed)")
+		assert.False(t, r.ComponentRefs[1].IsEnabled(), "kube-prometheus-stack must be disabled")
 		assert.Equal(t, map[string]interface{}{"enabled": true}, r.ComponentRefs[1].Overrides["grafana"], "existing overrides must survive")
 		assert.True(t, r.ComponentRefs[2].IsEnabled(), "kai-scheduler must stay enabled")
 		assert.Equal(t, "kai-scheduler", r.ComponentRefs[2].Namespace)
@@ -160,8 +160,20 @@ func TestApplySkipComponents(t *testing.T) {
 		r := newResult()
 		before := r.ComponentRefs
 		assert.Nil(t, applySkipComponents(r, nil, []string{"deployment"}))
-		assert.Nil(t, applySkipComponents(r, []string{"", "  "}, []string{"deployment"}))
+		assert.Nil(t, applySkipComponents(r, []string{""}, []string{"deployment"}))
 		assert.Equal(t, before, r.ComponentRefs)
+		assert.Len(t, r.Validation.Deployment.Checks, 4)
+	})
+
+	t.Run("names match verbatim, mirroring ApplyOverrides", func(t *testing.T) {
+		// " gpu-operator" (stray space) deploys gpu-operator — ApplyOverrides
+		// matches verbatim — so validation must NOT treat it as skipped:
+		// trimming here would report a deployed component's checks skipped,
+		// masking real failures.
+		r := newResult()
+		pre := applySkipComponents(r, []string{" gpu-operator"}, []string{"deployment", "conformance"})
+		assert.Nil(t, pre)
+		assert.Equal(t, "gpu-operator", r.ComponentRefs[0].Namespace, "gpu-operator must be untouched")
 		assert.Len(t, r.Validation.Deployment.Checks, 4)
 	})
 

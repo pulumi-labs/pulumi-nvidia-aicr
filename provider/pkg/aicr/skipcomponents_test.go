@@ -165,14 +165,20 @@ func TestApplySkipComponents(t *testing.T) {
 		assert.Len(t, r.Validation.Deployment.Checks, 4)
 	})
 
-	t.Run("dra driver is an advertiser and pre-skips dra-support", func(t *testing.T) {
+	t.Run("dra driver is disabled, not blanked, and pre-skips dra-support", func(t *testing.T) {
+		// Unlike the operator advertisers, a skipped DRA driver must be
+		// DISABLED: the policy resolver natively maps a disabled DRA ref to
+		// the device-plugin path, and blanking would not be inert —
+		// expected-resources probes the DRA ref's namespace, and an empty
+		// namespace lists DaemonSets across ALL namespaces (review finding
+		// on #23).
 		r := newResult()
 		r.ComponentRefs = append(r.ComponentRefs, recipe.ComponentRef{Name: "nvidia-dra-driver-gpu", Namespace: "nvidia-dra-driver"})
 		r.Validation.Conformance.Checks = append(r.Validation.Conformance.Checks, "dra-support")
 		pre := applySkipComponents(r, []string{"nvidia-dra-driver-gpu"}, []string{"conformance"})
 		dra := r.ComponentRefs[3]
-		assert.True(t, dra.IsEnabled())
-		assert.Empty(t, dra.Namespace)
+		assert.False(t, dra.IsEnabled(), "skipped DRA driver must be disabled so component-aware checks drop it")
+		assert.Equal(t, "nvidia-dra-driver", dra.Namespace, "namespace must be left intact, never blanked to empty")
 		require.Len(t, pre, 1)
 		assert.Equal(t, "dra-support", pre[0].Name)
 		assert.Contains(t, pre[0].Reason, "nvidia-dra-driver-gpu")

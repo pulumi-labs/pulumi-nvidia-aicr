@@ -28,14 +28,15 @@
 //     Component-aware validators honor ComponentRef.IsEnabled: platform-health
 //     and expected-resources ignore disabled components, dra-support skips
 //     itself, dependencyAffinity resolution treats them as absent.
-//     Exception: the whole-GPU advertiser components (gpu-operator,
-//     gpu-operator-ocp, nvidia-dra-driver-gpu) cannot be disabled — the SDK
-//     resolves its GPU allocation policy from an ENABLED advertiser and fails
-//     closed without one ("externally managed advertisers are a #1327
-//     non-goal"). A skipped advertiser is the externally-managed case by
-//     definition, so it stays enabled for policy resolution but is made
-//     invisible to the composite checks (no namespace, expected resources,
-//     or health asserts to probe).
+//     Exception: the device-plugin advertiser components (gpu-operator,
+//     gpu-operator-ocp) cannot be disabled — the SDK resolves its GPU
+//     allocation policy from an ENABLED advertiser and fails closed without
+//     one ("externally managed advertisers are a #1327 non-goal"). A skipped
+//     advertiser is the externally-managed case by definition, so it stays
+//     enabled for policy resolution but is made invisible to the composite
+//     checks (no namespace, expected resources, or health asserts to probe —
+//     inert because no validator name-probes these refs; see
+//     externallyProvided for why the DRA driver is NOT treated this way).
 //  2. Checks that hard-code a skipped component (see checkRequires) are
 //     removed from the phase plan and reported as skipped with a reason,
 //     instead of running and failing. They flow into the report and the
@@ -104,24 +105,42 @@ var checkRequires = map[string][]string{
 	// gang_scheduling_check.go asserts the kai-scheduler Deployments and
 	// schedules pods with schedulerName kai-scheduler.
 	"gang-scheduling": {"kai-scheduler"},
-	// dra_support_check.go self-skips when nvidia-dra-driver-gpu is disabled,
-	// but a skipped DRA driver stays enabled (advertiser, see
-	// externallyProvided), so it is pre-skipped here instead.
+	// dra_support_check.go would self-skip once nvidia-dra-driver-gpu is
+	// disabled; pre-skipping here short-circuits before its validator Job is
+	// even deployed and keeps the reason message uniform.
 	"dra-support": {"nvidia-dra-driver-gpu"},
 }
 
 // externallyProvided lists the components the SDK's GPU allocation policy
-// resolver (pkg/validator/v1/allocation_policy.go) reads its whole-GPU
+// resolver (pkg/validator/v1/allocation_policy.go) reads its device-plugin
 // advertiser from. It requires an ENABLED advertiser and fails closed with
 // "no whole-GPU advertiser" otherwise, so these cannot be disabled when
 // skipped. They stay enabled — which also keeps the policy the recipe
-// intends (device plugin or DRA), correct when the same stack is run by the
-// platform — and are blanked so platform-health / expected-resources have
-// nothing of theirs to probe.
+// intends, correct when the same stack is run by the platform — and are
+// blanked so the composite checks have nothing of theirs to probe. Blanking
+// is inert for exactly these components: no validator name-probes their
+// ComponentRef (platform-health and expected-resources skip a ref with no
+// namespace, expected resources, or health asserts).
+//
+// nvidia-dra-driver-gpu is deliberately NOT here, although the resolver
+// reads it too. A skipped DRA driver is disabled like any other component:
+// the resolver natively maps a disabled DRA ref to the device-plugin path
+// (needing only an enabled operator ref, which the blanking above
+// preserves), and blanking would NOT be inert — expected-resources
+// name-probes the DRA ref (verifyDRAKubeletPluginReady with ref.Namespace),
+// and client-go treats an empty namespace as ALL namespaces: ≥2 matching
+// DaemonSets cluster-wide error as ambiguous, zero fail after the full GPU
+// readiness poll, and exactly one silently validates the externally managed
+// replacement — contradicting the skipped-means-out-of-scope contract.
+// Residual edge, accepted: a recipe that pins the DRA driver as the
+// advertiser (resources.gpus.enabled=true, operator devicePlugin.enabled
+// pinned false) with ONLY the DRA driver skipped now fails closed in the
+// resolver with its explicit no-advertiser message instead of validating.
+// No embedded recipe configures that today, and fail-closed beats silently
+// mis-validating.
 var externallyProvided = map[string]bool{
-	"gpu-operator":          true,
-	"gpu-operator-ocp":      true,
-	"nvidia-dra-driver-gpu": true,
+	"gpu-operator":     true,
+	"gpu-operator-ocp": true,
 }
 
 // preSkippedCheck is a declared check removed from the run because a

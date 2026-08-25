@@ -122,7 +122,7 @@ in the recipe's dependency order.
 | `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"oke"`, `"kind"`, plus the cloud-neutral leaves `"bcm"` and `"lke"` (no hyperscaler CSI/EFA components; they double as stand-ins for providers without an AICR criteria value yet — e.g. CoreWeave CKS deploys the `lke` leaf) |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
 | `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke) — the values backed by recipes in the pinned AICR data; more arrive via SDK upgrades. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |
-| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, EKS+H100 only). Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes an inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
+| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, eks with h100 or rtx-pro-6000 only). `kubeflow`/`dynamo` have no recipes on `lke`/`bcm`. Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes an inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
 | `nodes` | `int` | No | Worker-node count hint used to size the recipe (nodes, not GPUs) |
 | `kubeconfig` | `Input<string>` | No | Kubeconfig contents (accepts outputs from cluster resources) |
 | `kubeconfigPath` | `string` | No | Path to kubeconfig file |
@@ -681,6 +681,17 @@ migration note: the first `pulumi up` after upgrading to v0.3.0 replaces
 every Helm release (physical names change) — use a maintenance window on
 live clusters. Background in
 [#18](https://github.com/pulumi-labs/pulumi-nvidia-aicr/issues/18).
+
+**In-place provider upgrade of a pre-v0.3.0 stack is not supported — destroy
+and recreate instead.** The replace-every-release described above can strand
+a live stack mid-replace: the old randomly-named release is uninstalled
+first, but Helm-kept resources (CRDs, kai Queues) still annotated
+`meta.helm.sh/release-name=<old-random-name>` make the fresh fixed-name
+install fail with `invalid ownership metadata` — after the old release is
+already gone. Run `pulumi destroy` on the old provider version, clean any
+leftovers as described above, then `pulumi up` on the new version. An
+adoption path for in-place upgrades is tracked separately; with no
+production deployments yet, destroy-and-recreate is the supported migration.
 
 **ValidationRun validates recipe-deployed components only.** Components listed in
 `skipComponents` are out of scope for validation, not verified: a platform-managed GPU stack

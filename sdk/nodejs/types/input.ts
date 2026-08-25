@@ -61,7 +61,8 @@ export interface RecipeCriteriaArgs {
     os?: pulumi.Input<string | undefined>;
     /**
      * ML platform/framework. Supported values: "kubeflow" (training),
-     * "dynamo" (inference), "nim" (inference, EKS+H100 only).
+     * "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+     * kubeflow and dynamo have no recipes on lke/bcm.
      */
     platform?: pulumi.Input<string | undefined>;
     /**

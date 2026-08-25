@@ -93,7 +93,9 @@ type ClusterStackArgs struct {
 	OS *string `pulumi:"os,optional"`
 
 	// The ML platform/framework. Optional.
-	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference).
+	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+	// (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo
+	// have no recipes on lke/bcm.
 	Platform *string `pulumi:"platform,optional"`
 
 	// The worker-node count hint used to size the recipe. Optional.
@@ -181,7 +183,9 @@ Set it when the cluster's OS is known. Some combinations require an OS
 with a message listing the valid values; kind recipes require it unset.`)
 	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
 
-Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+(inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+recipes on lke/bcm in the pinned AICR data.
 
 Leave unset for the base recipe without a platform-specific runtime. Note
 that intent="inference" always includes an inference gateway (part of the
@@ -676,14 +680,21 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 		if intent != "training" {
 			return fmt.Errorf("platform %q is training-only; got intent %q", platform, intent)
 		}
+		if err := validatePlatformService(platform, service); err != nil {
+			return err
+		}
 	case "dynamo":
 		if intent != "inference" {
 			return fmt.Errorf("platform %q is inference-only; got intent %q", platform, intent)
 		}
+		if err := validatePlatformService(platform, service); err != nil {
+			return err
+		}
 	case "nim":
-		if intent != "inference" || service != "eks" || accelerator != "h100" {
+		if intent != "inference" || service != "eks" ||
+			(accelerator != "h100" && accelerator != "rtx-pro-6000") {
 			return fmt.Errorf(
-				"platform %q is supported only on eks+h100+inference; got service=%q accelerator=%q intent=%q",
+				"platform %q is supported only on eks with h100 or rtx-pro-6000 and intent \"inference\"; got service=%q accelerator=%q intent=%q",
 				platform, service, accelerator, intent)
 		}
 	}
@@ -702,6 +713,22 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 	}
 	if osName == "cos" && service != "gke" {
 		return fmt.Errorf("os %q is only supported on gke; got service %q", osName, service)
+	}
+	return nil
+}
+
+// validatePlatformService rejects service values with no kubeflow/dynamo
+// recipes in the pinned SDK data — lke and bcm ship none, so without this
+// pre-flight the resolver fails mid-construct with a raw "no recipe provides
+// platform ..." error, the cryptic failure validateCompatibility exists to
+// prevent. Finer accelerator/OS combinations within the admitted services
+// are left to the resolver, whose errors there name the missing dimension.
+// Pinned against SDK bumps by TestPlatformMatrixMatchesSDKData.
+func validatePlatformService(platform, service string) error {
+	if service == "lke" || service == "bcm" {
+		return fmt.Errorf(
+			"platform %q has no recipes on service %q in the pinned AICR data (supported services: aks, eks, gke, kind, oke)",
+			platform, service)
 	}
 	return nil
 }

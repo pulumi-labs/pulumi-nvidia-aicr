@@ -47,7 +47,8 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
 
         /// <summary>
         /// ML platform/framework. Supported values: "kubeflow" (training),
-        /// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        /// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+        /// kubeflow and dynamo have no recipes on lke/bcm.
         /// </summary>
         [Input("platform")]
         public Input<string>? Platform { get; set; }

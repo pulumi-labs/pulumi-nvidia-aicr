@@ -131,7 +131,7 @@
         },
         "platform": {
           "type": "string",
-          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, EKS+H100 only)."
+          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, eks with h100 or rtx-pro-6000 only).\nkubeflow and dynamo have no recipes on lke/bcm."
         },
         "service": {
           "type": "string",
@@ -260,7 +260,7 @@
         "platform": {
           "type": "string",
           "plain": true,
-          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
+          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\"\n(inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no\nrecipes on lke/bcm in the pinned AICR data.\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
         },
         "service": {
           "type": "string",

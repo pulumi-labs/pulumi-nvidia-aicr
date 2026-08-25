@@ -161,7 +161,8 @@ class RecipeCriteriaArgsDict(TypedDict):
     platform: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     ML platform/framework. Supported values: "kubeflow" (training),
-    "dynamo" (inference), "nim" (inference, EKS+H100 only).
+    "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+    kubeflow and dynamo have no recipes on lke/bcm.
     """
     skip_components: NotRequired[Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]]
     """
@@ -200,7 +201,8 @@ class RecipeCriteriaArgs:
         :param pulumi.Input[_builtins.str] os: Operating system flavor of the worker nodes. Leave unset for OS-agnostic
                resolution. Supported values: "ubuntu", "cos", "ol".
         :param pulumi.Input[_builtins.str] platform: ML platform/framework. Supported values: "kubeflow" (training),
-               "dynamo" (inference), "nim" (inference, EKS+H100 only).
+               "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+               kubeflow and dynamo have no recipes on lke/bcm.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] skip_components: Recipe components the stack intentionally did not deploy (ClusterStack's
                `skipComponents`). ValidationRun treats them as out of scope rather than
                missing: checks that presuppose one of them (e.g. the gpu-operator health,
@@ -289,7 +291,8 @@ class RecipeCriteriaArgs:
     def platform(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         ML platform/framework. Supported values: "kubeflow" (training),
-        "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+        kubeflow and dynamo have no recipes on lke/bcm.
         """
         return pulumi.get(self, "platform")
 

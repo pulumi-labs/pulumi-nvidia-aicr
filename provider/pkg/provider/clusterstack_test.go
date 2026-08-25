@@ -160,9 +160,24 @@ func TestValidateArgsRejectsIncompatibleCombinations(t *testing.T) {
 			want: `platform "dynamo" is inference-only`,
 		},
 		{
-			name: "nim outside eks+h100+inference",
+			name: "nim outside eks",
 			args: ClusterStackArgs{Accelerator: "h100", Service: "gke", Intent: "inference", Platform: str("nim")},
-			want: `platform "nim" is supported only on eks+h100+inference`,
+			want: `platform "nim" is supported only on eks with h100 or rtx-pro-6000`,
+		},
+		{
+			name: "nim with unsupported accelerator",
+			args: ClusterStackArgs{Accelerator: "gb200", Service: "eks", Intent: "inference", Platform: str("nim")},
+			want: `platform "nim" is supported only on eks with h100 or rtx-pro-6000`,
+		},
+		{
+			name: "kubeflow on bcm",
+			args: ClusterStackArgs{Accelerator: "h100", Service: "bcm", Intent: "training", Platform: str("kubeflow")},
+			want: `platform "kubeflow" has no recipes on service "bcm"`,
+		},
+		{
+			name: "dynamo on lke",
+			args: ClusterStackArgs{Accelerator: "h100", Service: "lke", Intent: "inference", Platform: str("dynamo")},
+			want: `platform "dynamo" has no recipes on service "lke"`,
 		},
 		{
 			name: "b200 + inference",
@@ -797,6 +812,52 @@ func TestRtxPro6000ServiceMatrixMatchesSDKData(t *testing.T) {
 			t.Errorf("service %q: rtx-pro-6000-tuned leaf in SDK data = %v, but validateCompatibility admits it = %v; "+
 				"update the rtx-pro-6000 clause (and the accelerator docs) to match the SDK data",
 				svc, tuned, allowed[svc])
+		}
+	}
+}
+
+// TestPlatformMatrixMatchesSDKData pins validateCompatibility's platform
+// rules against the embedded SDK recipe data: per platform, the set of
+// services with at least one resolvable combination, and for nim the set of
+// accelerators. An SDK bump that adds recipes (kubeflow on lke, nim on a new
+// service or accelerator, …) fails here, prompting the clauses and the docs
+// to move in lockstep.
+func TestPlatformMatrixMatchesSDKData(t *testing.T) {
+	wantServices := map[string]map[string]bool{
+		"kubeflow": {"aks": true, "eks": true, "gke": true, "kind": true, "oke": true},
+		"dynamo":   {"aks": true, "eks": true, "gke": true, "kind": true, "oke": true},
+		"nim":      {"eks": true},
+	}
+	wantNimAccels := map[string]bool{"h100": true, "rtx-pro-6000": true}
+
+	client, err := aicrclient.NewClient(aicrclient.WithRecipeSource(aicrclient.EmbeddedSource()))
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	for _, platform := range supportedPlatforms {
+		gotServices := map[string]bool{}
+		gotAccels := map[string]bool{}
+		for _, svc := range supportedServices {
+			for _, accel := range supportedAccelerators {
+				for _, intent := range supportedIntents {
+					for _, osName := range append([]string{""}, supportedOSes...) {
+						_, err := client.ResolveRecipe(ctx, aicrclient.RecipeRequest{
+							Service: svc, Accelerator: accel, Intent: intent, OS: osName, Platform: platform,
+						})
+						if err != nil {
+							continue
+						}
+						gotServices[svc] = true
+						gotAccels[accel] = true
+					}
+				}
+			}
+		}
+		assert.Equal(t, wantServices[platform], gotServices,
+			"platform %q service coverage in the SDK data drifted from validateCompatibility's rules", platform)
+		if platform == "nim" {
+			assert.Equal(t, wantNimAccels, gotAccels, "nim accelerator coverage drifted")
 		}
 	}
 }

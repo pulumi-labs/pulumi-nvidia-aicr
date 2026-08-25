@@ -36,6 +36,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -111,7 +112,8 @@ components are in scope.`)
 	an.Describe(&c.OS, `Operating system flavor of the worker nodes. Leave unset for OS-agnostic
 resolution. Supported values: "ubuntu", "cos", "ol".`)
 	an.Describe(&c.Platform, `ML platform/framework. Supported values: "kubeflow" (training),
-"dynamo" (inference), "nim" (inference, EKS+H100 only).`)
+"dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+kubeflow and dynamo have no recipes on lke/bcm.`)
 	an.Describe(&c.Nodes, `Worker-node count hint used to size the recipe.`)
 	an.Describe(&c.SkipComponents, `Recipe components the stack intentionally did not deploy (ClusterStack's
 `+"`skipComponents`"+`). ValidationRun treats them as out of scope rather than
@@ -373,8 +375,8 @@ func (r *ValidationRun) Diff(ctx context.Context, req infer.DiffRequest[Validati
 			// can differ from the engine's display.
 			if path := os.Getenv("PULUMI_NVIDIA_AICR_DEBUG_DIFF"); path != "" {
 				if f, ferr := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); ferr == nil {
-					fmt.Fprintf(f, "nvidia-aicr diff: property %q unequal:\n  old=%#v\n  new=%#v\n",
-						name, oldArgs.Field(i).Interface(), newArgs.Field(i).Interface())
+					fmt.Fprintf(f, "nvidia-aicr diff: property %q unequal:\n  old=%s\n  new=%s\n",
+						name, debugFormatArg(oldArgs.Field(i)), debugFormatArg(newArgs.Field(i)))
 					_ = f.Close()
 				}
 			}
@@ -450,6 +452,7 @@ func runValidation(ctx context.Context, name string, args ValidationRunArgs) (st
 		Phases:           normalizePhases(args.Phases),
 		RequireGPU:       derefBool(args.RequireGpu, true),
 		SkipComponents:   args.Criteria.SkipComponents,
+		Timeout:          time.Duration(timeoutMinutes) * time.Minute,
 	})
 	if err != nil {
 		// Infrastructure error: the run couldn't happen. Plain failure,
@@ -648,11 +651,22 @@ func materializeKubeconfig(kubeconfig, kubeconfigPath, kubeContext *string) (str
 	hasPath := kubeconfigPath != nil && *kubeconfigPath != ""
 	hasContext := kubeContext != nil && *kubeContext != ""
 
+	var pathVal string
+	if hasPath {
+		// The shipped examples default kubeconfigPath to the literal
+		// "~/.kube/config"; the shell never sees it, so expand it here.
+		expanded, err := expandTilde(*kubeconfigPath)
+		if err != nil {
+			return "", noop, err
+		}
+		pathVal = expanded
+	}
+
 	if !hasContents && !hasPath && !hasContext {
 		return "", noop, nil
 	}
 	if hasPath && !hasContext {
-		return *kubeconfigPath, noop, nil
+		return pathVal, noop, nil
 	}
 
 	var raw []byte
@@ -660,9 +674,9 @@ func materializeKubeconfig(kubeconfig, kubeconfigPath, kubeContext *string) (str
 	case hasContents:
 		raw = []byte(*kubeconfig)
 	case hasPath:
-		content, err := os.ReadFile(*kubeconfigPath)
+		content, err := os.ReadFile(pathVal)
 		if err != nil {
-			return "", noop, fmt.Errorf("reading kubeconfig %s: %w", *kubeconfigPath, err)
+			return "", noop, fmt.Errorf("reading kubeconfig %s: %w", pathVal, err)
 		}
 		raw = content
 	default:
@@ -692,6 +706,20 @@ func materializeKubeconfig(kubeconfig, kubeconfigPath, kubeContext *string) (str
 		return "", noop, err
 	}
 	return writeTempKubeconfig(out)
+}
+
+// expandTilde expands a leading "~/" (or a bare "~") to the current user's
+// home directory. "~user" forms pass through verbatim — no example uses
+// them and resolving another user's home is not worth an os/user dependency.
+func expandTilde(path string) (string, error) {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("expanding kubeconfig path %q: %w", path, err)
+	}
+	return filepath.Join(home, strings.TrimPrefix(path, "~")), nil
 }
 
 // rewriteContext sets the config's current-context, erroring with the
@@ -762,6 +790,21 @@ func toCoreTolerations(tolerations []Toleration) []corev1.Toleration {
 		out = append(out, ct)
 	}
 	return out
+}
+
+// debugFormatArg renders one args field for the PULUMI_NVIDIA_AICR_DEBUG_DIFF
+// log. Pointers are dereferenced first: %#v on a *string prints
+// "(*string)(0xc000…)", an address that differs every run by construction
+// and reveals nothing about the old-set-vs-new-nil drift the hook exists to
+// diagnose.
+func debugFormatArg(v reflect.Value) string {
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return "nil"
+		}
+		return fmt.Sprintf("&%#v", v.Elem().Interface())
+	}
+	return fmt.Sprintf("%#v", v.Interface())
 }
 
 // hasRequiredCriteria reports whether every required criteria member is

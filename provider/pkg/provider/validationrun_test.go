@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -949,4 +950,72 @@ func TestWarnTruncationIsValidUTF8(t *testing.T) {
 	assert.True(t, utf8.ValidString(truncated))
 	assert.True(t, strings.HasSuffix(truncated, "…"))
 	assert.NotContains(t, truncated, "\uFFFD")
+}
+
+// TestRunValidationThreadsTimeout: timeoutMinutes must reach the SDK facade
+// as ValidateOptions.Timeout — without WithValidationTimeout the facade's
+// 75m default operation cap silently truncates any longer run.
+func TestRunValidationThreadsTimeout(t *testing.T) {
+	_, lastOpts := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		return passedReport(), nil
+	})
+
+	_, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: baseValidationArgs(),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Minute, lastOpts.Timeout, "default timeoutMinutes must reach the facade")
+
+	args := baseValidationArgs()
+	minutes := 180
+	args.TimeoutMinutes = &minutes
+	_, err = (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr2",
+		Inputs: args,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 180*time.Minute, lastOpts.Timeout, "a timeout above the SDK's 75m cap must be threaded through")
+}
+
+// TestExpandTilde: the shipped examples default kubeconfigPath to the
+// literal "~/.kube/config"; the shell never expands it, so the provider must.
+func TestExpandTilde(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := expandTilde("~/.kube/config")
+	require.NoError(t, err)
+	assert.Equal(t, home+"/.kube/config", got)
+
+	got, err = expandTilde("~")
+	require.NoError(t, err)
+	assert.Equal(t, home, got)
+
+	// "~user" and plain paths pass through verbatim.
+	got, err = expandTilde("~alice/.kube/config")
+	require.NoError(t, err)
+	assert.Equal(t, "~alice/.kube/config", got)
+	got, err = expandTilde("/etc/kubeconfig")
+	require.NoError(t, err)
+	assert.Equal(t, "/etc/kubeconfig", got)
+
+	// The path-only branch of materializeKubeconfig returns the expanded path.
+	path := "~/.kube/config"
+	resolved, cleanup, err := materializeKubeconfig(nil, &path, nil)
+	require.NoError(t, err)
+	defer cleanup()
+	assert.Equal(t, home+"/.kube/config", resolved)
+}
+
+// TestDebugFormatArgDereferencesPointers: %#v on pointer fields prints
+// addresses that differ every run; the debug-diff hook must show values.
+func TestDebugFormatArgDereferencesPointers(t *testing.T) {
+	s := "ubuntu"
+	assert.Equal(t, `&"ubuntu"`, debugFormatArg(reflect.ValueOf(&s)))
+	assert.Equal(t, "nil", debugFormatArg(reflect.ValueOf((*string)(nil))))
+	n := 42
+	assert.Equal(t, "&42", debugFormatArg(reflect.ValueOf(&n)))
+	assert.Equal(t, `"plain"`, debugFormatArg(reflect.ValueOf("plain")))
+	assert.NotContains(t, debugFormatArg(reflect.ValueOf(&s)), "0x")
 }

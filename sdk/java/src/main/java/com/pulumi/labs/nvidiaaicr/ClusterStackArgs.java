@@ -197,7 +197,9 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * ML platform/framework to layer on top of the base recipe.
      * 
-     * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+     * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34;
+     * (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+     * recipes on lke/bcm in the pinned AICR data.
      * 
      * Leave unset for the base recipe without a platform-specific runtime. Note
      * that intent=&#34;inference&#34; always includes an inference gateway (part of the
@@ -212,7 +214,9 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * @return ML platform/framework to layer on top of the base recipe.
      * 
-     * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+     * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34;
+     * (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+     * recipes on lke/bcm in the pinned AICR data.
      * 
      * Leave unset for the base recipe without a platform-specific runtime. Note
      * that intent=&#34;inference&#34; always includes an inference gateway (part of the
@@ -467,7 +471,9 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         /**
          * @param platform ML platform/framework to layer on top of the base recipe.
          * 
-         * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+         * Supported values: &#34;kubeflow&#34; (training), &#34;dynamo&#34; (inference), &#34;nim&#34;
+         * (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+         * recipes on lke/bcm in the pinned AICR data.
          * 
          * Leave unset for the base recipe without a platform-specific runtime. Note
          * that intent=&#34;inference&#34; always includes an inference gateway (part of the

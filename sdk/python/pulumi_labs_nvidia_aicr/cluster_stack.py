@@ -79,7 +79,9 @@ class ClusterStackArgs:
                with a message listing the valid values; kind recipes require it unset.
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
-               Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+               Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+               (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+               recipes on lke/bcm in the pinned AICR data.
                
                Leave unset for the base recipe without a platform-specific runtime. Note
                that intent="inference" always includes an inference gateway (part of the
@@ -262,7 +264,9 @@ class ClusterStackArgs:
         """
         ML platform/framework to layer on top of the base recipe.
 
-        Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+        (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+        recipes on lke/bcm in the pinned AICR data.
 
         Leave unset for the base recipe without a platform-specific runtime. Note
         that intent="inference" always includes an inference gateway (part of the
@@ -364,7 +368,9 @@ class ClusterStack(pulumi.ComponentResource):
                with a message listing the valid values; kind recipes require it unset.
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
-               Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+               Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+               (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+               recipes on lke/bcm in the pinned AICR data.
                
                Leave unset for the base recipe without a platform-specific runtime. Note
                that intent="inference" always includes an inference gateway (part of the

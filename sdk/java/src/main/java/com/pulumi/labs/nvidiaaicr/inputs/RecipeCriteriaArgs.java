@@ -90,7 +90,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
     /**
      * ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+     * kubeflow and dynamo have no recipes on lke/bcm.
      * 
      */
     @Import(name="platform")
@@ -98,7 +99,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
     /**
      * @return ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+     * kubeflow and dynamo have no recipes on lke/bcm.
      * 
      */
     public Optional<Output<String>> platform() {
@@ -269,7 +271,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
         /**
          * @param platform ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+         * kubeflow and dynamo have no recipes on lke/bcm.
          * 
          * @return builder
          * 
@@ -281,7 +284,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
         /**
          * @param platform ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+         * kubeflow and dynamo have no recipes on lke/bcm.
          * 
          * @return builder
          * 

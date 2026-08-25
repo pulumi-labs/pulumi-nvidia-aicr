@@ -247,7 +247,8 @@ type RecipeCriteria struct {
 	// resolution. Supported values: "ubuntu", "cos", "ol".
 	Os *string `pulumi:"os"`
 	// ML platform/framework. Supported values: "kubeflow" (training),
-	// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+	// kubeflow and dynamo have no recipes on lke/bcm.
 	Platform *string `pulumi:"platform"`
 	// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 	Service string `pulumi:"service"`
@@ -290,7 +291,8 @@ type RecipeCriteriaArgs struct {
 	// resolution. Supported values: "ubuntu", "cos", "ol".
 	Os pulumi.StringPtrInput `pulumi:"os"`
 	// ML platform/framework. Supported values: "kubeflow" (training),
-	// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+	// kubeflow and dynamo have no recipes on lke/bcm.
 	Platform pulumi.StringPtrInput `pulumi:"platform"`
 	// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 	Service pulumi.StringInput `pulumi:"service"`
@@ -359,7 +361,8 @@ func (o RecipeCriteriaOutput) Os() pulumi.StringPtrOutput {
 }
 
 // ML platform/framework. Supported values: "kubeflow" (training),
-// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+// kubeflow and dynamo have no recipes on lke/bcm.
 func (o RecipeCriteriaOutput) Platform() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v RecipeCriteria) *string { return v.Platform }).(pulumi.StringPtrOutput)
 }

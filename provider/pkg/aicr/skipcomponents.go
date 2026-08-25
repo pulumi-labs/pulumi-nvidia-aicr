@@ -92,6 +92,15 @@ var checkRequires = map[string][]string{
 	// metrics API, fed by Prometheus scraping DCGM in the gpu-operator
 	// namespace.
 	"pod-autoscaling": {"gpu-operator", "kube-prometheus-stack", "prometheus-adapter"},
+	// cluster_autoscaling_check.go rides the same chain: with Karpenter
+	// present it scales an HPA on the external metric dcgm_gpu_power_usage
+	// (DCGM -> kube-prometheus-stack -> prometheus-adapter); its no-Karpenter
+	// EKS/GKE fallbacks still select GPU nodes by the GFD label, a
+	// gpu-operator operand. Requiring all three over-skips only the fallback
+	// paths (which need no metrics), a conservative trade matching
+	// pod-autoscaling; without it, Karpenter clusters fail on the missing
+	// metric when any of the three is skipped.
+	"cluster-autoscaling": {"gpu-operator", "kube-prometheus-stack", "prometheus-adapter"},
 	// gang_scheduling_check.go asserts the kai-scheduler Deployments and
 	// schedules pods with schedulerName kai-scheduler.
 	"gang-scheduling": {"kai-scheduler"},

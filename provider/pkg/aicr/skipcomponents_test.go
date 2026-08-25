@@ -88,7 +88,7 @@ func TestApplySkipComponents(t *testing.T) {
 					Checks: []string{"operator-health", "expected-resources", "gpu-operator-version", "check-nvidia-smi"},
 				},
 				Conformance: &recipe.ValidationPhase{
-					Checks: []string{"platform-health", "gang-scheduling", "accelerator-metrics", "ai-service-metrics", "pod-autoscaling"},
+					Checks: []string{"platform-health", "gang-scheduling", "accelerator-metrics", "ai-service-metrics", "pod-autoscaling", "cluster-autoscaling"},
 				},
 				Performance: &recipe.ValidationPhase{
 					Checks: []string{"nccl-all-reduce-bw"},
@@ -133,7 +133,7 @@ func TestApplySkipComponents(t *testing.T) {
 		}
 		assert.Equal(t, []string{
 			"deployment/operator-health", "deployment/gpu-operator-version",
-			"conformance/accelerator-metrics", "conformance/ai-service-metrics", "conformance/pod-autoscaling",
+			"conformance/accelerator-metrics", "conformance/ai-service-metrics", "conformance/pod-autoscaling", "conformance/cluster-autoscaling",
 		}, names, "pre-skipped checks in declaration order")
 		var aiMetrics preSkippedCheck
 		for _, c := range pre {
@@ -187,7 +187,7 @@ func TestApplySkipComponents(t *testing.T) {
 			assert.True(t, ref.IsEnabled(), "%s must stay enabled", ref.Name)
 		}
 		assert.Len(t, r.Validation.Deployment.Checks, 4)
-		assert.Len(t, r.Validation.Conformance.Checks, 5)
+		assert.Len(t, r.Validation.Conformance.Checks, 6)
 	})
 
 	t.Run("nil validation and nil result are safe", func(t *testing.T) {
@@ -297,7 +297,7 @@ func TestValidateNoClusterSkipComponents(t *testing.T) {
 		byName[c.Name] = c
 		assert.Equal(t, "skipped", c.Status, "check %s", c.Name)
 	}
-	for _, name := range []string{"operator-health", "gpu-operator-version", "gpu-operator-health", "accelerator-metrics", "dra-support"} {
+	for _, name := range []string{"operator-health", "gpu-operator-version", "gpu-operator-health", "accelerator-metrics", "cluster-autoscaling", "dra-support"} {
 		c, ok := byName[name]
 		require.True(t, ok, "pre-skipped check %s must still be reported", name)
 		assert.Contains(t, c.Message, "skipComponents", "check %s must carry the provider reason", name)

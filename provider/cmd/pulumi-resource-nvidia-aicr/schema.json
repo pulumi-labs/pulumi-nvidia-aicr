@@ -115,7 +115,7 @@
       "properties": {
         "accelerator": {
           "type": "string",
-          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\"."
+          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\" (eks/lke only)."
         },
         "intent": {
           "type": "string",
@@ -219,7 +219,7 @@
         "accelerator": {
           "type": "string",
           "plain": true,
-          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\"."
+          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\" (eks/lke only —\nthe services with rtx-pro-6000-tuned recipes in the pinned AICR data)."
         },
         "componentOverrides": {
           "type": "object",

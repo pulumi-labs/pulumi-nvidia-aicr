@@ -118,7 +118,7 @@ in the recipe's dependency order.
 
 | Property | Type | Required | Description |
 |---|---|---|---|
-| `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"`, `"rtx-pro-6000"` |
+| `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"`, `"rtx-pro-6000"` (eks/lke only — the services with rtx-pro-6000-tuned recipes in the pinned AICR data) |
 | `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"oke"`, `"kind"`, plus the cloud-neutral leaves `"bcm"` and `"lke"` (no hyperscaler CSI/EFA components; they double as stand-ins for providers without an AICR criteria value yet — e.g. CoreWeave CKS deploys the `lke` leaf) |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
 | `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke) — the values backed by recipes in the pinned AICR data; more arrive via SDK upgrades. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |

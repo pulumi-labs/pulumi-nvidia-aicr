@@ -27,14 +27,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     public static final RecipeCriteriaArgs Empty = new RecipeCriteriaArgs();
 
     /**
-     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
      * 
      */
     @Import(name="accelerator", required=true)
     private Output<String> accelerator;
 
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
      * 
      */
     public Output<String> accelerator() {
@@ -182,7 +182,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
          * 
          * @return builder
          * 
@@ -193,7 +193,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
          * 
          * @return builder
          * 

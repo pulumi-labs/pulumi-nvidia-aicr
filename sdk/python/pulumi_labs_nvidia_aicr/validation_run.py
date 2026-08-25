@@ -386,7 +386,6 @@ class ValidationRun(pulumi.CustomResource):
         full results, and validation re-runs on every subsequent `pulumi up` until it
         passes — use `dependsOn` to gate downstream resources on it.
 
-
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
         :param pulumi.Input[_builtins.str] context: Kubeconfig context to select. Defaults to the kubeconfig's current-context.
@@ -457,7 +456,6 @@ class ValidationRun(pulumi.CustomResource):
         a no-op). With `strict: true`, a failed run fails the update while persisting
         full results, and validation re-runs on every subsequent `pulumi up` until it
         passes — use `dependsOn` to gate downstream resources on it.
-
 
         :param str resource_name: The name of the resource.
         :param ValidationRunArgs args: The arguments to use to populate this resource's properties.

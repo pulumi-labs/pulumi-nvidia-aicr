@@ -53,7 +53,8 @@ func NewClusterStack(ctx *pulumi.Context,
 type clusterStackArgs struct {
 	// GPU accelerator type. Selects the AICR recipe family.
 	//
-	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+	// the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
 	Accelerator string `pulumi:"accelerator"`
 	// Per-component overrides. Map of AICR component name to override settings
 	// (version, namespace, Helm values). Values are deep-merged with the recipe
@@ -123,7 +124,8 @@ type clusterStackArgs struct {
 type ClusterStackArgs struct {
 	// GPU accelerator type. Selects the AICR recipe family.
 	//
-	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+	// the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
 	Accelerator string
 	// Per-component overrides. Map of AICR component name to override settings
 	// (version, namespace, Helm values). Values are deep-merged with the recipe

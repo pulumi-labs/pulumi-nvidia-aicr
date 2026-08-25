@@ -132,6 +132,21 @@ func TestValidateValidationRunArgs(t *testing.T) {
 			want: "intent is required",
 		},
 		{
+			name: "rtx-pro-6000 on lke accepted",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Accelerator = "rtx-pro-6000"
+				a.Criteria.Service = "lke"
+			},
+		},
+		{
+			name: "rtx-pro-6000 off eks/lke rejected",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Accelerator = "rtx-pro-6000"
+				a.Criteria.Service = "aks"
+			},
+			want: `accelerator "rtx-pro-6000" is supported only on eks or lke`,
+		},
+		{
 			name: "unsupported platform combination",
 			muta: func(a *ValidationRunArgs) {
 				a.Criteria.Intent = "inference"
@@ -689,6 +704,32 @@ func TestCreateDryRunValidatesKnownCriteria(t *testing.T) {
 	assert.Contains(t, err.Error(), `accelerator "fictional-gpu" is not supported`)
 }
 
+// TestCreateDryRunSkipsPartialCriteria: inline criteria mixing literals with
+// unresolved outputs decodes with just the computed members zeroed at preview
+// (pulumi-go-provider's ende replaces each unknown with its zero value), so a
+// partially-known struct must skip preview validation rather than fail a
+// program whose apply would succeed.
+func TestCreateDryRunSkipsPartialCriteria(t *testing.T) {
+	calls, _ := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		t.Fatal("validateFn must not be invoked during preview")
+		return nil, nil
+	})
+
+	args := baseValidationArgs()
+	args.Criteria.Intent = ""                // unresolved output at preview
+	args.Criteria.Platform = strPtrOf("nim") // would fail compat if validated
+	resp, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: args,
+		DryRun: true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 0, *calls)
+	assert.Empty(t, resp.Output.Status)
+}
+
+func strPtrOf(s string) *string { return &s }
+
 const testKubeconfig = `apiVersion: v1
 kind: Config
 clusters:
@@ -869,18 +910,20 @@ func TestCreateSkipComponentsReachAdapter(t *testing.T) {
 	assert.Nil(t, lastOpts.SkipComponents)
 }
 
-// TestIsZeroCriteriaSkipComponents: criteria carrying only skipComponents is
-// not zero — preview must still validate it.
-func TestIsZeroCriteriaSkipComponents(t *testing.T) {
-	assert.True(t, isZeroCriteria(RecipeCriteria{}))
-	assert.False(t, isZeroCriteria(RecipeCriteria{SkipComponents: []string{"gpu-operator"}}))
-	assert.False(t, isZeroCriteria(RecipeCriteria{Service: "eks"}))
-	nodes := 0
-	assert.False(t, isZeroCriteria(RecipeCriteria{Nodes: &nodes}))
+// TestHasRequiredCriteria: preview validation runs only when accelerator,
+// service, and intent are all present — any missing one may be an unresolved
+// output at preview, not a user error.
+func TestHasRequiredCriteria(t *testing.T) {
+	assert.True(t, hasRequiredCriteria(RecipeCriteria{Accelerator: "h100", Service: "eks", Intent: "training"}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{Accelerator: "h100", Service: "eks"}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{Service: "eks", Intent: "training"}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{SkipComponents: []string{"gpu-operator"}}))
 }
 
-// TestWarnFailedChecksOnlyOnFailed: the warning is a no-op for passed /
-// readiness-failed reports and never panics without a host logger.
+// TestWarnFailedChecksOnlyOnFailed: the warning fires for failed and
+// readiness-failed verdicts, is a no-op for nil / passed reports, and never
+// panics without a host logger.
 func TestWarnFailedChecksOnlyOnFailed(t *testing.T) {
 	assert.NotPanics(t, func() {
 		warnFailedChecks(context.Background(), nil)

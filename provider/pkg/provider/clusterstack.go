@@ -76,7 +76,7 @@ var (
 // ClusterStackArgs defines the inputs for the ClusterStack component.
 type ClusterStackArgs struct {
 	// The GPU accelerator type. Required.
-	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
 	Accelerator string `pulumi:"accelerator"`
 
 	// The Kubernetes service. Required.
@@ -154,7 +154,8 @@ type ClusterStack struct {
 func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
 	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
 
-Supported values: "h100", "gb200", "b200", "rtx-pro-6000".`)
+Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+the services with rtx-pro-6000-tuned recipes in the pinned AICR data).`)
 	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
 
 Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
@@ -688,6 +689,16 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 	}
 	if accelerator == "b200" && intent != "training" {
 		return fmt.Errorf("accelerator %q is training-only; got intent %q", accelerator, intent)
+	}
+	// rtx-pro-6000 has accelerator-tuned recipe leaves only on eks and lke
+	// in the pinned SDK data; on every other service the resolver silently
+	// falls back to generic service overlays and deploys an untuned stack —
+	// the exact hazard this allowlist exists to prevent. Pinned against SDK
+	// bumps by TestRtxPro6000ServiceMatrixMatchesSDKData.
+	if accelerator == "rtx-pro-6000" && service != "eks" && service != "lke" {
+		return fmt.Errorf(
+			"accelerator %q is supported only on eks or lke (the services with rtx-pro-6000-tuned recipes in the pinned AICR data); got service %q",
+			accelerator, service)
 	}
 	if osName == "cos" && service != "gke" {
 		return fmt.Errorf("os %q is only supported on gke; got service %q", osName, service)

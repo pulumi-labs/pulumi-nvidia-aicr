@@ -36,7 +36,7 @@ export interface CheckResult {
  */
 export interface RecipeCriteria {
     /**
-     * GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+     * GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
      */
     accelerator: string;
     /**

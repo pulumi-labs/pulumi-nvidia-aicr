@@ -105,7 +105,7 @@ intent / os / platform / nodes inputs, plus the skipComponents the stack
 deployed without. Wire a ClusterStack's `+"`criteria`"+` output here so deployment
 and validation resolve the identical recipe and agree on which of its
 components are in scope.`)
-	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".`)
+	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).`)
 	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".`)
 	an.Describe(&c.Intent, `Workload intent. Supported values: "training", "inference".`)
 	an.Describe(&c.OS, `Operating system flavor of the worker nodes. Leave unset for OS-agnostic
@@ -325,10 +325,14 @@ passes — use `+"`dependsOn`"+` to gate downstream resources on it.`)
 // inputs with zero-valued results.
 func (r *ValidationRun) Create(ctx context.Context, req infer.CreateRequest[ValidationRunArgs]) (infer.CreateResponse[ValidationRunState], error) {
 	if req.DryRun {
-		// Validate opportunistically, but skip when criteria is zero-valued:
-		// criteria wired from an unresolved output arrives as the zero
-		// struct at preview. Full validation always re-runs at apply.
-		if !isZeroCriteria(req.Inputs.Criteria) {
+		// Validate opportunistically, but only when every required criteria
+		// member is present: infer's decoder replaces just the computed
+		// members with zero values at preview, so criteria mixing literals
+		// with unresolved outputs (e.g. a known accelerator plus an intent
+		// from another resource's output) arrives partially zeroed and is
+		// indistinguishable from a user error. Full validation always
+		// re-runs at apply.
+		if hasRequiredCriteria(req.Inputs.Criteria) {
 			if err := validateValidationRunArgs(&req.Inputs); err != nil {
 				return infer.CreateResponse[ValidationRunState]{}, err
 			}
@@ -512,9 +516,27 @@ const maxWarnMessageLen = 240
 // warnFailedChecks surfaces a non-strict failed verdict as a warning
 // diagnostic. Without it the only terminal signal is a `status: failed`
 // output and the per-check detail sits silently in state — operators had to
-// `pulumi stack export` to learn WHICH checks failed (issue #22).
+// `pulumi stack export` to learn WHICH checks failed (issue #22). A
+// readiness-failed run gets the same treatment: zero checks ran, so the
+// warning carries the readiness pre-flight message instead of per-check
+// lines — otherwise `pulumi up` prints plain success for a run in which no
+// validation check ever executed.
 func warnFailedChecks(ctx context.Context, report *aicr.ValidationReport) {
-	if report == nil || report.Outcome != aicr.OutcomeFailed {
+	if report == nil {
+		return
+	}
+	if report.Outcome == aicr.OutcomeReadinessFailed {
+		msg := strings.TrimSpace(report.ReadinessMessage)
+		if len(msg) > maxWarnMessageLen {
+			msg = strings.ToValidUTF8(msg[:maxWarnMessageLen], "") + "…"
+		}
+		p.GetLogger(ctx).Warningf(
+			"validation of recipe %s did not run: readiness pre-flight failed: %s "+
+				"(recorded in state as status \"readiness-failed\"; set strict: true to fail the update)",
+			report.RecipeName, msg)
+		return
+	}
+	if report.Outcome != aicr.OutcomeFailed {
 		return
 	}
 	lines := make([]string, 0, report.Failed)
@@ -742,11 +764,14 @@ func toCoreTolerations(tolerations []Toleration) []corev1.Toleration {
 	return out
 }
 
-// isZeroCriteria reports whether criteria is entirely zero-valued — the
-// shape an unresolved output has at preview.
-func isZeroCriteria(c RecipeCriteria) bool {
-	return c.Accelerator == "" && c.Service == "" && c.Intent == "" &&
-		c.OS == nil && c.Platform == nil && c.Nodes == nil && len(c.SkipComponents) == 0
+// hasRequiredCriteria reports whether every required criteria member is
+// present. At preview a member wired from an unresolved output decodes as
+// its zero value, so a missing required member may be a computed value
+// rather than a user error — preview-time validation runs only when all
+// required members are known, and apply-time validation catches genuinely
+// empty ones.
+func hasRequiredCriteria(c RecipeCriteria) bool {
+	return c.Accelerator != "" && c.Service != "" && c.Intent != ""
 }
 
 func derefString(s *string, def string) string {

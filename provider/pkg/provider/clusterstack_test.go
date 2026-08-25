@@ -15,11 +15,13 @@
 package provider
 
 import (
+	"context"
 	"math"
 	"strings"
 	"sync"
 	"testing"
 
+	aicrclient "github.com/NVIDIA/aicr/pkg/client/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/assert"
@@ -751,4 +753,50 @@ func TestNewClusterStackCriteriaCarriesSkipComponents(t *testing.T) {
 	assert.Equal(t, []string{"cert-manager", "kube-prometheus-stack"}, got.SkipComponents)
 	skip[0] = "mutated"
 	assert.Equal(t, "cert-manager", got.SkipComponents[0], "output must not alias the input slice")
+}
+
+// TestRtxPro6000ServiceMatrixMatchesSDKData pins validateCompatibility's
+// rtx-pro-6000 service restriction against the embedded SDK recipe data: a
+// service is admitted exactly when some resolvable (intent, os) combination
+// applies an rtx-pro-6000-<service>* overlay. Without the tuned overlay the
+// resolver silently falls back to generic service leaves — an untuned stack
+// deploying without error is the hazard the restriction exists to prevent.
+// An SDK bump that adds or removes tuned leaves fails here, prompting the
+// allowlist (and its docs) to move in lockstep.
+func TestRtxPro6000ServiceMatrixMatchesSDKData(t *testing.T) {
+	allowed := map[string]bool{"eks": true, "lke": true}
+
+	client, err := aicrclient.NewClient(aicrclient.WithRecipeSource(aicrclient.EmbeddedSource()))
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	for _, svc := range supportedServices {
+		tuned := false
+		// "" first for the OS-agnostic path; gke/oke resolve only with an
+		// explicit OS, so every supported OS is probed too.
+		for _, osName := range append([]string{""}, supportedOSes...) {
+			for _, intent := range supportedIntents {
+				result, err := client.ResolveRecipe(ctx, aicrclient.RecipeRequest{
+					Service:     svc,
+					Accelerator: "rtx-pro-6000",
+					Intent:      intent,
+					OS:          osName,
+				})
+				if err != nil {
+					continue // no leaf at all for this combination
+				}
+				for _, overlay := range result.Resolved().Metadata.AppliedOverlays {
+					if strings.HasPrefix(overlay, "rtx-pro-6000-"+svc) {
+						tuned = true
+					}
+				}
+			}
+		}
+		if tuned != allowed[svc] {
+			t.Errorf("service %q: rtx-pro-6000-tuned leaf in SDK data = %v, but validateCompatibility admits it = %v; "+
+				"update the rtx-pro-6000 clause (and the accelerator docs) to match the SDK data",
+				svc, tuned, allowed[svc])
+		}
+	}
 }

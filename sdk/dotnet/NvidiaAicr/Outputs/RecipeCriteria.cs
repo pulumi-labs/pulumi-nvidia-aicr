@@ -22,7 +22,7 @@ namespace Pulumi.Labs.NvidiaAicr.Outputs
     public sealed class RecipeCriteria
     {
         /// <summary>
-        /// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+        /// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
         /// </summary>
         public readonly string Accelerator;
         /// <summary>

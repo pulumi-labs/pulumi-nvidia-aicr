@@ -38,7 +38,8 @@ class ClusterStackArgs:
 
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+               Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+               the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
         :param _builtins.str intent: Workload intent. Selects between training-oriented and inference-oriented
                component sets.
                
@@ -121,7 +122,8 @@ class ClusterStackArgs:
         """
         GPU accelerator type. Selects the AICR recipe family.
 
-        Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+        Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+        the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
         """
         return pulumi.get(self, "accelerator")
 
@@ -328,7 +330,8 @@ class ClusterStack(pulumi.ComponentResource):
         :param pulumi.ResourceOptions opts: Options for the resource.
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+               Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+               the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
         :param pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]] component_overrides: Per-component overrides. Map of AICR component name to override settings
                (version, namespace, Helm values). Values are deep-merged with the recipe
                defaults; only the keys you specify are changed.

@@ -25,7 +25,8 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * GPU accelerator type. Selects the AICR recipe family.
      * 
-     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only —
+     * the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
      * 
      */
     @Import(name="accelerator", required=true)
@@ -34,7 +35,8 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * @return GPU accelerator type. Selects the AICR recipe family.
      * 
-     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only —
+     * the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
      * 
      */
     public String accelerator() {
@@ -324,7 +326,8 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         /**
          * @param accelerator GPU accelerator type. Selects the AICR recipe family.
          * 
-         * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;.
+         * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only —
+         * the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
          * 
          * @return builder
          * 

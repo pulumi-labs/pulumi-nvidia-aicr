@@ -117,7 +117,7 @@ class RecipeCriteria(dict):
         and validation resolve the identical recipe and agree on which of its
         components are in scope.
 
-        :param _builtins.str accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+        :param _builtins.str accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
         :param _builtins.str intent: Workload intent. Supported values: "training", "inference".
         :param _builtins.str service: Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         :param _builtins.int nodes: Worker-node count hint used to size the recipe.
@@ -151,7 +151,7 @@ class RecipeCriteria(dict):
     @pulumi.getter
     def accelerator(self) -> _builtins.str:
         """
-        GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+        GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
         """
         return pulumi.get(self, "accelerator")
 

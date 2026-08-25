@@ -21,7 +21,7 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
     public sealed class RecipeCriteriaArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
-        /// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000".
+        /// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
         /// </summary>
         [Input("accelerator", required: true)]
         public Input<string> Accelerator { get; set; } = null!;

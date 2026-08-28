@@ -1,7 +1,0 @@
-name: gcp-gke-h100-training
-runtime: nodejs
-description: >-
-  Deploy an NVIDIA AICR-validated Kubeflow training stack on GCP GKE with H100 GPU nodes. COST WARNING: a3-highgpu-8g instances cost ~$30/hr each; this example provisions 2 nodes (~$60/hr). Destroy when done!
-config:
-  gcp:zone:
-    value: us-central1-a

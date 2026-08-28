@@ -117,6 +117,19 @@ type ValidateOptions struct {
 	// RunID identifies the run's cluster-side artifacts. "" generates one.
 	// Always passed to WithValidationRunID.
 	RunID string
+	// SkipComponents names recipe components the deployment intentionally
+	// left out (ClusterStack's skipComponents). They are marked disabled on
+	// the resolved recipe and checks that presuppose them are reported
+	// skipped instead of run — see skipcomponents.go. Unknown names are
+	// ignored with a warning, mirroring ClusterStack.
+	SkipComponents []string
+	// Timeout, when positive, is passed to WithValidationTimeout as the
+	// facade-level cap on the whole run. Zero keeps the SDK default — a 75m
+	// operation cap — which silently truncates any run whose caller granted
+	// more than 75m: context.WithTimeout keeps the SMALLER of the parent
+	// deadline and the facade's, so a longer parent deadline never wins.
+	// Callers with a user-facing timeout must thread it through here.
+	Timeout time.Duration
 }
 
 // Outcome is the rollup verdict of a validation run.
@@ -223,6 +236,16 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 		RecipeVersion: sdkModuleVersion(),
 	}
 
+	// Reconcile the recipe with the deployed subset BEFORE the snapshot and
+	// ValidateState: ToValidationInput reads ComponentRefs and the phase
+	// check lists off this result at ValidateState time. Resolved() is
+	// documented "do not mutate", but the SDK exposes no other way to
+	// disable components or deselect checks on a validatable result, and
+	// applySkipComponents is copy-on-write on every slice/map it touches —
+	// only this per-resolve result (owned by the client closed on return)
+	// sees the change, never the embedded recipe data.
+	preSkipped := applySkipComponents(result.Resolved(), opts.SkipComponents, opts.Phases)
+
 	var snap *aicrclient.Snapshot
 	if opts.NoCluster {
 		// No cluster to snapshot in test mode; synthesize a snapshot that
@@ -254,9 +277,11 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 	}
 
 	// Always pass WithValidationPhases: the SDK default runs ALL phases
-	// (including performance). No WithValidationTimeout — the caller's ctx
-	// deadline governs (the facade honors the smaller of the parent deadline
-	// and its 75m default cap).
+	// (including performance). WithValidationTimeout is passed whenever the
+	// caller set one: without it the facade applies its own 75m operation
+	// cap even when the caller's ctx grants more (context.WithTimeout keeps
+	// the smaller deadline), silently truncating long performance runs. A
+	// tighter parent ctx deadline still wins either way.
 	valOpts := []aicrclient.ValidateOption{
 		aicrclient.WithValidationPhases(phases...),
 		aicrclient.WithValidationNamespace(namespace),
@@ -278,6 +303,9 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 	}
 	if opts.NoCluster {
 		valOpts = append(valOpts, aicrclient.WithValidationNoCluster(true))
+	}
+	if opts.Timeout > 0 {
+		valOpts = append(valOpts, aicrclient.WithValidationTimeout(opts.Timeout))
 	}
 
 	results, err := client.ValidateState(ctx, result, snap, valOpts...)
@@ -302,6 +330,10 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 		}
 		return nil, fmt.Errorf("running AICR validation: %w", err)
 	}
+
+	// Pre-skipped checks join the SDK's results as ordinary skipped CTRF
+	// entries, so checks, counts, and the merged report all agree.
+	results = mergePreSkipped(results, preSkipped)
 
 	checks, counts, mergedCTRF, err := buildReport(results)
 	if err != nil {

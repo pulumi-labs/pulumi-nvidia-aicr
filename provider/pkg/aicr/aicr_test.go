@@ -323,3 +323,42 @@ func TestDeepMergeMaps(t *testing.T) {
 	assert.NotContains(t, out, "c")
 	assert.Equal(t, "new", out["d"])
 }
+
+// The cloud-neutral leaves (lke, bcm) back the provider's stand-in path for
+// services AICR has no criteria value for yet. The CoreWeave CKS campaign
+// deploys rtx-pro-6000/lke/training; pin its component set so an SDK bump
+// that drops the leaf (or grows a hyperscaler dependency) fails loudly.
+func TestResolveCloudNeutralLeaves(t *testing.T) {
+	cases := []struct {
+		name     string
+		criteria Criteria
+		expect   []string
+	}{
+		{
+			name:     "lke rtx-pro-6000 training (CoreWeave stand-in)",
+			criteria: Criteria{Service: "lke", Accelerator: "rtx-pro-6000", Intent: "training"},
+			expect: []string{
+				"cert-manager", "gpu-operator", "kai-scheduler",
+				"kube-prometheus-stack", "nfd", "nvidia-dra-driver-gpu",
+				"nvsentinel", "prometheus-operator-crds",
+			},
+		},
+		{
+			name:     "bcm h100 training",
+			criteria: Criteria{Service: "bcm", Accelerator: "h100", Intent: "training"},
+			expect:   []string{"gpu-operator", "nodewright-customizations"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := resolve(t, tc.criteria)
+			names := componentNames(r)
+			for _, expected := range tc.expect {
+				assert.Contains(t, names, expected)
+			}
+			// Cloud-neutral means exactly that: no hyperscaler components.
+			assert.NotContains(t, names, "aws-ebs-csi-driver")
+			assert.NotContains(t, names, "aws-efa")
+		})
+	}
+}

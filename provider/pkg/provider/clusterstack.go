@@ -46,9 +46,15 @@ var builtinNamespaces = map[string]bool{
 // validateArgs so users get a clear error rather than relying on the
 // resolver's wildcard-match semantics to surface the problem.
 var (
-	supportedAccelerators = []string{"h100", "gb200", "b200"}
-	supportedServices     = []string{"aks", "eks", "gke", "kind", "oke"}
-	supportedIntents      = []string{"training", "inference"}
+	supportedAccelerators = []string{"h100", "gb200", "b200", "rtx-pro-6000"}
+	// lke and bcm are the cloud-neutral leaves in the pinned SDK data (no
+	// hyperscaler CSI/EFA components); they double as stand-ins for
+	// providers AICR has no criteria value for yet — the CoreWeave CKS
+	// campaign deploys the lke leaf. A first-class "coreweave" value is an
+	// upstream AICR SDK change; when it lands, extend this list rather
+	// than aliasing.
+	supportedServices = []string{"aks", "bcm", "eks", "gke", "kind", "lke", "oke"}
+	supportedIntents  = []string{"training", "inference"}
 	// supportedOSes lists only OS values with backing recipes in the pinned
 	// SDK's data (the SDK's request schema names more — rhel, amazonlinux,
 	// talos — but v0.18.0 ships no leaves for them, and admitting them here
@@ -70,11 +76,11 @@ var (
 // ClusterStackArgs defines the inputs for the ClusterStack component.
 type ClusterStackArgs struct {
 	// The GPU accelerator type. Required.
-	// Supported values: "h100", "gb200", "b200".
+	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
 	Accelerator string `pulumi:"accelerator"`
 
 	// The Kubernetes service. Required.
-	// Supported values: "aks", "eks", "gke", "kind", "oke".
+	// Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 	// Use "kind" for local hardware-free development of the deployment pipeline.
 	Service string `pulumi:"service"`
 
@@ -87,7 +93,9 @@ type ClusterStackArgs struct {
 	OS *string `pulumi:"os,optional"`
 
 	// The ML platform/framework. Optional.
-	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference).
+	// Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+	// (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo
+	// have no recipes on lke/bcm.
 	Platform *string `pulumi:"platform,optional"`
 
 	// The worker-node count hint used to size the recipe. Optional.
@@ -148,10 +156,14 @@ type ClusterStack struct {
 func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
 	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
 
-Supported values: "h100", "gb200", "b200".`)
+Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+the services with rtx-pro-6000-tuned recipes in the pinned AICR data).`)
 	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
 
-Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
+lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+double as stand-ins for providers without an AICR criteria value yet (e.g.
+CoreWeave CKS deploys the lke leaf). Use "kind" for local
 hardware-free development of the deployment pipeline.`)
 	an.Describe(&a.Intent, `Workload intent. Selects between training-oriented and inference-oriented
 component sets.
@@ -171,7 +183,9 @@ Set it when the cluster's OS is known. Some combinations require an OS
 with a message listing the valid values; kind recipes require it unset.`)
 	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
 
-Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+(inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+recipes on lke/bcm in the pinned AICR data.
 
 Leave unset for the base recipe without a platform-specific runtime. Note
 that intent="inference" always includes an inference gateway (part of the
@@ -225,9 +239,10 @@ func (s *ClusterStack) Annotate(an infer.Annotator) {
 	an.Describe(&s.RecipeVersion, `The AICR recipe data version embedded in this provider build.`)
 	an.Describe(&s.DeployedComponents, `Names of all components deployed as part of this stack, in topological order.`)
 	an.Describe(&s.ComponentCount, `Number of components deployed.`)
-	an.Describe(&s.Criteria, `The canonicalized recipe criteria this stack resolved with. Wire it into a
-ValidationRun's `+"`criteria`"+` input so deployment and validation share a single
-source of truth.`)
+	an.Describe(&s.Criteria, `The canonicalized recipe criteria this stack resolved with, including its
+`+"`skipComponents`"+`. Wire it into a ValidationRun's `+"`criteria`"+` input so deployment and
+validation share a single source of truth — the same recipe, and the same
+components in scope.`)
 }
 
 // NewClusterStack creates a new NVIDIA AICR ClusterStack component.
@@ -516,7 +531,7 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	state.RecipeVersion = pulumi.String(resolved.Version).ToStringOutput()
 	state.DeployedComponents = pulumi.ToStringArray(deployedNames).ToStringArrayOutput()
 	state.ComponentCount = pulumi.Int(len(deployedNames)).ToIntOutput()
-	state.Criteria = criteriaOutput(criteria, args.Nodes)
+	state.Criteria = criteriaOutput(criteria, args.Nodes, args.SkipComponents)
 
 	// Mirror the criteria into the registered outputs map, omitting unset
 	// optionals (matching the RecipeCriteria pointer fields).
@@ -534,6 +549,9 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 	if args.Nodes != nil {
 		criteriaMap["nodes"] = pulumi.Int(*args.Nodes)
 	}
+	if len(args.SkipComponents) > 0 {
+		criteriaMap["skipComponents"] = pulumi.ToStringArray(args.SkipComponents)
+	}
 
 	if err := ctx.RegisterResourceOutputs(state, pulumi.Map{
 		"recipeName":         pulumi.String(resolved.Name),
@@ -550,8 +568,10 @@ func NewClusterStack(ctx *pulumi.Context, name string, args *ClusterStackArgs, o
 
 // criteriaOutput builds the RecipeCriteria output from the canonicalized
 // resolution criteria. Optionals stay nil when unset so wiring the output
-// into a ValidationRun re-resolves identical criteria.
-func criteriaOutput(criteria aicr.Criteria, nodes *int) RecipeCriteria {
+// into a ValidationRun re-resolves identical criteria; skipComponents is
+// echoed verbatim (the names ApplyOverrides matched on) so validation scopes
+// itself to the same component subset.
+func criteriaOutput(criteria aicr.Criteria, nodes *int, skipComponents []string) RecipeCriteria {
 	out := RecipeCriteria{
 		Accelerator: criteria.Accelerator,
 		Service:     criteria.Service,
@@ -568,6 +588,9 @@ func criteriaOutput(criteria aicr.Criteria, nodes *int) RecipeCriteria {
 	if nodes != nil {
 		n := *nodes
 		out.Nodes = &n
+	}
+	if len(skipComponents) > 0 {
+		out.SkipComponents = append([]string(nil), skipComponents...)
 	}
 	return out
 }
@@ -657,22 +680,55 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 		if intent != "training" {
 			return fmt.Errorf("platform %q is training-only; got intent %q", platform, intent)
 		}
+		if err := validatePlatformService(platform, service); err != nil {
+			return err
+		}
 	case "dynamo":
 		if intent != "inference" {
 			return fmt.Errorf("platform %q is inference-only; got intent %q", platform, intent)
 		}
+		if err := validatePlatformService(platform, service); err != nil {
+			return err
+		}
 	case "nim":
-		if intent != "inference" || service != "eks" || accelerator != "h100" {
+		if intent != "inference" || service != "eks" ||
+			(accelerator != "h100" && accelerator != "rtx-pro-6000") {
 			return fmt.Errorf(
-				"platform %q is supported only on eks+h100+inference; got service=%q accelerator=%q intent=%q",
+				"platform %q is supported only on eks with h100 or rtx-pro-6000 and intent \"inference\"; got service=%q accelerator=%q intent=%q",
 				platform, service, accelerator, intent)
 		}
 	}
 	if accelerator == "b200" && intent != "training" {
 		return fmt.Errorf("accelerator %q is training-only; got intent %q", accelerator, intent)
 	}
+	// rtx-pro-6000 has accelerator-tuned recipe leaves only on eks and lke
+	// in the pinned SDK data; on every other service the resolver silently
+	// falls back to generic service overlays and deploys an untuned stack —
+	// the exact hazard this allowlist exists to prevent. Pinned against SDK
+	// bumps by TestRtxPro6000ServiceMatrixMatchesSDKData.
+	if accelerator == "rtx-pro-6000" && service != "eks" && service != "lke" {
+		return fmt.Errorf(
+			"accelerator %q is supported only on eks or lke (the services with rtx-pro-6000-tuned recipes in the pinned AICR data); got service %q",
+			accelerator, service)
+	}
 	if osName == "cos" && service != "gke" {
 		return fmt.Errorf("os %q is only supported on gke; got service %q", osName, service)
+	}
+	return nil
+}
+
+// validatePlatformService rejects service values with no kubeflow/dynamo
+// recipes in the pinned SDK data — lke and bcm ship none, so without this
+// pre-flight the resolver fails mid-construct with a raw "no recipe provides
+// platform ..." error, the cryptic failure validateCompatibility exists to
+// prevent. Finer accelerator/OS combinations within the admitted services
+// are left to the resolver, whose errors there name the missing dimension.
+// Pinned against SDK bumps by TestPlatformMatrixMatchesSDKData.
+func validatePlatformService(platform, service string) error {
+	if service == "lke" || service == "bcm" {
+		return fmt.Errorf(
+			"platform %q has no recipes on service %q in the pinned AICR data (supported services: aks, eks, gke, kind, oke)",
+			platform, service)
 	}
 	return nil
 }

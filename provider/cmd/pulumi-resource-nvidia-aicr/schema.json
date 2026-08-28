@@ -111,11 +111,11 @@
       "type": "object"
     },
     "nvidia-aicr:index:RecipeCriteria": {
-      "description": "Recipe-selection criteria, mirroring ClusterStack's accelerator / service /\nintent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`\noutput here so deployment and validation resolve the identical recipe.",
+      "description": "Recipe-selection criteria, mirroring ClusterStack's accelerator / service /\nintent / os / platform / nodes inputs, plus the skipComponents the stack\ndeployed without. Wire a ClusterStack's `criteria` output here so deployment\nand validation resolve the identical recipe and agree on which of its\ncomponents are in scope.",
       "properties": {
         "accelerator": {
           "type": "string",
-          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\"."
+          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\" (eks/lke only)."
         },
         "intent": {
           "type": "string",
@@ -131,11 +131,18 @@
         },
         "platform": {
           "type": "string",
-          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, EKS+H100 only)."
+          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, eks with h100 or rtx-pro-6000 only).\nkubeflow and dynamo have no recipes on lke/bcm."
         },
         "service": {
           "type": "string",
-          "description": "Kubernetes service. Supported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\"."
+          "description": "Kubernetes service. Supported values: \"aks\", \"bcm\", \"eks\", \"gke\", \"kind\", \"lke\", \"oke\"."
+        },
+        "skipComponents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Recipe components the stack intentionally did not deploy (ClusterStack's\n`skipComponents`). ValidationRun treats them as out of scope rather than\nmissing: checks that presuppose one of them (e.g. the gpu-operator health,\nDCGM metrics, and GPU-HPA checks when \"gpu-operator\" is skipped) are reported\n\"skipped\" with a reason instead of failing, and the SDK's component-aware\nchecks see the components as disabled. A ClusterStack's `criteria` output\ncarries its own skipComponents, so wiring it keeps validation aligned with\nthe deployed subset automatically. Skipping does not verify a replacement\nyou run yourself — those checks are simply not made."
         }
       },
       "type": "object",
@@ -182,7 +189,7 @@
         },
         "criteria": {
           "$ref": "#/types/nvidia-aicr:index:RecipeCriteria",
-          "description": "The canonicalized recipe criteria this stack resolved with. Wire it into a\nValidationRun's `criteria` input so deployment and validation share a single\nsource of truth."
+          "description": "The canonicalized recipe criteria this stack resolved with, including its\n`skipComponents`. Wire it into a ValidationRun's `criteria` input so deployment and\nvalidation share a single source of truth — the same recipe, and the same\ncomponents in scope."
         },
         "deployedComponents": {
           "type": "array",
@@ -212,7 +219,7 @@
         "accelerator": {
           "type": "string",
           "plain": true,
-          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\"."
+          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\" (eks/lke only —\nthe services with rtx-pro-6000-tuned recipes in the pinned AICR data)."
         },
         "componentOverrides": {
           "type": "object",
@@ -253,12 +260,12 @@
         "platform": {
           "type": "string",
           "plain": true,
-          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\" (inference, EKS+H100 only).\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
+          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\"\n(inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no\nrecipes on lke/bcm in the pinned AICR data.\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
         },
         "service": {
           "type": "string",
           "plain": true,
-          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"eks\", \"gke\", \"kind\", \"oke\". Use \"kind\" for local\nhardware-free development of the deployment pipeline."
+          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"bcm\", \"eks\", \"gke\", \"kind\", \"lke\", \"oke\". bcm and\nlke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and\ndouble as stand-ins for providers without an AICR criteria value yet (e.g.\nCoreWeave CKS deploys the lke leaf). Use \"kind\" for local\nhardware-free development of the deployment pipeline."
         },
         "skipAwait": {
           "type": "boolean",

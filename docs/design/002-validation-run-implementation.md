@@ -521,6 +521,47 @@ JSON re-parse of `RawReport`):
 - a phase with a nil `Report` (defensive) contributes zero checks and is
   ignored for counts — flagged in logs, not fatal.
 
+### Skipped components (issue #22)
+
+`RecipeCriteria` carries `skipComponents`, and `ClusterStack.criteria` echoes
+the stack's own `skipComponents`, so the documented wiring
+(`criteria: stack.criteria`) tells validation which recipe components the
+stack deployed without. Without it the SDK validates the full recipe and every
+check that probes a skipped component's namespace/Deployment/Service fails, so
+a correctly deployed subset (bring-your-own cert-manager, a platform-managed
+GPU stack in other namespaces) can never pass.
+
+`aicr.Validate` reconciles the resolved recipe before `ValidateState`
+(`provider/pkg/aicr/skipcomponents.go`), copy-on-write on everything it
+touches:
+
+- Skipped components are marked disabled (`overrides.enabled=false`, the
+  SDK's own "in the recipe, not deployed"); `platform-health`,
+  `expected-resources`, dependencyAffinity and the `recipeHasComponent`
+  checks honor it. The whole-GPU advertisers (`gpu-operator`,
+  `gpu-operator-ocp`, `nvidia-dra-driver-gpu`) are the exception: the SDK's
+  allocation-policy resolver needs an ENABLED advertiser and fails closed
+  otherwise ("externally managed advertisers are a #1327 non-goal"), so a
+  skipped advertiser stays enabled for policy resolution but is blanked
+  (namespace, expected resources, health asserts) so the composite checks
+  have nothing of its to probe.
+- Checks that hard-code a skipped component (`checkRequires`: the
+  gpu-operator health/version checks, DCGM/Prometheus metrics checks,
+  GPU HPA, gang-scheduling, dra-support) are removed from the phase plan and
+  reported `skipped` with a reason naming the component. They merge into the
+  SDK's phase results as ordinary CTRF entries (overriding a same-named entry
+  the SDK still emitted, as no-cluster mode does), so `phaseResults`, the
+  counts, and the merged CTRF agree.
+
+Skipping makes those checks out of scope; it does not verify a replacement
+the user runs themselves — that needs recipe-level ownership data upstream
+(AICR `gpuStack` profiles). `checkRequires` is pinned to the SDK's
+validators and guarded by `TestCheckRequiresMatchesCatalog`.
+
+A non-strict failed verdict is also surfaced as a warning diagnostic listing
+the failed checks and messages, so the terminal shows more than
+`status: failed`.
+
 ### Kubeconfig materialization
 
 `AgentConfig.Kubeconfig` and `WithValidationKubeconfig` take a *path*

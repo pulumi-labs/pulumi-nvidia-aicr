@@ -232,10 +232,12 @@ func (o ComponentOverrideMapOutput) MapIndex(k pulumi.StringInput) ComponentOver
 }
 
 // Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-// output here so deployment and validation resolve the identical recipe.
+// intent / os / platform / nodes inputs, plus the skipComponents the stack
+// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+// and validation resolve the identical recipe and agree on which of its
+// components are in scope.
 type RecipeCriteria struct {
-	// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+	// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
 	Accelerator string `pulumi:"accelerator"`
 	// Workload intent. Supported values: "training", "inference".
 	Intent string `pulumi:"intent"`
@@ -245,10 +247,21 @@ type RecipeCriteria struct {
 	// resolution. Supported values: "ubuntu", "cos", "ol".
 	Os *string `pulumi:"os"`
 	// ML platform/framework. Supported values: "kubeflow" (training),
-	// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+	// kubeflow and dynamo have no recipes on lke/bcm.
 	Platform *string `pulumi:"platform"`
-	// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+	// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 	Service string `pulumi:"service"`
+	// Recipe components the stack intentionally did not deploy (ClusterStack's
+	// `skipComponents`). ValidationRun treats them as out of scope rather than
+	// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+	// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+	// "skipped" with a reason instead of failing, and the SDK's component-aware
+	// checks see the components as disabled. A ClusterStack's `criteria` output
+	// carries its own skipComponents, so wiring it keeps validation aligned with
+	// the deployed subset automatically. Skipping does not verify a replacement
+	// you run yourself — those checks are simply not made.
+	SkipComponents []string `pulumi:"skipComponents"`
 }
 
 // RecipeCriteriaInput is an input type that accepts RecipeCriteriaArgs and RecipeCriteriaOutput values.
@@ -263,10 +276,12 @@ type RecipeCriteriaInput interface {
 }
 
 // Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-// output here so deployment and validation resolve the identical recipe.
+// intent / os / platform / nodes inputs, plus the skipComponents the stack
+// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+// and validation resolve the identical recipe and agree on which of its
+// components are in scope.
 type RecipeCriteriaArgs struct {
-	// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+	// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
 	Accelerator pulumi.StringInput `pulumi:"accelerator"`
 	// Workload intent. Supported values: "training", "inference".
 	Intent pulumi.StringInput `pulumi:"intent"`
@@ -276,10 +291,21 @@ type RecipeCriteriaArgs struct {
 	// resolution. Supported values: "ubuntu", "cos", "ol".
 	Os pulumi.StringPtrInput `pulumi:"os"`
 	// ML platform/framework. Supported values: "kubeflow" (training),
-	// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+	// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+	// kubeflow and dynamo have no recipes on lke/bcm.
 	Platform pulumi.StringPtrInput `pulumi:"platform"`
-	// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+	// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 	Service pulumi.StringInput `pulumi:"service"`
+	// Recipe components the stack intentionally did not deploy (ClusterStack's
+	// `skipComponents`). ValidationRun treats them as out of scope rather than
+	// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+	// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+	// "skipped" with a reason instead of failing, and the SDK's component-aware
+	// checks see the components as disabled. A ClusterStack's `criteria` output
+	// carries its own skipComponents, so wiring it keeps validation aligned with
+	// the deployed subset automatically. Skipping does not verify a replacement
+	// you run yourself — those checks are simply not made.
+	SkipComponents pulumi.StringArrayInput `pulumi:"skipComponents"`
 }
 
 func (RecipeCriteriaArgs) ElementType() reflect.Type {
@@ -295,8 +321,10 @@ func (i RecipeCriteriaArgs) ToRecipeCriteriaOutputWithContext(ctx context.Contex
 }
 
 // Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-// intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-// output here so deployment and validation resolve the identical recipe.
+// intent / os / platform / nodes inputs, plus the skipComponents the stack
+// deployed without. Wire a ClusterStack's `criteria` output here so deployment
+// and validation resolve the identical recipe and agree on which of its
+// components are in scope.
 type RecipeCriteriaOutput struct{ *pulumi.OutputState }
 
 func (RecipeCriteriaOutput) ElementType() reflect.Type {
@@ -311,7 +339,7 @@ func (o RecipeCriteriaOutput) ToRecipeCriteriaOutputWithContext(ctx context.Cont
 	return o
 }
 
-// GPU accelerator type. Supported values: "h100", "gb200", "b200".
+// GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
 func (o RecipeCriteriaOutput) Accelerator() pulumi.StringOutput {
 	return o.ApplyT(func(v RecipeCriteria) string { return v.Accelerator }).(pulumi.StringOutput)
 }
@@ -333,14 +361,28 @@ func (o RecipeCriteriaOutput) Os() pulumi.StringPtrOutput {
 }
 
 // ML platform/framework. Supported values: "kubeflow" (training),
-// "dynamo" (inference), "nim" (inference, EKS+H100 only).
+// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+// kubeflow and dynamo have no recipes on lke/bcm.
 func (o RecipeCriteriaOutput) Platform() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v RecipeCriteria) *string { return v.Platform }).(pulumi.StringPtrOutput)
 }
 
-// Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
 func (o RecipeCriteriaOutput) Service() pulumi.StringOutput {
 	return o.ApplyT(func(v RecipeCriteria) string { return v.Service }).(pulumi.StringOutput)
+}
+
+// Recipe components the stack intentionally did not deploy (ClusterStack's
+// `skipComponents`). ValidationRun treats them as out of scope rather than
+// missing: checks that presuppose one of them (e.g. the gpu-operator health,
+// DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+// "skipped" with a reason instead of failing, and the SDK's component-aware
+// checks see the components as disabled. A ClusterStack's `criteria` output
+// carries its own skipComponents, so wiring it keeps validation aligned with
+// the deployed subset automatically. Skipping does not verify a replacement
+// you run yourself — those checks are simply not made.
+func (o RecipeCriteriaOutput) SkipComponents() pulumi.StringArrayOutput {
+	return o.ApplyT(func(v RecipeCriteria) []string { return v.SkipComponents }).(pulumi.StringArrayOutput)
 }
 
 // A Kubernetes pod toleration applied to validation workload pods.

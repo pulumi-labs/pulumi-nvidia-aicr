@@ -15,11 +15,13 @@
 package provider
 
 import (
+	"context"
 	"math"
 	"strings"
 	"sync"
 	"testing"
 
+	aicrclient "github.com/NVIDIA/aicr/pkg/client/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/assert"
@@ -158,9 +160,24 @@ func TestValidateArgsRejectsIncompatibleCombinations(t *testing.T) {
 			want: `platform "dynamo" is inference-only`,
 		},
 		{
-			name: "nim outside eks+h100+inference",
+			name: "nim outside eks",
 			args: ClusterStackArgs{Accelerator: "h100", Service: "gke", Intent: "inference", Platform: str("nim")},
-			want: `platform "nim" is supported only on eks+h100+inference`,
+			want: `platform "nim" is supported only on eks with h100 or rtx-pro-6000`,
+		},
+		{
+			name: "nim with unsupported accelerator",
+			args: ClusterStackArgs{Accelerator: "gb200", Service: "eks", Intent: "inference", Platform: str("nim")},
+			want: `platform "nim" is supported only on eks with h100 or rtx-pro-6000`,
+		},
+		{
+			name: "kubeflow on bcm",
+			args: ClusterStackArgs{Accelerator: "h100", Service: "bcm", Intent: "training", Platform: str("kubeflow")},
+			want: `platform "kubeflow" has no recipes on service "bcm"`,
+		},
+		{
+			name: "dynamo on lke",
+			args: ClusterStackArgs{Accelerator: "h100", Service: "lke", Intent: "inference", Platform: str("dynamo")},
+			want: `platform "dynamo" has no recipes on service "lke"`,
 		},
 		{
 			name: "b200 + inference",
@@ -723,4 +740,124 @@ func TestNewClusterStackCriteriaOmitsUnsetOptionals(t *testing.T) {
 	assert.Nil(t, got.OS)
 	assert.Nil(t, got.Platform)
 	assert.Nil(t, got.Nodes)
+	assert.Nil(t, got.SkipComponents, "unset skipComponents must be omitted")
+}
+
+func TestNewClusterStackCriteriaCarriesSkipComponents(t *testing.T) {
+	// The criteria output must carry skipComponents verbatim so a wired
+	// ValidationRun scopes itself to the deployed subset (issue #22), and
+	// must be an independent copy of the input slice.
+	mon := &recordingMonitor{}
+	skip := []string{"cert-manager", "kube-prometheus-stack"}
+	var got RecipeCriteria
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		stack, err := NewClusterStack(ctx, "stack", &ClusterStackArgs{
+			Accelerator:    "h100",
+			Service:        "eks",
+			Intent:         "training",
+			SkipComponents: skip,
+		})
+		if err != nil {
+			return err
+		}
+		got = stack.Criteria
+		return nil
+	}, pulumi.WithMocks("project", "stack", mon))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"cert-manager", "kube-prometheus-stack"}, got.SkipComponents)
+	skip[0] = "mutated"
+	assert.Equal(t, "cert-manager", got.SkipComponents[0], "output must not alias the input slice")
+}
+
+// TestRtxPro6000ServiceMatrixMatchesSDKData pins validateCompatibility's
+// rtx-pro-6000 service restriction against the embedded SDK recipe data: a
+// service is admitted exactly when some resolvable (intent, os) combination
+// applies an rtx-pro-6000-<service>* overlay. Without the tuned overlay the
+// resolver silently falls back to generic service leaves — an untuned stack
+// deploying without error is the hazard the restriction exists to prevent.
+// An SDK bump that adds or removes tuned leaves fails here, prompting the
+// allowlist (and its docs) to move in lockstep.
+func TestRtxPro6000ServiceMatrixMatchesSDKData(t *testing.T) {
+	allowed := map[string]bool{"eks": true, "lke": true}
+
+	client, err := aicrclient.NewClient(aicrclient.WithRecipeSource(aicrclient.EmbeddedSource()))
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	for _, svc := range supportedServices {
+		tuned := false
+		// "" first for the OS-agnostic path; gke/oke resolve only with an
+		// explicit OS, so every supported OS is probed too.
+		for _, osName := range append([]string{""}, supportedOSes...) {
+			for _, intent := range supportedIntents {
+				result, err := client.ResolveRecipe(ctx, aicrclient.RecipeRequest{
+					Service:     svc,
+					Accelerator: "rtx-pro-6000",
+					Intent:      intent,
+					OS:          osName,
+				})
+				if err != nil {
+					continue // no leaf at all for this combination
+				}
+				for _, overlay := range result.Resolved().Metadata.AppliedOverlays {
+					if strings.HasPrefix(overlay, "rtx-pro-6000-"+svc) {
+						tuned = true
+					}
+				}
+			}
+		}
+		if tuned != allowed[svc] {
+			t.Errorf("service %q: rtx-pro-6000-tuned leaf in SDK data = %v, but validateCompatibility admits it = %v; "+
+				"update the rtx-pro-6000 clause (and the accelerator docs) to match the SDK data",
+				svc, tuned, allowed[svc])
+		}
+	}
+}
+
+// TestPlatformMatrixMatchesSDKData pins validateCompatibility's platform
+// rules against the embedded SDK recipe data: per platform, the set of
+// services with at least one resolvable combination, and for nim the set of
+// accelerators. An SDK bump that adds recipes (kubeflow on lke, nim on a new
+// service or accelerator, …) fails here, prompting the clauses and the docs
+// to move in lockstep.
+func TestPlatformMatrixMatchesSDKData(t *testing.T) {
+	wantServices := map[string]map[string]bool{
+		"kubeflow": {"aks": true, "eks": true, "gke": true, "kind": true, "oke": true},
+		"dynamo":   {"aks": true, "eks": true, "gke": true, "kind": true, "oke": true},
+		"nim":      {"eks": true},
+	}
+	wantNimAccels := map[string]bool{"h100": true, "rtx-pro-6000": true}
+
+	client, err := aicrclient.NewClient(aicrclient.WithRecipeSource(aicrclient.EmbeddedSource()))
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	for _, platform := range supportedPlatforms {
+		gotServices := map[string]bool{}
+		gotAccels := map[string]bool{}
+		for _, svc := range supportedServices {
+			for _, accel := range supportedAccelerators {
+				for _, intent := range supportedIntents {
+					for _, osName := range append([]string{""}, supportedOSes...) {
+						_, err := client.ResolveRecipe(ctx, aicrclient.RecipeRequest{
+							Service: svc, Accelerator: accel, Intent: intent, OS: osName, Platform: platform,
+						})
+						if err != nil {
+							continue
+						}
+						gotServices[svc] = true
+						gotAccels[accel] = true
+					}
+				}
+			}
+		}
+		assert.Equal(t, wantServices[platform], gotServices,
+			"platform %q service coverage in the SDK data drifted from validateCompatibility's rules", platform)
+		if platform == "nim" {
+			assert.Equal(t, wantNimAccels, gotAccels, "nim accelerator coverage drifted")
+		}
+	}
 }

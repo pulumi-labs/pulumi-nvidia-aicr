@@ -36,6 +36,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -90,21 +91,39 @@ type RecipeCriteria struct {
 	OS          *string `pulumi:"os,optional"`
 	Platform    *string `pulumi:"platform,optional"`
 	Nodes       *int    `pulumi:"nodes,optional"`
+	// SkipComponents is the deployed-subset dimension: a recipe minus these
+	// components is a different stack, and validation must see the same one
+	// ClusterStack deployed (issue #22). Carried on the criteria (rather than
+	// a separate ValidationRun input) so the documented wiring —
+	// `criteria: stack.criteria` — stays the single source of truth.
+	SkipComponents []string `pulumi:"skipComponents,optional"`
 }
 
 // Annotate populates schema metadata for RecipeCriteria.
 func (c *RecipeCriteria) Annotate(an infer.Annotator) {
 	an.Describe(c, `Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-intent / os / platform / nodes inputs. Wire a ClusterStack's `+"`criteria`"+`
-output here so deployment and validation resolve the identical recipe.`)
-	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200".`)
-	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".`)
+intent / os / platform / nodes inputs, plus the skipComponents the stack
+deployed without. Wire a ClusterStack's `+"`criteria`"+` output here so deployment
+and validation resolve the identical recipe and agree on which of its
+components are in scope.`)
+	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).`)
+	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".`)
 	an.Describe(&c.Intent, `Workload intent. Supported values: "training", "inference".`)
 	an.Describe(&c.OS, `Operating system flavor of the worker nodes. Leave unset for OS-agnostic
 resolution. Supported values: "ubuntu", "cos", "ol".`)
 	an.Describe(&c.Platform, `ML platform/framework. Supported values: "kubeflow" (training),
-"dynamo" (inference), "nim" (inference, EKS+H100 only).`)
+"dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+kubeflow and dynamo have no recipes on lke/bcm.`)
 	an.Describe(&c.Nodes, `Worker-node count hint used to size the recipe.`)
+	an.Describe(&c.SkipComponents, `Recipe components the stack intentionally did not deploy (ClusterStack's
+`+"`skipComponents`"+`). ValidationRun treats them as out of scope rather than
+missing: checks that presuppose one of them (e.g. the gpu-operator health,
+DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+"skipped" with a reason instead of failing, and the SDK's component-aware
+checks see the components as disabled. A ClusterStack's `+"`criteria`"+` output
+carries its own skipComponents, so wiring it keeps validation aligned with
+the deployed subset automatically. Skipping does not verify a replacement
+you run yourself — those checks are simply not made.`)
 }
 
 // Toleration is the standard Kubernetes toleration shape, provider-owned so
@@ -308,10 +327,14 @@ passes — use `+"`dependsOn`"+` to gate downstream resources on it.`)
 // inputs with zero-valued results.
 func (r *ValidationRun) Create(ctx context.Context, req infer.CreateRequest[ValidationRunArgs]) (infer.CreateResponse[ValidationRunState], error) {
 	if req.DryRun {
-		// Validate opportunistically, but skip when criteria is zero-valued:
-		// criteria wired from an unresolved output arrives as the zero
-		// struct at preview. Full validation always re-runs at apply.
-		if !isZeroCriteria(req.Inputs.Criteria) {
+		// Validate opportunistically, but only when every required criteria
+		// member is present: infer's decoder replaces just the computed
+		// members with zero values at preview, so criteria mixing literals
+		// with unresolved outputs (e.g. a known accelerator plus an intent
+		// from another resource's output) arrives partially zeroed and is
+		// indistinguishable from a user error. Full validation always
+		// re-runs at apply.
+		if hasRequiredCriteria(req.Inputs.Criteria) {
 			if err := validateValidationRunArgs(&req.Inputs); err != nil {
 				return infer.CreateResponse[ValidationRunState]{}, err
 			}
@@ -352,8 +375,8 @@ func (r *ValidationRun) Diff(ctx context.Context, req infer.DiffRequest[Validati
 			// can differ from the engine's display.
 			if path := os.Getenv("PULUMI_NVIDIA_AICR_DEBUG_DIFF"); path != "" {
 				if f, ferr := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); ferr == nil {
-					fmt.Fprintf(f, "nvidia-aicr diff: property %q unequal:\n  old=%#v\n  new=%#v\n",
-						name, oldArgs.Field(i).Interface(), newArgs.Field(i).Interface())
+					fmt.Fprintf(f, "nvidia-aicr diff: property %q unequal:\n  old=%s\n  new=%s\n",
+						name, debugFormatArg(oldArgs.Field(i)), debugFormatArg(newArgs.Field(i)))
 					_ = f.Close()
 				}
 			}
@@ -428,6 +451,8 @@ func runValidation(ctx context.Context, name string, args ValidationRunArgs) (st
 		ImagePullSecrets: args.ImagePullSecrets,
 		Phases:           normalizePhases(args.Phases),
 		RequireGPU:       derefBool(args.RequireGpu, true),
+		SkipComponents:   args.Criteria.SkipComponents,
+		Timeout:          time.Duration(timeoutMinutes) * time.Minute,
 	})
 	if err != nil {
 		// Infrastructure error: the run couldn't happen. Plain failure,
@@ -483,7 +508,61 @@ func runValidation(ctx context.Context, name string, args ValidationRunArgs) (st
 			}}
 		}
 	}
+	warnFailedChecks(ctx, report)
 	return id, state, nil
+}
+
+// maxWarnMessageLen bounds each per-check message in the failed-checks
+// warning; the full text is always in state (phaseResults).
+const maxWarnMessageLen = 240
+
+// warnFailedChecks surfaces a non-strict failed verdict as a warning
+// diagnostic. Without it the only terminal signal is a `status: failed`
+// output and the per-check detail sits silently in state — operators had to
+// `pulumi stack export` to learn WHICH checks failed (issue #22). A
+// readiness-failed run gets the same treatment: zero checks ran, so the
+// warning carries the readiness pre-flight message instead of per-check
+// lines — otherwise `pulumi up` prints plain success for a run in which no
+// validation check ever executed.
+func warnFailedChecks(ctx context.Context, report *aicr.ValidationReport) {
+	if report == nil {
+		return
+	}
+	if report.Outcome == aicr.OutcomeReadinessFailed {
+		msg := strings.TrimSpace(report.ReadinessMessage)
+		if len(msg) > maxWarnMessageLen {
+			msg = strings.ToValidUTF8(msg[:maxWarnMessageLen], "") + "…"
+		}
+		p.GetLogger(ctx).Warningf(
+			"validation of recipe %s did not run: readiness pre-flight failed: %s "+
+				"(recorded in state as status \"readiness-failed\"; set strict: true to fail the update)",
+			report.RecipeName, msg)
+		return
+	}
+	if report.Outcome != aicr.OutcomeFailed {
+		return
+	}
+	lines := make([]string, 0, report.Failed)
+	for _, c := range report.Checks {
+		if c.Status != "failed" {
+			continue
+		}
+		msg := strings.TrimSpace(c.Message)
+		if len(msg) > maxWarnMessageLen {
+			// Byte slicing can cut a multi-byte rune in half (SDK messages
+			// carry "≥" and "—"); drop any trailing partial rune.
+			msg = strings.ToValidUTF8(msg[:maxWarnMessageLen], "") + "…"
+		}
+		if msg == "" {
+			lines = append(lines, fmt.Sprintf("%s (%s)", c.Name, c.Phase))
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s (%s): %s", c.Name, c.Phase, msg))
+	}
+	p.GetLogger(ctx).Warningf(
+		"validation of recipe %s failed: %d check(s) failed, %d passed, %d skipped "+
+			"(recorded in state as status \"failed\"; set strict: true to fail the update):\n  %s",
+		report.RecipeName, report.Failed, report.Passed, report.Skipped, strings.Join(lines, "\n  "))
 }
 
 // validateValidationRunArgs rejects invalid inputs with friendly errors
@@ -572,11 +651,22 @@ func materializeKubeconfig(kubeconfig, kubeconfigPath, kubeContext *string) (str
 	hasPath := kubeconfigPath != nil && *kubeconfigPath != ""
 	hasContext := kubeContext != nil && *kubeContext != ""
 
+	var pathVal string
+	if hasPath {
+		// The shipped examples default kubeconfigPath to the literal
+		// "~/.kube/config"; the shell never sees it, so expand it here.
+		expanded, err := expandTilde(*kubeconfigPath)
+		if err != nil {
+			return "", noop, err
+		}
+		pathVal = expanded
+	}
+
 	if !hasContents && !hasPath && !hasContext {
 		return "", noop, nil
 	}
 	if hasPath && !hasContext {
-		return *kubeconfigPath, noop, nil
+		return pathVal, noop, nil
 	}
 
 	var raw []byte
@@ -584,9 +674,9 @@ func materializeKubeconfig(kubeconfig, kubeconfigPath, kubeContext *string) (str
 	case hasContents:
 		raw = []byte(*kubeconfig)
 	case hasPath:
-		content, err := os.ReadFile(*kubeconfigPath)
+		content, err := os.ReadFile(pathVal)
 		if err != nil {
-			return "", noop, fmt.Errorf("reading kubeconfig %s: %w", *kubeconfigPath, err)
+			return "", noop, fmt.Errorf("reading kubeconfig %s: %w", pathVal, err)
 		}
 		raw = content
 	default:
@@ -616,6 +706,20 @@ func materializeKubeconfig(kubeconfig, kubeconfigPath, kubeContext *string) (str
 		return "", noop, err
 	}
 	return writeTempKubeconfig(out)
+}
+
+// expandTilde expands a leading "~/" (or a bare "~") to the current user's
+// home directory. "~user" forms pass through verbatim — no example uses
+// them and resolving another user's home is not worth an os/user dependency.
+func expandTilde(path string) (string, error) {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("expanding kubeconfig path %q: %w", path, err)
+	}
+	return filepath.Join(home, strings.TrimPrefix(path, "~")), nil
 }
 
 // rewriteContext sets the config's current-context, erroring with the
@@ -688,10 +792,29 @@ func toCoreTolerations(tolerations []Toleration) []corev1.Toleration {
 	return out
 }
 
-// isZeroCriteria reports whether criteria is entirely zero-valued — the
-// shape an unresolved output has at preview.
-func isZeroCriteria(c RecipeCriteria) bool {
-	return c == RecipeCriteria{}
+// debugFormatArg renders one args field for the PULUMI_NVIDIA_AICR_DEBUG_DIFF
+// log. Pointers are dereferenced first: %#v on a *string prints
+// "(*string)(0xc000…)", an address that differs every run by construction
+// and reveals nothing about the old-set-vs-new-nil drift the hook exists to
+// diagnose.
+func debugFormatArg(v reflect.Value) string {
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return "nil"
+		}
+		return fmt.Sprintf("&%#v", v.Elem().Interface())
+	}
+	return fmt.Sprintf("%#v", v.Interface())
+}
+
+// hasRequiredCriteria reports whether every required criteria member is
+// present. At preview a member wired from an unresolved output decodes as
+// its zero value, so a missing required member may be a computed value
+// rather than a user error — preview-time validation runs only when all
+// required members are known, and apply-time validation catches genuinely
+// empty ones.
+func hasRequiredCriteria(c RecipeCriteria) bool {
+	return c.Accelerator != "" && c.Service != "" && c.Intent != ""
 }
 
 func derefString(s *string, def string) string {

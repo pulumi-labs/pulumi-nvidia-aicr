@@ -20,9 +20,10 @@ namespace Pulumi.Labs.NvidiaAicr
         public Output<int> ComponentCount { get; private set; } = null!;
 
         /// <summary>
-        /// The canonicalized recipe criteria this stack resolved with. Wire it into a
-        /// ValidationRun's `criteria` input so deployment and validation share a single
-        /// source of truth.
+        /// The canonicalized recipe criteria this stack resolved with, including its
+        /// `skipComponents`. Wire it into a ValidationRun's `criteria` input so deployment and
+        /// validation share a single source of truth — the same recipe, and the same
+        /// components in scope.
         /// </summary>
         [Output("criteria")]
         public Output<Outputs.RecipeCriteria> Criteria { get; private set; } = null!;
@@ -77,7 +78,8 @@ namespace Pulumi.Labs.NvidiaAicr
         /// <summary>
         /// GPU accelerator type. Selects the AICR recipe family.
         /// 
-        /// Supported values: "h100", "gb200", "b200".
+        /// Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
+        /// the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
         /// </summary>
         [Input("accelerator", required: true)]
         public string Accelerator { get; set; } = null!;
@@ -156,7 +158,9 @@ namespace Pulumi.Labs.NvidiaAicr
         /// <summary>
         /// ML platform/framework to layer on top of the base recipe.
         /// 
-        /// Supported values: "kubeflow" (training), "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        /// Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
+        /// (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
+        /// recipes on lke/bcm in the pinned AICR data.
         /// 
         /// Leave unset for the base recipe without a platform-specific runtime. Note
         /// that intent="inference" always includes an inference gateway (part of the
@@ -170,7 +174,10 @@ namespace Pulumi.Labs.NvidiaAicr
         /// <summary>
         /// Kubernetes service. Selects cloud-specific operators and storage drivers.
         /// 
-        /// Supported values: "aks", "eks", "gke", "kind", "oke". Use "kind" for local
+        /// Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
+        /// lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
+        /// double as stand-ins for providers without an AICR criteria value yet (e.g.
+        /// CoreWeave CKS deploys the lke leaf). Use "kind" for local
         /// hardware-free development of the deployment pipeline.
         /// </summary>
         [Input("service", required: true)]

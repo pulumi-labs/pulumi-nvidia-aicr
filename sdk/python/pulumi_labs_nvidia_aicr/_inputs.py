@@ -28,11 +28,11 @@ class ComponentOverrideArgsDict(TypedDict):
     Per-component override settings. Each field is optional; only the fields
     you set are applied on top of the recipe defaults.
     """
-    namespace: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    namespace: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     Override the target Kubernetes namespace.
     """
-    values: NotRequired[pulumi.Input[Optional[Mapping[str, Any]]]]
+    values: NotRequired[Optional[pulumi.Input[Mapping[str, Any]]]]
     """
     Additional or override Helm values, deep-merged on top of the
     recipe-resolved values.
@@ -46,7 +46,7 @@ class ComponentOverrideArgsDict(TypedDict):
     through to Helm from this input — and some language SDKs drop null map
     entries during serialization before they reach the provider at all.
     """
-    version: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    version: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     Override the Helm chart version. If unset, the recipe-pinned version is used.
     """
@@ -54,9 +54,9 @@ class ComponentOverrideArgsDict(TypedDict):
 @pulumi.input_type
 class ComponentOverrideArgs:
     def __init__(__self__, *,
-                 namespace: pulumi.Input[Optional[_builtins.str]] = None,
-                 values: pulumi.Input[Optional[Mapping[str, Any]]] = None,
-                 version: pulumi.Input[Optional[_builtins.str]] = None):
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 values: Optional[pulumi.Input[Mapping[str, Any]]] = None,
+                 version: Optional[pulumi.Input[_builtins.str]] = None):
         """
         Per-component override settings. Each field is optional; only the fields
         you set are applied on top of the recipe defaults.
@@ -84,19 +84,19 @@ class ComponentOverrideArgs:
 
     @_builtins.property
     @pulumi.getter
-    def namespace(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Override the target Kubernetes namespace.
         """
         return pulumi.get(self, "namespace")
 
     @namespace.setter
-    def namespace(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "namespace", value)
 
     @_builtins.property
     @pulumi.getter
-    def values(self) -> pulumi.Input[Optional[Mapping[str, Any]]]:
+    def values(self) -> Optional[pulumi.Input[Mapping[str, Any]]]:
         """
         Additional or override Helm values, deep-merged on top of the
         recipe-resolved values.
@@ -113,31 +113,33 @@ class ComponentOverrideArgs:
         return pulumi.get(self, "values")
 
     @values.setter
-    def values(self, value: pulumi.Input[Optional[Mapping[str, Any]]]):
+    def values(self, value: Optional[pulumi.Input[Mapping[str, Any]]]):
         pulumi.set(self, "values", value)
 
     @_builtins.property
     @pulumi.getter
-    def version(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def version(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Override the Helm chart version. If unset, the recipe-pinned version is used.
         """
         return pulumi.get(self, "version")
 
     @version.setter
-    def version(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def version(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "version", value)
 
 
 class RecipeCriteriaArgsDict(TypedDict):
     """
     Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-    intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-    output here so deployment and validation resolve the identical recipe.
+    intent / os / platform / nodes inputs, plus the skipComponents the stack
+    deployed without. Wire a ClusterStack's `criteria` output here so deployment
+    and validation resolve the identical recipe and agree on which of its
+    components are in scope.
     """
     accelerator: pulumi.Input[_builtins.str]
     """
-    GPU accelerator type. Supported values: "h100", "gb200", "b200".
+    GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
     """
     intent: pulumi.Input[_builtins.str]
     """
@@ -145,21 +147,34 @@ class RecipeCriteriaArgsDict(TypedDict):
     """
     service: pulumi.Input[_builtins.str]
     """
-    Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+    Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
     """
-    nodes: NotRequired[pulumi.Input[Optional[_builtins.int]]]
+    nodes: NotRequired[Optional[pulumi.Input[_builtins.int]]]
     """
     Worker-node count hint used to size the recipe.
     """
-    os: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    os: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     Operating system flavor of the worker nodes. Leave unset for OS-agnostic
     resolution. Supported values: "ubuntu", "cos", "ol".
     """
-    platform: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    platform: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     ML platform/framework. Supported values: "kubeflow" (training),
-    "dynamo" (inference), "nim" (inference, EKS+H100 only).
+    "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+    kubeflow and dynamo have no recipes on lke/bcm.
+    """
+    skip_components: NotRequired[Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]]
+    """
+    Recipe components the stack intentionally did not deploy (ClusterStack's
+    `skipComponents`). ValidationRun treats them as out of scope rather than
+    missing: checks that presuppose one of them (e.g. the gpu-operator health,
+    DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+    "skipped" with a reason instead of failing, and the SDK's component-aware
+    checks see the components as disabled. A ClusterStack's `criteria` output
+    carries its own skipComponents, so wiring it keeps validation aligned with
+    the deployed subset automatically. Skipping does not verify a replacement
+    you run yourself — those checks are simply not made.
     """
 
 @pulumi.input_type
@@ -168,22 +183,35 @@ class RecipeCriteriaArgs:
                  accelerator: pulumi.Input[_builtins.str],
                  intent: pulumi.Input[_builtins.str],
                  service: pulumi.Input[_builtins.str],
-                 nodes: pulumi.Input[Optional[_builtins.int]] = None,
-                 os: pulumi.Input[Optional[_builtins.str]] = None,
-                 platform: pulumi.Input[Optional[_builtins.str]] = None):
+                 nodes: Optional[pulumi.Input[_builtins.int]] = None,
+                 os: Optional[pulumi.Input[_builtins.str]] = None,
+                 platform: Optional[pulumi.Input[_builtins.str]] = None,
+                 skip_components: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None):
         """
         Recipe-selection criteria, mirroring ClusterStack's accelerator / service /
-        intent / os / platform / nodes inputs. Wire a ClusterStack's `criteria`
-        output here so deployment and validation resolve the identical recipe.
+        intent / os / platform / nodes inputs, plus the skipComponents the stack
+        deployed without. Wire a ClusterStack's `criteria` output here so deployment
+        and validation resolve the identical recipe and agree on which of its
+        components are in scope.
 
-        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
         :param pulumi.Input[_builtins.str] intent: Workload intent. Supported values: "training", "inference".
-        :param pulumi.Input[_builtins.str] service: Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        :param pulumi.Input[_builtins.str] service: Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         :param pulumi.Input[_builtins.int] nodes: Worker-node count hint used to size the recipe.
         :param pulumi.Input[_builtins.str] os: Operating system flavor of the worker nodes. Leave unset for OS-agnostic
                resolution. Supported values: "ubuntu", "cos", "ol".
         :param pulumi.Input[_builtins.str] platform: ML platform/framework. Supported values: "kubeflow" (training),
-               "dynamo" (inference), "nim" (inference, EKS+H100 only).
+               "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+               kubeflow and dynamo have no recipes on lke/bcm.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] skip_components: Recipe components the stack intentionally did not deploy (ClusterStack's
+               `skipComponents`). ValidationRun treats them as out of scope rather than
+               missing: checks that presuppose one of them (e.g. the gpu-operator health,
+               DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+               "skipped" with a reason instead of failing, and the SDK's component-aware
+               checks see the components as disabled. A ClusterStack's `criteria` output
+               carries its own skipComponents, so wiring it keeps validation aligned with
+               the deployed subset automatically. Skipping does not verify a replacement
+               you run yourself — those checks are simply not made.
         """
         pulumi.set(__self__, "accelerator", accelerator)
         pulumi.set(__self__, "intent", intent)
@@ -194,12 +222,14 @@ class RecipeCriteriaArgs:
             pulumi.set(__self__, "os", os)
         if platform is not None:
             pulumi.set(__self__, "platform", platform)
+        if skip_components is not None:
+            pulumi.set(__self__, "skip_components", skip_components)
 
     @_builtins.property
     @pulumi.getter
     def accelerator(self) -> pulumi.Input[_builtins.str]:
         """
-        GPU accelerator type. Supported values: "h100", "gb200", "b200".
+        GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
         """
         return pulumi.get(self, "accelerator")
 
@@ -223,7 +253,7 @@ class RecipeCriteriaArgs:
     @pulumi.getter
     def service(self) -> pulumi.Input[_builtins.str]:
         """
-        Kubernetes service. Supported values: "aks", "eks", "gke", "kind", "oke".
+        Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         """
         return pulumi.get(self, "service")
 
@@ -233,19 +263,19 @@ class RecipeCriteriaArgs:
 
     @_builtins.property
     @pulumi.getter
-    def nodes(self) -> pulumi.Input[Optional[_builtins.int]]:
+    def nodes(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
         Worker-node count hint used to size the recipe.
         """
         return pulumi.get(self, "nodes")
 
     @nodes.setter
-    def nodes(self, value: pulumi.Input[Optional[_builtins.int]]):
+    def nodes(self, value: Optional[pulumi.Input[_builtins.int]]):
         pulumi.set(self, "nodes", value)
 
     @_builtins.property
     @pulumi.getter
-    def os(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def os(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Operating system flavor of the worker nodes. Leave unset for OS-agnostic
         resolution. Supported values: "ubuntu", "cos", "ol".
@@ -253,46 +283,67 @@ class RecipeCriteriaArgs:
         return pulumi.get(self, "os")
 
     @os.setter
-    def os(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def os(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "os", value)
 
     @_builtins.property
     @pulumi.getter
-    def platform(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def platform(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         ML platform/framework. Supported values: "kubeflow" (training),
-        "dynamo" (inference), "nim" (inference, EKS+H100 only).
+        "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
+        kubeflow and dynamo have no recipes on lke/bcm.
         """
         return pulumi.get(self, "platform")
 
     @platform.setter
-    def platform(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def platform(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "platform", value)
+
+    @_builtins.property
+    @pulumi.getter(name="skipComponents")
+    def skip_components(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Recipe components the stack intentionally did not deploy (ClusterStack's
+        `skipComponents`). ValidationRun treats them as out of scope rather than
+        missing: checks that presuppose one of them (e.g. the gpu-operator health,
+        DCGM metrics, and GPU-HPA checks when "gpu-operator" is skipped) are reported
+        "skipped" with a reason instead of failing, and the SDK's component-aware
+        checks see the components as disabled. A ClusterStack's `criteria` output
+        carries its own skipComponents, so wiring it keeps validation aligned with
+        the deployed subset automatically. Skipping does not verify a replacement
+        you run yourself — those checks are simply not made.
+        """
+        return pulumi.get(self, "skip_components")
+
+    @skip_components.setter
+    def skip_components(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "skip_components", value)
 
 
 class TolerationArgsDict(TypedDict):
     """
     A Kubernetes pod toleration applied to validation workload pods.
     """
-    effect: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    effect: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     The taint effect to match: "NoSchedule", "PreferNoSchedule", or
     "NoExecute". Empty matches all effects.
     """
-    key: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    key: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     The taint key the toleration applies to. Empty means match all keys
     (with operator "Exists").
     """
-    operator: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    operator: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     Key-value relationship: "Exists" or "Equal". Default: "Equal".
     """
-    toleration_seconds: NotRequired[pulumi.Input[Optional[_builtins.int]]]
+    toleration_seconds: NotRequired[Optional[pulumi.Input[_builtins.int]]]
     """
     How long the pod tolerates a "NoExecute" taint, in seconds.
     """
-    value: NotRequired[pulumi.Input[Optional[_builtins.str]]]
+    value: NotRequired[Optional[pulumi.Input[_builtins.str]]]
     """
     The taint value to match (with operator "Equal").
     """
@@ -300,11 +351,11 @@ class TolerationArgsDict(TypedDict):
 @pulumi.input_type
 class TolerationArgs:
     def __init__(__self__, *,
-                 effect: pulumi.Input[Optional[_builtins.str]] = None,
-                 key: pulumi.Input[Optional[_builtins.str]] = None,
-                 operator: pulumi.Input[Optional[_builtins.str]] = None,
-                 toleration_seconds: pulumi.Input[Optional[_builtins.int]] = None,
-                 value: pulumi.Input[Optional[_builtins.str]] = None):
+                 effect: Optional[pulumi.Input[_builtins.str]] = None,
+                 key: Optional[pulumi.Input[_builtins.str]] = None,
+                 operator: Optional[pulumi.Input[_builtins.str]] = None,
+                 toleration_seconds: Optional[pulumi.Input[_builtins.int]] = None,
+                 value: Optional[pulumi.Input[_builtins.str]] = None):
         """
         A Kubernetes pod toleration applied to validation workload pods.
 
@@ -329,7 +380,7 @@ class TolerationArgs:
 
     @_builtins.property
     @pulumi.getter
-    def effect(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def effect(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         The taint effect to match: "NoSchedule", "PreferNoSchedule", or
         "NoExecute". Empty matches all effects.
@@ -337,12 +388,12 @@ class TolerationArgs:
         return pulumi.get(self, "effect")
 
     @effect.setter
-    def effect(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def effect(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "effect", value)
 
     @_builtins.property
     @pulumi.getter
-    def key(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def key(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         The taint key the toleration applies to. Empty means match all keys
         (with operator "Exists").
@@ -350,43 +401,43 @@ class TolerationArgs:
         return pulumi.get(self, "key")
 
     @key.setter
-    def key(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def key(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "key", value)
 
     @_builtins.property
     @pulumi.getter
-    def operator(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def operator(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         Key-value relationship: "Exists" or "Equal". Default: "Equal".
         """
         return pulumi.get(self, "operator")
 
     @operator.setter
-    def operator(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def operator(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "operator", value)
 
     @_builtins.property
     @pulumi.getter(name="tolerationSeconds")
-    def toleration_seconds(self) -> pulumi.Input[Optional[_builtins.int]]:
+    def toleration_seconds(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
         How long the pod tolerates a "NoExecute" taint, in seconds.
         """
         return pulumi.get(self, "toleration_seconds")
 
     @toleration_seconds.setter
-    def toleration_seconds(self, value: pulumi.Input[Optional[_builtins.int]]):
+    def toleration_seconds(self, value: Optional[pulumi.Input[_builtins.int]]):
         pulumi.set(self, "toleration_seconds", value)
 
     @_builtins.property
     @pulumi.getter
-    def value(self) -> pulumi.Input[Optional[_builtins.str]]:
+    def value(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         The taint value to match (with operator "Equal").
         """
         return pulumi.get(self, "value")
 
     @value.setter
-    def value(self, value: pulumi.Input[Optional[_builtins.str]]):
+    def value(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "value", value)
 
 

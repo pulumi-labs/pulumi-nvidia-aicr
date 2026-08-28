@@ -8,6 +8,7 @@ import com.pulumi.core.annotations.Import;
 import com.pulumi.exceptions.MissingRequiredPropertyException;
 import java.lang.Integer;
 import java.lang.String;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -15,8 +16,10 @@ import javax.annotation.Nullable;
 
 /**
  * Recipe-selection criteria, mirroring ClusterStack&#39;s accelerator / service /
- * intent / os / platform / nodes inputs. Wire a ClusterStack&#39;s `criteria`
- * output here so deployment and validation resolve the identical recipe.
+ * intent / os / platform / nodes inputs, plus the skipComponents the stack
+ * deployed without. Wire a ClusterStack&#39;s `criteria` output here so deployment
+ * and validation resolve the identical recipe and agree on which of its
+ * components are in scope.
  * 
  */
 public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs {
@@ -24,14 +27,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     public static final RecipeCriteriaArgs Empty = new RecipeCriteriaArgs();
 
     /**
-     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
      * 
      */
     @Import(name="accelerator", required=true)
     private Output<String> accelerator;
 
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
      * 
      */
     public Output<String> accelerator() {
@@ -87,7 +90,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
     /**
      * ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+     * kubeflow and dynamo have no recipes on lke/bcm.
      * 
      */
     @Import(name="platform")
@@ -95,7 +99,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
     /**
      * @return ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+     * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+     * kubeflow and dynamo have no recipes on lke/bcm.
      * 
      */
     public Optional<Output<String>> platform() {
@@ -103,18 +108,49 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     }
 
     /**
-     * Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+     * Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
      * 
      */
     @Import(name="service", required=true)
     private Output<String> service;
 
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
      * 
      */
     public Output<String> service() {
         return this.service;
+    }
+
+    /**
+     * Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+     * `skipComponents`). ValidationRun treats them as out of scope rather than
+     * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+     * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+     * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+     * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+     * carries its own skipComponents, so wiring it keeps validation aligned with
+     * the deployed subset automatically. Skipping does not verify a replacement
+     * you run yourself — those checks are simply not made.
+     * 
+     */
+    @Import(name="skipComponents")
+    private @Nullable Output<List<String>> skipComponents;
+
+    /**
+     * @return Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+     * `skipComponents`). ValidationRun treats them as out of scope rather than
+     * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+     * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+     * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+     * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+     * carries its own skipComponents, so wiring it keeps validation aligned with
+     * the deployed subset automatically. Skipping does not verify a replacement
+     * you run yourself — those checks are simply not made.
+     * 
+     */
+    public Optional<Output<List<String>>> skipComponents() {
+        return Optional.ofNullable(this.skipComponents);
     }
 
     private RecipeCriteriaArgs() {}
@@ -126,6 +162,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         this.os = $.os;
         this.platform = $.platform;
         this.service = $.service;
+        this.skipComponents = $.skipComponents;
     }
 
     public static Builder builder() {
@@ -147,7 +184,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
          * 
          * @return builder
          * 
@@ -158,7 +195,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;.
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
          * 
          * @return builder
          * 
@@ -234,7 +271,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
         /**
          * @param platform ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+         * kubeflow and dynamo have no recipes on lke/bcm.
          * 
          * @return builder
          * 
@@ -246,7 +284,8 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
 
         /**
          * @param platform ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
-         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, EKS+H100 only).
+         * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
+         * kubeflow and dynamo have no recipes on lke/bcm.
          * 
          * @return builder
          * 
@@ -256,7 +295,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
          * 
          * @return builder
          * 
@@ -267,13 +306,68 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;oke&#34;.
+         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
          * 
          * @return builder
          * 
          */
         public Builder service(String service) {
             return service(Output.of(service));
+        }
+
+        /**
+         * @param skipComponents Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+         * `skipComponents`). ValidationRun treats them as out of scope rather than
+         * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+         * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+         * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+         * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+         * carries its own skipComponents, so wiring it keeps validation aligned with
+         * the deployed subset automatically. Skipping does not verify a replacement
+         * you run yourself — those checks are simply not made.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder skipComponents(@Nullable Output<List<String>> skipComponents) {
+            $.skipComponents = skipComponents;
+            return this;
+        }
+
+        /**
+         * @param skipComponents Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+         * `skipComponents`). ValidationRun treats them as out of scope rather than
+         * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+         * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+         * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+         * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+         * carries its own skipComponents, so wiring it keeps validation aligned with
+         * the deployed subset automatically. Skipping does not verify a replacement
+         * you run yourself — those checks are simply not made.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder skipComponents(List<String> skipComponents) {
+            return skipComponents(Output.of(skipComponents));
+        }
+
+        /**
+         * @param skipComponents Recipe components the stack intentionally did not deploy (ClusterStack&#39;s
+         * `skipComponents`). ValidationRun treats them as out of scope rather than
+         * missing: checks that presuppose one of them (e.g. the gpu-operator health,
+         * DCGM metrics, and GPU-HPA checks when &#34;gpu-operator&#34; is skipped) are reported
+         * &#34;skipped&#34; with a reason instead of failing, and the SDK&#39;s component-aware
+         * checks see the components as disabled. A ClusterStack&#39;s `criteria` output
+         * carries its own skipComponents, so wiring it keeps validation aligned with
+         * the deployed subset automatically. Skipping does not verify a replacement
+         * you run yourself — those checks are simply not made.
+         * 
+         * @return builder
+         * 
+         */
+        public Builder skipComponents(String... skipComponents) {
+            return skipComponents(List.of(skipComponents));
         }
 
         public RecipeCriteriaArgs build() {

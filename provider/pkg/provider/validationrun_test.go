@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
@@ -128,6 +131,21 @@ func TestValidateValidationRunArgs(t *testing.T) {
 			name: "missing intent",
 			muta: func(a *ValidationRunArgs) { a.Criteria.Intent = "" },
 			want: "intent is required",
+		},
+		{
+			name: "rtx-pro-6000 on lke accepted",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Accelerator = "rtx-pro-6000"
+				a.Criteria.Service = "lke"
+			},
+		},
+		{
+			name: "rtx-pro-6000 off eks/lke rejected",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Accelerator = "rtx-pro-6000"
+				a.Criteria.Service = "aks"
+			},
+			want: `accelerator "rtx-pro-6000" is supported only on eks or lke`,
 		},
 		{
 			name: "unsupported platform combination",
@@ -687,6 +705,32 @@ func TestCreateDryRunValidatesKnownCriteria(t *testing.T) {
 	assert.Contains(t, err.Error(), `accelerator "fictional-gpu" is not supported`)
 }
 
+// TestCreateDryRunSkipsPartialCriteria: inline criteria mixing literals with
+// unresolved outputs decodes with just the computed members zeroed at preview
+// (pulumi-go-provider's ende replaces each unknown with its zero value), so a
+// partially-known struct must skip preview validation rather than fail a
+// program whose apply would succeed.
+func TestCreateDryRunSkipsPartialCriteria(t *testing.T) {
+	calls, _ := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		t.Fatal("validateFn must not be invoked during preview")
+		return nil, nil
+	})
+
+	args := baseValidationArgs()
+	args.Criteria.Intent = ""                // unresolved output at preview
+	args.Criteria.Platform = strPtrOf("nim") // would fail compat if validated
+	resp, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: args,
+		DryRun: true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 0, *calls)
+	assert.Empty(t, resp.Output.Status)
+}
+
+func strPtrOf(s string) *string { return &s }
+
 const testKubeconfig = `apiVersion: v1
 kind: Config
 clusters:
@@ -840,4 +884,138 @@ func TestValidationPhaseAllowlistIsCaseInsensitive(t *testing.T) {
 	args := baseValidationArgs()
 	args.Phases = []string{" Deployment ", "CONFORMANCE"}
 	assert.NoError(t, validateValidationRunArgs(&args))
+}
+
+// TestCreateSkipComponentsReachAdapter: criteria.skipComponents (as wired
+// from ClusterStack.criteria) must reach aicr.Validate verbatim.
+func TestCreateSkipComponentsReachAdapter(t *testing.T) {
+	_, lastOpts := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		return passedReport(), nil
+	})
+	args := baseValidationArgs()
+	args.Criteria.SkipComponents = []string{"gpu-operator", "nfd"}
+
+	_, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: args,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gpu-operator", "nfd"}, lastOpts.SkipComponents)
+
+	// Unset stays nil (not an empty slice) so the adapter's no-op path runs.
+	_, err = (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr2",
+		Inputs: baseValidationArgs(),
+	})
+	require.NoError(t, err)
+	assert.Nil(t, lastOpts.SkipComponents)
+}
+
+// TestHasRequiredCriteria: preview validation runs only when accelerator,
+// service, and intent are all present — any missing one may be an unresolved
+// output at preview, not a user error.
+func TestHasRequiredCriteria(t *testing.T) {
+	assert.True(t, hasRequiredCriteria(RecipeCriteria{Accelerator: "h100", Service: "eks", Intent: "training"}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{Accelerator: "h100", Service: "eks"}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{Service: "eks", Intent: "training"}))
+	assert.False(t, hasRequiredCriteria(RecipeCriteria{SkipComponents: []string{"gpu-operator"}}))
+}
+
+// TestWarnFailedChecksOnlyOnFailed: the warning fires for failed and
+// readiness-failed verdicts, is a no-op for nil / passed reports, and never
+// panics without a host logger.
+func TestWarnFailedChecksOnlyOnFailed(t *testing.T) {
+	assert.NotPanics(t, func() {
+		warnFailedChecks(context.Background(), nil)
+		warnFailedChecks(context.Background(), passedReport())
+		warnFailedChecks(context.Background(), readinessFailedReport())
+		warnFailedChecks(context.Background(), failedReport())
+		long := failedReport()
+		long.Checks[1].Message = strings.Repeat("x", 2*maxWarnMessageLen)
+		warnFailedChecks(context.Background(), long)
+		multibyte := failedReport()
+		// "≥" is 3 bytes; place one so the byte cut lands mid-rune.
+		multibyte.Checks[1].Message = strings.Repeat("x", maxWarnMessageLen-1) + strings.Repeat("≥", maxWarnMessageLen)
+		warnFailedChecks(context.Background(), multibyte)
+	})
+}
+
+// TestWarnTruncationIsValidUTF8: the truncated per-check message must never
+// contain a partial rune (SDK messages carry "≥" and "—").
+func TestWarnTruncationIsValidUTF8(t *testing.T) {
+	msg := strings.Repeat("x", maxWarnMessageLen-1) + strings.Repeat("≥", 4)
+	require.Greater(t, len(msg), maxWarnMessageLen)
+	truncated := strings.ToValidUTF8(msg[:maxWarnMessageLen], "") + "…"
+	assert.True(t, utf8.ValidString(truncated))
+	assert.True(t, strings.HasSuffix(truncated, "…"))
+	assert.NotContains(t, truncated, "\uFFFD")
+}
+
+// TestRunValidationThreadsTimeout: timeoutMinutes must reach the SDK facade
+// as ValidateOptions.Timeout — without WithValidationTimeout the facade's
+// 75m default operation cap silently truncates any longer run.
+func TestRunValidationThreadsTimeout(t *testing.T) {
+	_, lastOpts := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		return passedReport(), nil
+	})
+
+	_, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: baseValidationArgs(),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Minute, lastOpts.Timeout, "default timeoutMinutes must reach the facade")
+
+	args := baseValidationArgs()
+	minutes := 180
+	args.TimeoutMinutes = &minutes
+	_, err = (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr2",
+		Inputs: args,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 180*time.Minute, lastOpts.Timeout, "a timeout above the SDK's 75m cap must be threaded through")
+}
+
+// TestExpandTilde: the shipped examples default kubeconfigPath to the
+// literal "~/.kube/config"; the shell never expands it, so the provider must.
+func TestExpandTilde(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := expandTilde("~/.kube/config")
+	require.NoError(t, err)
+	assert.Equal(t, home+"/.kube/config", got)
+
+	got, err = expandTilde("~")
+	require.NoError(t, err)
+	assert.Equal(t, home, got)
+
+	// "~user" and plain paths pass through verbatim.
+	got, err = expandTilde("~alice/.kube/config")
+	require.NoError(t, err)
+	assert.Equal(t, "~alice/.kube/config", got)
+	got, err = expandTilde("/etc/kubeconfig")
+	require.NoError(t, err)
+	assert.Equal(t, "/etc/kubeconfig", got)
+
+	// The path-only branch of materializeKubeconfig returns the expanded path.
+	path := "~/.kube/config"
+	resolved, cleanup, err := materializeKubeconfig(nil, &path, nil)
+	require.NoError(t, err)
+	defer cleanup()
+	assert.Equal(t, home+"/.kube/config", resolved)
+}
+
+// TestDebugFormatArgDereferencesPointers: %#v on pointer fields prints
+// addresses that differ every run; the debug-diff hook must show values.
+func TestDebugFormatArgDereferencesPointers(t *testing.T) {
+	s := "ubuntu"
+	assert.Equal(t, `&"ubuntu"`, debugFormatArg(reflect.ValueOf(&s)))
+	assert.Equal(t, "nil", debugFormatArg(reflect.ValueOf((*string)(nil))))
+	n := 42
+	assert.Equal(t, "&42", debugFormatArg(reflect.ValueOf(&n)))
+	assert.Equal(t, `"plain"`, debugFormatArg(reflect.ValueOf("plain")))
+	assert.NotContains(t, debugFormatArg(reflect.ValueOf(&s)), "0x")
 }

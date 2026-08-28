@@ -1,6 +1,6 @@
 {
   "resource": true,
   "name": "nvidia-aicr",
-  "version": "0.0.1-dev",
+  "version": "0.3.0",
   "server": "github://api.github.com/pulumi-labs/pulumi-nvidia-aicr"
 }

@@ -203,7 +203,7 @@ Wire it to a `ClusterStack` so deployment and validation share one source of tru
 | `tolerations` | `Toleration[]` | No | Applied to validation pods; unset keeps the validator's default tolerate-all, so tainted GPU node groups need no configuration |
 | `nodeSelector` | `map<string>` | No | Node selector for validation pods |
 | `namespace` | `string` | No | Validation namespace (default `aicr-validation`); created on first run and deliberately never deleted |
-| `timeoutMinutes` | `int` | No | Overall run timeout (default 30, max 1440) |
+| `timeoutMinutes` | `int` | No | Overall run timeout (default 30, max 1440). The only input that grants a run more time; the `customTimeouts` resource option can shorten a run but never extend one — see Semantics |
 | `imageRegistry` / `imagePullSecrets` | `string` / `string[]` | No | Air-gapped mirrors for the agent and validator images |
 | `includeCtrfReport` | `bool` | No | Store the merged CTRF JSON report in `ctrfReport` (default `false`; per-check results are always in `phaseResults`) |
 | `triggers` | `any[]` | No | Arbitrary values; a change replaces the resource and re-runs validation (every input change does) |

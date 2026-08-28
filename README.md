@@ -37,6 +37,10 @@ To install the plugin manually (air-gapped CI, pinning):
 pulumi plugin install resource nvidia-aicr <version> --server github://api.github.com/pulumi-labs/pulumi-nvidia-aicr
 ```
 
+> **Note:** provider binaries are published for Linux and macOS (amd64/arm64) only.
+> Windows is currently not supported — see
+> [Known Limitations](#known-limitations).
+
 ## Quick Start
 
 Deploy the validated stack onto an existing cluster (ambient kubeconfig: `~/.kube/config` or
@@ -699,6 +703,13 @@ already gone. Run `pulumi destroy` on the old provider version, clean any
 leftovers as described above, then `pulumi up` on the new version. An
 adoption path for in-place upgrades is tracked separately; with no
 production deployments yet, destroy-and-recreate is the supported migration.
+
+**No Windows support.** The NVIDIA AICR Go SDK this provider embeds does not
+compile for `GOOS=windows` (unix-only `syscall.O_NOFOLLOW` used without build
+tags — [NVIDIA/aicr#2458](https://github.com/NVIDIA/aicr/issues/2458)), so no
+Windows provider binaries are published and `pulumi up` on Windows fails to
+install the plugin. Workaround: run Pulumi from WSL2 or a Linux/macOS CI
+runner. Windows builds return once the upstream fix lands.
 
 **ValidationRun validates recipe-deployed components only.** Components listed in
 `skipComponents` are out of scope for validation, not verified: a platform-managed GPU stack

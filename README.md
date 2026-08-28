@@ -230,6 +230,13 @@ Wire it to a `ClusterStack` so deployment and validation share one source of tru
   kubeconfig identity needs RBAC to create/patch Namespaces, ClusterRoles and ClusterRoleBindings.
 - **Duration:** a deployment + conformance run typically takes 2–10 minutes depending on the recipe
   (each check is a Job); performance checks can take much longer.
+- **Timeouts:** `timeoutMinutes` is the whole budget for a run and the only input that grants time.
+  Pulumi's `customTimeouts` resource option arrives as a real context deadline and the *shorter* of
+  the two always wins, so `customTimeouts: { create: "2h" }` on a default resource still stops at 30
+  minutes, while `{ create: "10m" }` really does stop at 10. Raise `timeoutMinutes` for long
+  performance runs; use `customTimeouts` only to cut a run short. With `strict: true` the resource
+  stays in an init-error state after a failure and every later `pulumi up` re-runs validation through
+  *update*, so those repair runs are bounded by `customTimeouts.update`, not `customTimeouts.create`.
 
 ### Examples
 

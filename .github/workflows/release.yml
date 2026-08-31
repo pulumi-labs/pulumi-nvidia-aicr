@@ -93,6 +93,9 @@ jobs:
   publish-github-release:
     name: publish GitHub Release
     needs: [build-provider, generate-sdks]
+    # A failed provider matrix leg must not strand artifacts from successful
+    # platforms. The copy step below still fails if no provider artifacts exist.
+    if: ${{ !cancelled() && needs.generate-sdks.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -231,7 +234,7 @@ jobs:
       # secret but kept in ESC for consistency with the rest of the
       # publishing config).
       - id: esc-secrets
-        uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3
         env:
           ESC_ACTION_ENVIRONMENT: github-secrets/${{ github.repository_owner }}-${{ github.event.repository.name }}
           ESC_ACTION_EXPORT_ENVIRONMENT_VARIABLES: "false"
@@ -277,7 +280,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - id: esc-secrets
-        uses: pulumi/esc-action@9eb774255b1a4afb7855678ae8d4a77359da0d9b
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3
         env:
           ESC_ACTION_ENVIRONMENT: github-secrets/${{ github.repository_owner }}-${{ github.event.repository.name }}
           ESC_ACTION_EXPORT_ENVIRONMENT_VARIABLES: "false"

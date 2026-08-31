@@ -1,5 +1,0 @@
-go 1.26.5
-
-use .
-
-replace github.com/pulumi-labs/pulumi-nvidia-aicr/sdk/go/nvidiaaicr => ../../sdk/go/nvidiaaicr

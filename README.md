@@ -122,7 +122,7 @@ in the recipe's dependency order.
 
 | Property | Type | Required | Description |
 |---|---|---|---|
-| `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"`, `"rtx-pro-6000"` (eks/lke only — the services with rtx-pro-6000-tuned recipes in the pinned AICR data) |
+| `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"gb300"` (eks only), `"b200"`, `"rtx-pro-6000"` (eks/lke only). Service restrictions name the services with accelerator-tuned recipes in the pinned AICR data |
 | `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"oke"`, `"kind"`, plus the cloud-neutral leaves `"bcm"` and `"lke"` (no hyperscaler CSI/EFA components; they double as stand-ins for providers without an AICR criteria value yet — e.g. CoreWeave CKS deploys the `lke` leaf) |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
 | `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke) — the values backed by recipes in the pinned AICR data; more arrive via SDK upgrades. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |
@@ -145,7 +145,7 @@ kubeconfig (`~/.kube/config` or `KUBECONFIG` env var) is used.
 | Property | Type | Description |
 |---|---|---|
 | `recipeName` | `string` | Resolved recipe identifier (e.g. `h100-eks-ubuntu-training-kubeflow`) |
-| `recipeVersion` | `string` | AICR SDK module version providing the recipe data (e.g. `v0.18.0`) |
+| `recipeVersion` | `string` | AICR SDK module version providing the recipe data (e.g. `v0.21.1`) |
 | `deployedComponents` | `string[]` | Names of deployed components, in deployment order |
 | `componentCount` | `int` | Number of deployed components |
 | `criteria` | `RecipeCriteria` | The canonicalized criteria the stack resolved with (`accelerator`, `service`, `intent`, `os`, `platform`, `nodes`, `skipComponents`). Wire it into `ValidationRun.criteria`. |
@@ -743,7 +743,8 @@ whose embedded recipe data is pinned by the SDK module version. The
 | Provider Version | AICR SDK Module Version |
 |---|---|
 | 0.1.x | v0.18.0 |
-| next release (`main`) | v0.19.0 |
+| 0.3.x | v0.19.0 |
+| next release (`main`) | v0.21.1 |
 
 ## License
 

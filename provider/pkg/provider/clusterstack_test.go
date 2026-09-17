@@ -185,6 +185,11 @@ func TestValidateArgsRejectsIncompatibleCombinations(t *testing.T) {
 			want: `accelerator "b200" is training-only`,
 		},
 		{
+			name: "gb300 outside eks",
+			args: ClusterStackArgs{Accelerator: "gb300", Service: "gke", Intent: "training", OS: str("cos")},
+			want: `accelerator "gb300" is supported only on eks (the services with gb300-tuned recipes`,
+		},
+		{
 			name: "cos outside gke",
 			args: ClusterStackArgs{Accelerator: "h100", Service: "eks", Intent: "training", OS: str("cos")},
 			want: `os "cos" is only supported on gke`,
@@ -770,48 +775,53 @@ func TestNewClusterStackCriteriaCarriesSkipComponents(t *testing.T) {
 	assert.Equal(t, "cert-manager", got.SkipComponents[0], "output must not alias the input slice")
 }
 
-// TestRtxPro6000ServiceMatrixMatchesSDKData pins validateCompatibility's
-// rtx-pro-6000 service restriction against the embedded SDK recipe data: a
-// service is admitted exactly when some resolvable (intent, os) combination
-// applies an rtx-pro-6000-<service>* overlay. Without the tuned overlay the
-// resolver silently falls back to generic service leaves — an untuned stack
-// deploying without error is the hazard the restriction exists to prevent.
-// An SDK bump that adds or removes tuned leaves fails here, prompting the
-// allowlist (and its docs) to move in lockstep.
-func TestRtxPro6000ServiceMatrixMatchesSDKData(t *testing.T) {
-	allowed := map[string]bool{"eks": true, "lke": true}
-
+// TestAcceleratorServiceMatrixMatchesSDKData pins validateCompatibility's
+// per-accelerator service restrictions (tunedAcceleratorServices) against
+// the embedded SDK recipe data: a service is admitted exactly when some
+// resolvable (intent, os) combination applies an <accelerator>-<service>*
+// overlay. Without the tuned overlay the resolver silently falls back to
+// generic service leaves — an untuned stack deploying without error is the
+// hazard the restriction exists to prevent. An SDK bump that adds or
+// removes tuned leaves fails here, prompting the map (and its docs) to move
+// in lockstep.
+func TestAcceleratorServiceMatrixMatchesSDKData(t *testing.T) {
 	client, err := aicrclient.NewClient(aicrclient.WithRecipeSource(aicrclient.EmbeddedSource()))
 	require.NoError(t, err)
 	defer client.Close()
 
 	ctx := context.Background()
-	for _, svc := range supportedServices {
-		tuned := false
-		// "" first for the OS-agnostic path; gke/oke resolve only with an
-		// explicit OS, so every supported OS is probed too.
-		for _, osName := range append([]string{""}, supportedOSes...) {
-			for _, intent := range supportedIntents {
-				result, err := client.ResolveRecipe(ctx, aicrclient.RecipeRequest{
-					Service:     svc,
-					Accelerator: "rtx-pro-6000",
-					Intent:      intent,
-					OS:          osName,
-				})
-				if err != nil {
-					continue // no leaf at all for this combination
-				}
-				for _, overlay := range result.Resolved().Metadata.AppliedOverlays {
-					if strings.HasPrefix(overlay, "rtx-pro-6000-"+svc) {
-						tuned = true
+	for accel, services := range tunedAcceleratorServices {
+		allowed := map[string]bool{}
+		for _, svc := range services {
+			allowed[svc] = true
+		}
+		for _, svc := range supportedServices {
+			tuned := false
+			// "" first for the OS-agnostic path; gke/oke resolve only with an
+			// explicit OS, so every supported OS is probed too.
+			for _, osName := range append([]string{""}, supportedOSes...) {
+				for _, intent := range supportedIntents {
+					result, err := client.ResolveRecipe(ctx, aicrclient.RecipeRequest{
+						Service:     svc,
+						Accelerator: accel,
+						Intent:      intent,
+						OS:          osName,
+					})
+					if err != nil {
+						continue // no leaf at all for this combination
+					}
+					for _, overlay := range result.Resolved().Metadata.AppliedOverlays {
+						if strings.HasPrefix(overlay, accel+"-"+svc) {
+							tuned = true
+						}
 					}
 				}
 			}
-		}
-		if tuned != allowed[svc] {
-			t.Errorf("service %q: rtx-pro-6000-tuned leaf in SDK data = %v, but validateCompatibility admits it = %v; "+
-				"update the rtx-pro-6000 clause (and the accelerator docs) to match the SDK data",
-				svc, tuned, allowed[svc])
+			if tuned != allowed[svc] {
+				t.Errorf("accelerator %q on service %q: tuned leaf in SDK data = %v, but validateCompatibility admits it = %v; "+
+					"update tunedAcceleratorServices (and the accelerator docs) to match the SDK data",
+					accel, svc, tuned, allowed[svc])
+			}
 		}
 	}
 }

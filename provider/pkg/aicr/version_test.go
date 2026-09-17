@@ -22,9 +22,10 @@ import (
 )
 
 // withBuildInfo swaps the build-info source for the duration of a test.
-// The seam exists because Go test binaries carry incomplete dependency
-// build info: the real debug.ReadBuildInfo can never return the SDK dep
-// here, so each behavior must be exercised with fabricated info.
+// The seam exists because what debug.ReadBuildInfo reports inside a test
+// binary depends on the toolchain (older ones omitted dependency info
+// entirely), so each behavior is exercised with fabricated info rather
+// than whatever the host happens to embed.
 func withBuildInfo(t *testing.T, info *debug.BuildInfo, ok bool) {
 	t.Helper()
 	prev := readBuildInfo

@@ -136,6 +136,33 @@ func TestResolveGB200LoadsPreManifests(t *testing.T) {
 	assert.NotEmpty(t, gpuOperator.Chart, "gpu-operator is still a Helm component")
 }
 
+// TestResolveEKSGB300 covers the gb300 leaves added in SDK v0.21.0: eks
+// carries tuned training and inference recipes (with kubeflow and dynamo
+// platform leaves) that, like gb200, attach kernel-module pre-manifests to
+// gpu-operator. gb300 has no tuned leaves on any other supported service,
+// which validateCompatibility enforces provider-side.
+func TestResolveEKSGB300(t *testing.T) {
+	cases := []struct {
+		criteria  Criteria
+		name      string
+		component string // a component only this leaf's family adds
+	}{
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "training"}, "gb300-eks-training", "aws-efa"},
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "training", OS: "ubuntu", Platform: "kubeflow"}, "gb300-eks-ubuntu-training-kubeflow", "kubeflow-trainer"},
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "inference"}, "gb300-eks-inference", "agentgateway"},
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "inference", OS: "ubuntu", Platform: "dynamo"}, "gb300-eks-ubuntu-inference-dynamo", "dynamo-platform"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := resolve(t, tc.criteria)
+			assert.Equal(t, tc.name, r.Name)
+			findComponent(t, r, tc.component)
+			gpuOperator := findComponent(t, r, "gpu-operator")
+			assert.NotEmpty(t, gpuOperator.PreManifests, "gb300 gpu-operator must carry pre-manifests")
+		})
+	}
+}
+
 func TestResolveManifestOnlyComponent(t *testing.T) {
 	r := resolve(t, Criteria{
 		Service: "eks", Accelerator: "h100", Intent: "training", OS: "ubuntu",

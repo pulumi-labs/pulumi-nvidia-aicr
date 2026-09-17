@@ -46,7 +46,16 @@ var builtinNamespaces = map[string]bool{
 // validateArgs so users get a clear error rather than relying on the
 // resolver's wildcard-match semantics to surface the problem.
 var (
-	supportedAccelerators = []string{"h100", "gb200", "b200", "rtx-pro-6000"}
+	supportedAccelerators = []string{"h100", "gb200", "gb300", "b200", "rtx-pro-6000"}
+	// tunedAcceleratorServices restricts accelerators whose tuned recipe
+	// leaves exist only on some services in the pinned SDK data; on any
+	// other service the resolver silently falls back to generic service
+	// overlays (see validateCompatibility). Accelerators absent here have
+	// tuned leaves on every supported service that resolves at all.
+	tunedAcceleratorServices = map[string][]string{
+		"rtx-pro-6000": {"eks", "lke"},
+		"gb300":        {"eks"},
+	}
 	// lke and bcm are the cloud-neutral leaves in the pinned SDK data (no
 	// hyperscaler CSI/EFA components); they double as stand-ins for
 	// providers AICR has no criteria value for yet — the CoreWeave CKS
@@ -76,7 +85,8 @@ var (
 // ClusterStackArgs defines the inputs for the ClusterStack component.
 type ClusterStackArgs struct {
 	// The GPU accelerator type. Required.
-	// Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
+	// Supported values: "h100", "gb200", "gb300" (eks only), "b200",
+	// "rtx-pro-6000" (eks/lke only).
 	Accelerator string `pulumi:"accelerator"`
 
 	// The Kubernetes service. Required.
@@ -156,8 +166,9 @@ type ClusterStack struct {
 func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
 	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
 
-Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
-the services with rtx-pro-6000-tuned recipes in the pinned AICR data).`)
+Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000"
+(eks/lke only). The service restrictions name the services with
+accelerator-tuned recipes in the pinned AICR data.`)
 	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
 
 Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
@@ -701,15 +712,15 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 	if accelerator == "b200" && intent != "training" {
 		return fmt.Errorf("accelerator %q is training-only; got intent %q", accelerator, intent)
 	}
-	// rtx-pro-6000 has accelerator-tuned recipe leaves only on eks and lke
-	// in the pinned SDK data; on every other service the resolver silently
+	// Some accelerators have tuned recipe leaves only on a few services in
+	// the pinned SDK data; on every other service the resolver silently
 	// falls back to generic service overlays and deploys an untuned stack —
 	// the exact hazard this allowlist exists to prevent. Pinned against SDK
-	// bumps by TestRtxPro6000ServiceMatrixMatchesSDKData.
-	if accelerator == "rtx-pro-6000" && service != "eks" && service != "lke" {
+	// bumps by TestAcceleratorServiceMatrixMatchesSDKData.
+	if services, ok := tunedAcceleratorServices[accelerator]; ok && !contains(services, service) {
 		return fmt.Errorf(
-			"accelerator %q is supported only on eks or lke (the services with rtx-pro-6000-tuned recipes in the pinned AICR data); got service %q",
-			accelerator, service)
+			"accelerator %q is supported only on %s (the services with %s-tuned recipes in the pinned AICR data); got service %q",
+			accelerator, strings.Join(services, " or "), accelerator, service)
 	}
 	if osName == "cos" && service != "gke" {
 		return fmt.Errorf("os %q is only supported on gke; got service %q", osName, service)

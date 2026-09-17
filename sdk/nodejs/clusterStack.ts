@@ -101,8 +101,9 @@ export interface ClusterStackArgs {
     /**
      * GPU accelerator type. Selects the AICR recipe family.
      *
-     * Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
-     * the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
+     * Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000"
+     * (eks/lke only). The service restrictions name the services with
+     * accelerator-tuned recipes in the pinned AICR data.
      */
     accelerator: string;
     /**

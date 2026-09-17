@@ -6,7 +6,7 @@ Thanks for your interest in contributing to the Pulumi NVIDIA AICR provider.
 
 You will need:
 
-- [Go](https://go.dev/) 1.26+
+- [Go](https://go.dev/) 1.27+
 - [Pulumi CLI](https://www.pulumi.com/docs/install/) 3.165+
 - For SDK generation/build: Node.js 18+, Python 3.9+, .NET 8+, JDK 11+
 

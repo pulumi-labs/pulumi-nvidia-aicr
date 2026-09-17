@@ -195,6 +195,26 @@ func TestValidateArgsRejectsIncompatibleCombinations(t *testing.T) {
 			want: `accelerator "h100" is supported only on aks or bcm or eks or gke or kind or lke`,
 		},
 		{
+			name: "vr200 outside rke2",
+			args: ClusterStackArgs{Accelerator: "vr200", Service: "eks", Intent: "training", OS: str("ubuntu")},
+			want: `accelerator "vr200" is supported only on rke2`,
+		},
+		{
+			name: "h100 on rke2",
+			args: ClusterStackArgs{Accelerator: "h100", Service: "rke2", Intent: "training", OS: str("ubuntu")},
+			want: `accelerator "h100" is supported only on`,
+		},
+		{
+			name: "kubeflow on rke2",
+			args: ClusterStackArgs{Accelerator: "vr200", Service: "rke2", Intent: "training", OS: str("ubuntu"), Platform: str("kubeflow")},
+			want: `platform "kubeflow" has no recipes on service "rke2"`,
+		},
+		{
+			name: "dynamo on generic",
+			args: ClusterStackArgs{Accelerator: "gb300", Service: "generic", Intent: "inference", OS: str("ubuntu"), Platform: str("dynamo")},
+			want: `platform "dynamo" has no recipes on service "generic"`,
+		},
+		{
 			name: "cos outside gke",
 			args: ClusterStackArgs{Accelerator: "h100", Service: "eks", Intent: "training", OS: str("cos")},
 			want: `os "cos" is only supported on gke`,
@@ -843,10 +863,12 @@ func TestAcceleratorServiceMatrixMatchesSDKData(t *testing.T) {
 // service or accelerator, …) fails here, prompting the clauses and the docs
 // to move in lockstep.
 func TestPlatformMatrixMatchesSDKData(t *testing.T) {
-	wantServices := map[string]map[string]bool{
-		"kubeflow": {"aks": true, "eks": true, "gke": true, "kind": true, "oke": true},
-		"dynamo":   {"aks": true, "eks": true, "gke": true, "kind": true, "oke": true},
-		"nim":      {"eks": true},
+	wantServices := map[string]map[string]bool{}
+	for platform, services := range platformServices {
+		wantServices[platform] = map[string]bool{}
+		for _, svc := range services {
+			wantServices[platform][svc] = true
+		}
 	}
 	wantNimAccels := map[string]bool{"h100": true, "rtx-pro-6000": true}
 
@@ -875,7 +897,7 @@ func TestPlatformMatrixMatchesSDKData(t *testing.T) {
 			}
 		}
 		assert.Equal(t, wantServices[platform], gotServices,
-			"platform %q service coverage in the SDK data drifted from validateCompatibility's rules", platform)
+			"platform %q service coverage in the SDK data drifted from platformServices", platform)
 		if platform == "nim" {
 			assert.Equal(t, wantNimAccels, gotAccels, "nim accelerator coverage drifted")
 		}

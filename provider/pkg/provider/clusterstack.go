@@ -46,7 +46,7 @@ var builtinNamespaces = map[string]bool{
 // validateArgs so users get a clear error rather than relying on the
 // resolver's wildcard-match semantics to surface the problem.
 var (
-	supportedAccelerators = []string{"h100", "gb200", "gb300", "b200", "rtx-pro-6000"}
+	supportedAccelerators = []string{"h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200"}
 	// acceleratorServices is the published accelerator support matrix: each
 	// accelerator is admitted only on the services carrying
 	// <accelerator>-<service>* tuned leaves in the pinned SDK data. On any
@@ -57,9 +57,10 @@ var (
 	acceleratorServices = map[string][]string{
 		"h100":         {"aks", "bcm", "eks", "gke", "kind", "lke"},
 		"gb200":        {"eks", "oke"},
-		"gb300":        {"eks"},
+		"gb300":        {"eks", "generic"},
 		"b200":         {"gke"},
 		"rtx-pro-6000": {"eks", "lke"},
+		"vr200":        {"rke2"},
 	}
 	// untunedByDesign lists admitted (accelerator, service) pairs that
 	// deliberately deploy the generic service leaf: lke is the cloud-neutral
@@ -68,13 +69,24 @@ var (
 	untunedByDesign = map[string]map[string]bool{
 		"h100": {"lke": true},
 	}
+	// platformServices lists, per platform, the services with at least one
+	// platform leaf in the pinned SDK data. Without this pre-flight the
+	// resolver fails mid-construct with a raw "no recipe provides platform
+	// ..." error. Pinned against SDK bumps by TestPlatformMatrixMatchesSDKData.
+	platformServices = map[string][]string{
+		"kubeflow": {"aks", "eks", "gke", "kind", "oke"},
+		"dynamo":   {"aks", "eks", "gke", "kind", "oke", "rke2"},
+		"nim":      {"eks"},
+	}
 	// lke and bcm are the cloud-neutral leaves in the pinned SDK data (no
 	// hyperscaler CSI/EFA components); they double as stand-ins for
 	// providers AICR has no criteria value for yet — the CoreWeave CKS
 	// campaign deploys the lke leaf. A first-class "coreweave" value is an
 	// upstream AICR SDK change; when it lands, extend this list rather
-	// than aliasing.
-	supportedServices = []string{"aks", "bcm", "eks", "gke", "kind", "lke", "oke"}
+	// than aliasing. generic (self-managed bare-metal Kubernetes) and rke2
+	// (Rancher RKE2) arrived in SDK v0.21.0 with gb300 and vr200 leaves
+	// respectively; both require os "ubuntu".
+	supportedServices = []string{"aks", "bcm", "eks", "generic", "gke", "kind", "lke", "oke", "rke2"}
 	supportedIntents  = []string{"training", "inference"}
 	// supportedOSes lists only OS values with backing recipes in the pinned
 	// SDK's data (the SDK's request schema names more — rhel, amazonlinux,
@@ -178,18 +190,20 @@ type ClusterStack struct {
 func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
 	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
 
-Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
-accelerator is admitted only on the services carrying its tuned recipes in
-the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
-lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
-lke.`)
+Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200".
+Each accelerator is admitted only on the services carrying its tuned recipes
+in the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the
+cloud-neutral lke leaf); gb200 on eks, oke; gb300 on eks, generic; b200 on
+gke; rtx-pro-6000 on eks, lke; vr200 (Vera Rubin, upstream preview) on rke2.`)
 	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
 
-Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
-lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
-double as stand-ins for providers without an AICR criteria value yet (e.g.
-CoreWeave CKS deploys the lke leaf). Use "kind" for local
-hardware-free development of the deployment pipeline.`)
+Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke",
+"oke", "rke2". bcm and lke are the cloud-neutral leaves (no hyperscaler
+CSI/EFA components) and double as stand-ins for providers without an AICR
+criteria value yet (e.g. CoreWeave CKS deploys the lke leaf). generic is
+self-managed bare-metal Kubernetes (gb300 training) and rke2 is Rancher
+RKE2 (vr200); both require os "ubuntu". Use "kind" for local hardware-free
+development of the deployment pipeline.`)
 	an.Describe(&a.Intent, `Workload intent. Selects between training-oriented and inference-oriented
 component sets.
 
@@ -204,13 +218,15 @@ through AICR SDK upgrades.
 Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
 tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
 Set it when the cluster's OS is known. Some combinations require an OS
-(e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
-with a message listing the valid values; kind recipes require it unset.`)
+(e.g. gke requires "cos"; eks platform recipes, generic and rke2 require
+"ubuntu") and fail with a message listing the valid values; kind recipes
+require it unset.`)
 	an.Describe(&a.Platform, `ML platform/framework to layer on top of the base recipe.
 
 Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
 (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
-recipes on lke/bcm in the pinned AICR data.
+recipes on lke, bcm or generic in the pinned AICR data, and kubeflow has none
+on rke2.
 
 Leave unset for the base recipe without a platform-specific runtime. Note
 that intent="inference" always includes an inference gateway (part of the
@@ -739,18 +755,16 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 	return nil
 }
 
-// validatePlatformService rejects service values with no kubeflow/dynamo
-// recipes in the pinned SDK data — lke and bcm ship none, so without this
-// pre-flight the resolver fails mid-construct with a raw "no recipe provides
-// platform ..." error, the cryptic failure validateCompatibility exists to
-// prevent. Finer accelerator/OS combinations within the admitted services
-// are left to the resolver, whose errors there name the missing dimension.
-// Pinned against SDK bumps by TestPlatformMatrixMatchesSDKData.
+// validatePlatformService rejects service values with no recipes for the
+// platform in the pinned SDK data (platformServices), the cryptic
+// mid-construct failure validateCompatibility exists to prevent. Finer
+// accelerator/OS combinations within the admitted services are left to the
+// resolver, whose errors there name the missing dimension.
 func validatePlatformService(platform, service string) error {
-	if service == "lke" || service == "bcm" {
+	if !contains(platformServices[platform], service) {
 		return fmt.Errorf(
-			"platform %q has no recipes on service %q in the pinned AICR data (supported services: aks, eks, gke, kind, oke)",
-			platform, service)
+			"platform %q has no recipes on service %q in the pinned AICR data (supported services: %s)",
+			platform, service, strings.Join(platformServices[platform], ", "))
 	}
 	return nil
 }

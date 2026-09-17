@@ -38,22 +38,24 @@ class ClusterStackArgs:
 
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
-               accelerator is admitted only on the services carrying its tuned recipes in
-               the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
-               lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
-               lke.
+               Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200".
+               Each accelerator is admitted only on the services carrying its tuned recipes
+               in the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the
+               cloud-neutral lke leaf); gb200 on eks, oke; gb300 on eks, generic; b200 on
+               gke; rtx-pro-6000 on eks, lke; vr200 (Vera Rubin, upstream preview) on rke2.
         :param _builtins.str intent: Workload intent. Selects between training-oriented and inference-oriented
                component sets.
                
                Supported values: "training", "inference".
         :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
                
-               Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
-               lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
-               double as stand-ins for providers without an AICR criteria value yet (e.g.
-               CoreWeave CKS deploys the lke leaf). Use "kind" for local
-               hardware-free development of the deployment pipeline.
+               Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke",
+               "oke", "rke2". bcm and lke are the cloud-neutral leaves (no hyperscaler
+               CSI/EFA components) and double as stand-ins for providers without an AICR
+               criteria value yet (e.g. CoreWeave CKS deploys the lke leaf). generic is
+               self-managed bare-metal Kubernetes (gb300 training) and rke2 is Rancher
+               RKE2 (vr200); both require os "ubuntu". Use "kind" for local hardware-free
+               development of the deployment pipeline.
         :param pulumi.Input[Mapping[str, pulumi.Input['ComponentOverrideArgs']]] component_overrides: Per-component overrides. Map of AICR component name to override settings
                (version, namespace, Helm values). Values are deep-merged with the recipe
                defaults; only the keys you specify are changed.
@@ -78,13 +80,15 @@ class ClusterStackArgs:
                Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
                tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
                Set it when the cluster's OS is known. Some combinations require an OS
-               (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
-               with a message listing the valid values; kind recipes require it unset.
+               (e.g. gke requires "cos"; eks platform recipes, generic and rke2 require
+               "ubuntu") and fail with a message listing the valid values; kind recipes
+               require it unset.
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
                Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
                (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
-               recipes on lke/bcm in the pinned AICR data.
+               recipes on lke, bcm or generic in the pinned AICR data, and kubeflow has none
+               on rke2.
                
                Leave unset for the base recipe without a platform-specific runtime. Note
                that intent="inference" always includes an inference gateway (part of the
@@ -127,11 +131,11 @@ class ClusterStackArgs:
         """
         GPU accelerator type. Selects the AICR recipe family.
 
-        Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
-        accelerator is admitted only on the services carrying its tuned recipes in
-        the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
-        lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
-        lke.
+        Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200".
+        Each accelerator is admitted only on the services carrying its tuned recipes
+        in the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the
+        cloud-neutral lke leaf); gb200 on eks, oke; gb300 on eks, generic; b200 on
+        gke; rtx-pro-6000 on eks, lke; vr200 (Vera Rubin, upstream preview) on rke2.
         """
         return pulumi.get(self, "accelerator")
 
@@ -160,11 +164,13 @@ class ClusterStackArgs:
         """
         Kubernetes service. Selects cloud-specific operators and storage drivers.
 
-        Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
-        lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
-        double as stand-ins for providers without an AICR criteria value yet (e.g.
-        CoreWeave CKS deploys the lke leaf). Use "kind" for local
-        hardware-free development of the deployment pipeline.
+        Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke",
+        "oke", "rke2". bcm and lke are the cloud-neutral leaves (no hyperscaler
+        CSI/EFA components) and double as stand-ins for providers without an AICR
+        criteria value yet (e.g. CoreWeave CKS deploys the lke leaf). generic is
+        self-managed bare-metal Kubernetes (gb300 training) and rke2 is Rancher
+        RKE2 (vr200); both require os "ubuntu". Use "kind" for local hardware-free
+        development of the deployment pipeline.
         """
         return pulumi.get(self, "service")
 
@@ -255,8 +261,9 @@ class ClusterStackArgs:
         Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
         tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
         Set it when the cluster's OS is known. Some combinations require an OS
-        (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
-        with a message listing the valid values; kind recipes require it unset.
+        (e.g. gke requires "cos"; eks platform recipes, generic and rke2 require
+        "ubuntu") and fail with a message listing the valid values; kind recipes
+        require it unset.
         """
         return pulumi.get(self, "os")
 
@@ -272,7 +279,8 @@ class ClusterStackArgs:
 
         Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
         (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
-        recipes on lke/bcm in the pinned AICR data.
+        recipes on lke, bcm or generic in the pinned AICR data, and kubeflow has none
+        on rke2.
 
         Leave unset for the base recipe without a platform-specific runtime. Note
         that intent="inference" always includes an inference gateway (part of the
@@ -340,11 +348,11 @@ class ClusterStack(pulumi.ComponentResource):
         :param pulumi.ResourceOptions opts: Options for the resource.
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
-               accelerator is admitted only on the services carrying its tuned recipes in
-               the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
-               lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
-               lke.
+               Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200".
+               Each accelerator is admitted only on the services carrying its tuned recipes
+               in the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the
+               cloud-neutral lke leaf); gb200 on eks, oke; gb300 on eks, generic; b200 on
+               gke; rtx-pro-6000 on eks, lke; vr200 (Vera Rubin, upstream preview) on rke2.
         :param pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]] component_overrides: Per-component overrides. Map of AICR component name to override settings
                (version, namespace, Helm values). Values are deep-merged with the recipe
                defaults; only the keys you specify are changed.
@@ -373,13 +381,15 @@ class ClusterStack(pulumi.ComponentResource):
                Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
                tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
                Set it when the cluster's OS is known. Some combinations require an OS
-               (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
-               with a message listing the valid values; kind recipes require it unset.
+               (e.g. gke requires "cos"; eks platform recipes, generic and rke2 require
+               "ubuntu") and fail with a message listing the valid values; kind recipes
+               require it unset.
         :param _builtins.str platform: ML platform/framework to layer on top of the base recipe.
                
                Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
                (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
-               recipes on lke/bcm in the pinned AICR data.
+               recipes on lke, bcm or generic in the pinned AICR data, and kubeflow has none
+               on rke2.
                
                Leave unset for the base recipe without a platform-specific runtime. Note
                that intent="inference" always includes an inference gateway (part of the
@@ -388,11 +398,13 @@ class ClusterStack(pulumi.ComponentResource):
                entirely when platform is unset.
         :param _builtins.str service: Kubernetes service. Selects cloud-specific operators and storage drivers.
                
-               Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
-               lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
-               double as stand-ins for providers without an AICR criteria value yet (e.g.
-               CoreWeave CKS deploys the lke leaf). Use "kind" for local
-               hardware-free development of the deployment pipeline.
+               Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke",
+               "oke", "rke2". bcm and lke are the cloud-neutral leaves (no hyperscaler
+               CSI/EFA components) and double as stand-ins for providers without an AICR
+               criteria value yet (e.g. CoreWeave CKS deploys the lke leaf). generic is
+               self-managed bare-metal Kubernetes (gb300 training) and rke2 is Rancher
+               RKE2 (vr200); both require os "ubuntu". Use "kind" for local hardware-free
+               development of the deployment pipeline.
         :param _builtins.bool skip_await: If true, do not wait for each Helm release to become ready before continuing.
                Faster previews/updates at the cost of losing readiness signal. Default: false.
         :param pulumi.Input[Sequence[_builtins.str]] skip_components: Component names to exclude from the deployment. Useful for swapping in your

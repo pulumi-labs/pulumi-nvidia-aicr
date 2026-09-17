@@ -164,6 +164,47 @@ func TestResolveEKSGB300(t *testing.T) {
 	}
 }
 
+// TestResolveVR200RKE2 covers the Vera Rubin preview leaves added in SDK
+// v0.21.0: rke2 carries vr200 training and inference recipes (dynamo only
+// on the platform side) and, like gke, resolves only with an explicit OS.
+func TestResolveVR200RKE2(t *testing.T) {
+	_, err := Resolve(context.Background(), Criteria{Service: "rke2", Accelerator: "vr200", Intent: "training"})
+	require.Error(t, err, "rke2 leaves are OS-pinned")
+	assert.Contains(t, err.Error(), "requires os")
+	assert.Contains(t, err.Error(), "ubuntu")
+
+	cases := []struct {
+		criteria Criteria
+		name     string
+	}{
+		{Criteria{Service: "rke2", Accelerator: "vr200", Intent: "training", OS: "ubuntu"}, "vr200-rke2-ubuntu-training"},
+		{Criteria{Service: "rke2", Accelerator: "vr200", Intent: "inference", OS: "ubuntu"}, "vr200-rke2-ubuntu-inference"},
+		{Criteria{Service: "rke2", Accelerator: "vr200", Intent: "inference", OS: "ubuntu", Platform: "dynamo"}, "vr200-rke2-ubuntu-inference-dynamo"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := resolve(t, tc.criteria)
+			assert.Equal(t, tc.name, r.Name)
+			findComponent(t, r, "gpu-operator")
+		})
+	}
+}
+
+// TestResolveGB300Generic covers the self-managed bare-metal gb300 training
+// leaf: generic requires an explicit ubuntu OS and ships training only.
+func TestResolveGB300Generic(t *testing.T) {
+	_, err := Resolve(context.Background(), Criteria{Service: "generic", Accelerator: "gb300", Intent: "training"})
+	require.Error(t, err, "generic leaves are OS-pinned")
+	assert.Contains(t, err.Error(), "requires os")
+
+	r := resolve(t, Criteria{Service: "generic", Accelerator: "gb300", Intent: "training", OS: "ubuntu"})
+	assert.Equal(t, "gb300-generic-ubuntu-training", r.Name)
+	findComponent(t, r, "gpu-operator")
+
+	_, err = Resolve(context.Background(), Criteria{Service: "generic", Accelerator: "gb300", Intent: "inference", OS: "ubuntu"})
+	require.Error(t, err, "generic has no inference leaf")
+}
+
 func TestResolveManifestOnlyComponent(t *testing.T) {
 	r := resolve(t, Criteria{
 		Service: "eks", Accelerator: "h100", Intent: "training", OS: "ubuntu",

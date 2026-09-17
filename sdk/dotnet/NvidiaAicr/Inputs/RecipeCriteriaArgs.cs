@@ -21,7 +21,7 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
     public sealed class RecipeCriteriaArgs : global::Pulumi.ResourceArgs
     {
         /// <summary>
-        /// GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
+        /// GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
         /// </summary>
         [Input("accelerator", required: true)]
         public Input<string> Accelerator { get; set; } = null!;
@@ -48,13 +48,13 @@ namespace Pulumi.Labs.NvidiaAicr.Inputs
         /// <summary>
         /// ML platform/framework. Supported values: "kubeflow" (training),
         /// "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
-        /// kubeflow and dynamo have no recipes on lke/bcm.
+        /// kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
         /// </summary>
         [Input("platform")]
         public Input<string>? Platform { get; set; }
 
         /// <summary>
-        /// Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
+        /// Kubernetes service. Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke", "oke", "rke2".
         /// </summary>
         [Input("service", required: true)]
         public Input<string> Service { get; set; } = null!;

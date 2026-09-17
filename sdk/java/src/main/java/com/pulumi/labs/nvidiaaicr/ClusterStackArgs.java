@@ -25,9 +25,11 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * GPU accelerator type. Selects the AICR recipe family.
      * 
-     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34;
-     * (eks/lke only). The service restrictions name the services with
-     * accelerator-tuned recipes in the pinned AICR data.
+     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;. Each
+     * accelerator is admitted only on the services carrying its tuned recipes in
+     * the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+     * lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+     * lke.
      * 
      */
     @Import(name="accelerator", required=true)
@@ -36,9 +38,11 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
     /**
      * @return GPU accelerator type. Selects the AICR recipe family.
      * 
-     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34;
-     * (eks/lke only). The service restrictions name the services with
-     * accelerator-tuned recipes in the pinned AICR data.
+     * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;. Each
+     * accelerator is admitted only on the services carrying its tuned recipes in
+     * the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+     * lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+     * lke.
      * 
      */
     public String accelerator() {
@@ -332,9 +336,11 @@ public final class ClusterStackArgs extends com.pulumi.resources.ResourceArgs {
         /**
          * @param accelerator GPU accelerator type. Selects the AICR recipe family.
          * 
-         * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34;
-         * (eks/lke only). The service restrictions name the services with
-         * accelerator-tuned recipes in the pinned AICR data.
+         * Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;. Each
+         * accelerator is admitted only on the services carrying its tuned recipes in
+         * the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+         * lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+         * lke.
          * 
          * @return builder
          * 

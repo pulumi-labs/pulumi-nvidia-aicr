@@ -139,7 +139,7 @@ class RecipeCriteriaArgsDict(TypedDict):
     """
     accelerator: pulumi.Input[_builtins.str]
     """
-    GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).
+    GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
     """
     intent: pulumi.Input[_builtins.str]
     """
@@ -194,7 +194,7 @@ class RecipeCriteriaArgs:
         and validation resolve the identical recipe and agree on which of its
         components are in scope.
 
-        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).
+        :param pulumi.Input[_builtins.str] accelerator: GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
         :param pulumi.Input[_builtins.str] intent: Workload intent. Supported values: "training", "inference".
         :param pulumi.Input[_builtins.str] service: Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
         :param pulumi.Input[_builtins.int] nodes: Worker-node count hint used to size the recipe.
@@ -229,7 +229,7 @@ class RecipeCriteriaArgs:
     @pulumi.getter
     def accelerator(self) -> pulumi.Input[_builtins.str]:
         """
-        GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).
+        GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
         """
         return pulumi.get(self, "accelerator")
 

@@ -47,14 +47,26 @@ var builtinNamespaces = map[string]bool{
 // resolver's wildcard-match semantics to surface the problem.
 var (
 	supportedAccelerators = []string{"h100", "gb200", "gb300", "b200", "rtx-pro-6000"}
-	// tunedAcceleratorServices restricts accelerators whose tuned recipe
-	// leaves exist only on some services in the pinned SDK data; on any
+	// acceleratorServices is the published accelerator support matrix: each
+	// accelerator is admitted only on the services carrying
+	// <accelerator>-<service>* tuned leaves in the pinned SDK data. On any
 	// other service the resolver silently falls back to generic service
-	// overlays (see validateCompatibility). Accelerators absent here have
-	// tuned leaves on every supported service that resolves at all.
-	tunedAcceleratorServices = map[string][]string{
-		"rtx-pro-6000": {"eks", "lke"},
+	// overlays and deploys an untuned stack (see validateCompatibility).
+	// Every supportedAccelerators entry must appear here; pinned against
+	// the SDK data by TestAcceleratorServiceMatrixMatchesSDKData.
+	acceleratorServices = map[string][]string{
+		"h100":         {"aks", "bcm", "eks", "gke", "kind", "lke"},
+		"gb200":        {"eks", "oke"},
 		"gb300":        {"eks"},
+		"b200":         {"gke"},
+		"rtx-pro-6000": {"eks", "lke"},
+	}
+	// untunedByDesign lists admitted (accelerator, service) pairs that
+	// deliberately deploy the generic service leaf: lke is the cloud-neutral
+	// stand-in for providers without an AICR criteria value (CoreWeave CKS),
+	// so h100 there is expected to be untuned.
+	untunedByDesign = map[string]map[string]bool{
+		"h100": {"lke": true},
 	}
 	// lke and bcm are the cloud-neutral leaves in the pinned SDK data (no
 	// hyperscaler CSI/EFA components); they double as stand-ins for
@@ -85,8 +97,8 @@ var (
 // ClusterStackArgs defines the inputs for the ClusterStack component.
 type ClusterStackArgs struct {
 	// The GPU accelerator type. Required.
-	// Supported values: "h100", "gb200", "gb300" (eks only), "b200",
-	// "rtx-pro-6000" (eks/lke only).
+	// Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000",
+	// each on the services in acceleratorServices.
 	Accelerator string `pulumi:"accelerator"`
 
 	// The Kubernetes service. Required.
@@ -166,9 +178,11 @@ type ClusterStack struct {
 func (a *ClusterStackArgs) Annotate(an infer.Annotator) {
 	an.Describe(&a.Accelerator, `GPU accelerator type. Selects the AICR recipe family.
 
-Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000"
-(eks/lke only). The service restrictions name the services with
-accelerator-tuned recipes in the pinned AICR data.`)
+Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
+accelerator is admitted only on the services carrying its tuned recipes in
+the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+lke.`)
 	an.Describe(&a.Service, `Kubernetes service. Selects cloud-specific operators and storage drivers.
 
 Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
@@ -709,18 +723,15 @@ func validateCompatibility(accelerator, service, intent, osName, platform string
 				platform, service, accelerator, intent)
 		}
 	}
-	if accelerator == "b200" && intent != "training" {
-		return fmt.Errorf("accelerator %q is training-only; got intent %q", accelerator, intent)
-	}
-	// Some accelerators have tuned recipe leaves only on a few services in
-	// the pinned SDK data; on every other service the resolver silently
-	// falls back to generic service overlays and deploys an untuned stack —
-	// the exact hazard this allowlist exists to prevent. Pinned against SDK
+	// Each accelerator has tuned recipe leaves only on some services in the
+	// pinned SDK data; on every other service the resolver silently falls
+	// back to generic service overlays and deploys an untuned stack — the
+	// exact hazard this allowlist exists to prevent. Pinned against SDK
 	// bumps by TestAcceleratorServiceMatrixMatchesSDKData.
-	if services, ok := tunedAcceleratorServices[accelerator]; ok && !contains(services, service) {
+	if !contains(acceleratorServices[accelerator], service) {
 		return fmt.Errorf(
 			"accelerator %q is supported only on %s (the services with %s-tuned recipes in the pinned AICR data); got service %q",
-			accelerator, strings.Join(services, " or "), accelerator, service)
+			accelerator, strings.Join(acceleratorServices[accelerator], " or "), accelerator, service)
 	}
 	if osName == "cos" && service != "gke" {
 		return fmt.Errorf("os %q is only supported on gke; got service %q", osName, service)

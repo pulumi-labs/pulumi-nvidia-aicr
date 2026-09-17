@@ -106,7 +106,7 @@ intent / os / platform / nodes inputs, plus the skipComponents the stack
 deployed without. Wire a ClusterStack's `+"`criteria`"+` output here so deployment
 and validation resolve the identical recipe and agree on which of its
 components are in scope.`)
-	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).`)
+	an.Describe(&c.Accelerator, `GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).`)
 	an.Describe(&c.Service, `Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".`)
 	an.Describe(&c.Intent, `Workload intent. Supported values: "training", "inference".`)
 	an.Describe(&c.OS, `Operating system flavor of the worker nodes. Leave unset for OS-agnostic

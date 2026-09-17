@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 @CustomType
 public final class RecipeCriteria {
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
      * 
      */
     private String accelerator;
@@ -63,7 +63,7 @@ public final class RecipeCriteria {
 
     private RecipeCriteria() {}
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
      * 
      */
     public String accelerator() {

@@ -38,9 +38,11 @@ class ClusterStackArgs:
 
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000"
-               (eks/lke only). The service restrictions name the services with
-               accelerator-tuned recipes in the pinned AICR data.
+               Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
+               accelerator is admitted only on the services carrying its tuned recipes in
+               the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+               lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+               lke.
         :param _builtins.str intent: Workload intent. Selects between training-oriented and inference-oriented
                component sets.
                
@@ -125,9 +127,11 @@ class ClusterStackArgs:
         """
         GPU accelerator type. Selects the AICR recipe family.
 
-        Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000"
-        (eks/lke only). The service restrictions name the services with
-        accelerator-tuned recipes in the pinned AICR data.
+        Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
+        accelerator is admitted only on the services carrying its tuned recipes in
+        the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+        lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+        lke.
         """
         return pulumi.get(self, "accelerator")
 
@@ -336,9 +340,11 @@ class ClusterStack(pulumi.ComponentResource):
         :param pulumi.ResourceOptions opts: Options for the resource.
         :param _builtins.str accelerator: GPU accelerator type. Selects the AICR recipe family.
                
-               Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000"
-               (eks/lke only). The service restrictions name the services with
-               accelerator-tuned recipes in the pinned AICR data.
+               Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000". Each
+               accelerator is admitted only on the services carrying its tuned recipes in
+               the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the cloud-neutral
+               lke leaf); gb200 on eks, oke; gb300 on eks; b200 on gke; rtx-pro-6000 on eks,
+               lke.
         :param pulumi.Input[Mapping[str, pulumi.Input[Union['ComponentOverrideArgs', 'ComponentOverrideArgsDict']]]] component_overrides: Per-component overrides. Map of AICR component name to override settings
                (version, namespace, Helm values). Values are deep-merged with the recipe
                defaults; only the keys you specify are changed.

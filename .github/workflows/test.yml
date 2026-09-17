@@ -55,8 +55,8 @@ jobs:
         run: make provider
       - name: Verify binary embeds a resolvable AICR SDK version
         # recipeVersion is derived from the binary's build info at runtime;
-        # test binaries cannot cover this (incomplete dep build info), so
-        # assert the real artifact here.
+        # unit tests exercise that path only against fabricated build info,
+        # so assert the real artifact here.
         run: go version -m bin/pulumi-resource-nvidia-aicr | grep -E 'github.com/NVIDIA/aicr\s+v'
       - name: Generate schema
         run: make schema

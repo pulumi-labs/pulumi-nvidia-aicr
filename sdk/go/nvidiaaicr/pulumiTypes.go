@@ -237,7 +237,7 @@ func (o ComponentOverrideMapOutput) MapIndex(k pulumi.StringInput) ComponentOver
 // and validation resolve the identical recipe and agree on which of its
 // components are in scope.
 type RecipeCriteria struct {
-	// GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).
+	// GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
 	Accelerator string `pulumi:"accelerator"`
 	// Workload intent. Supported values: "training", "inference".
 	Intent string `pulumi:"intent"`
@@ -281,7 +281,7 @@ type RecipeCriteriaInput interface {
 // and validation resolve the identical recipe and agree on which of its
 // components are in scope.
 type RecipeCriteriaArgs struct {
-	// GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).
+	// GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
 	Accelerator pulumi.StringInput `pulumi:"accelerator"`
 	// Workload intent. Supported values: "training", "inference".
 	Intent pulumi.StringInput `pulumi:"intent"`
@@ -339,7 +339,7 @@ func (o RecipeCriteriaOutput) ToRecipeCriteriaOutputWithContext(ctx context.Cont
 	return o
 }
 
-// GPU accelerator type. Supported values: "h100", "gb200", "gb300" (eks only), "b200", "rtx-pro-6000" (eks/lke only).
+// GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
 func (o RecipeCriteriaOutput) Accelerator() pulumi.StringOutput {
 	return o.ApplyT(func(v RecipeCriteria) string { return v.Accelerator }).(pulumi.StringOutput)
 }

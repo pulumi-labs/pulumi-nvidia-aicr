@@ -27,14 +27,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     public static final RecipeCriteriaArgs Empty = new RecipeCriteriaArgs();
 
     /**
-     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
      * 
      */
     @Import(name="accelerator", required=true)
     private Output<String> accelerator;
 
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
      * 
      */
     public Output<String> accelerator() {
@@ -184,7 +184,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
          * 
          * @return builder
          * 
@@ -195,7 +195,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34; (eks only), &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks; b200: gke; rtx-pro-6000: eks, lke).
          * 
          * @return builder
          * 

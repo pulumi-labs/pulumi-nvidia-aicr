@@ -57,11 +57,11 @@ func TestResolveEKSH100TrainingKubeflow(t *testing.T) {
 	})
 
 	assert.Equal(t, "h100-eks-ubuntu-training-kubeflow", r.Name)
-	// Module binaries report the pinned SDK version (e.g. "v0.18.0"); test
-	// binaries carry incomplete dependency build info and land on the
-	// "embedded" fallback. Accept exactly those shapes — never "".
-	// TestSDKModuleVersion covers each path against fabricated build info,
-	// and CI asserts the shipped binary via `go version -m`.
+	// Binaries with full dependency build info report the pinned SDK
+	// version (e.g. "v0.21.1"); builds whose info carries no usable version
+	// land on the "embedded" fallback. Accept exactly those shapes — never
+	// "". TestSDKModuleVersion covers each path against fabricated build
+	// info, and CI asserts the shipped binary via `go version -m`.
 	assert.Regexp(t, `^(v\d+\.\d+\.\d+.*|embedded)$`, r.Version,
 		"recipe version must be a semver SDK version or the embedded fallback")
 
@@ -145,7 +145,7 @@ func TestResolveEKSGB300(t *testing.T) {
 	cases := []struct {
 		criteria  Criteria
 		name      string
-		component string // a component only this leaf's family adds
+		component string // a service/platform mixin component that must survive the gb300 leaf's inheritance chain
 	}{
 		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "training"}, "gb300-eks-training", "aws-efa"},
 		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "training", OS: "ubuntu", Platform: "kubeflow"}, "gb300-eks-ubuntu-training-kubeflow", "kubeflow-trainer"},
@@ -159,6 +159,7 @@ func TestResolveEKSGB300(t *testing.T) {
 			findComponent(t, r, tc.component)
 			gpuOperator := findComponent(t, r, "gpu-operator")
 			assert.NotEmpty(t, gpuOperator.PreManifests, "gb300 gpu-operator must carry pre-manifests")
+			assert.NotEmpty(t, gpuOperator.Chart, "gpu-operator is still a Helm component")
 		})
 	}
 }

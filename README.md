@@ -749,7 +749,7 @@ whose embedded recipe data is pinned by the SDK module version. The
 |---|---|
 | 0.1.x | v0.18.0 |
 | 0.3.x | v0.19.0 |
-| next release (`main`) | v0.21.1 |
+| 0.4.x | v0.21.1 |
 
 ## License
 

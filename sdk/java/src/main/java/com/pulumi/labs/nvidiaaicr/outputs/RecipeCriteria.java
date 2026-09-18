@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 @CustomType
 public final class RecipeCriteria {
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;, &#34;vr200&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
      * 
      */
     private String accelerator;
@@ -38,12 +38,12 @@ public final class RecipeCriteria {
     /**
      * @return ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
      * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
-     * kubeflow and dynamo have no recipes on lke/bcm.
+     * kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
      * 
      */
     private @Nullable String platform;
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;generic&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;, &#34;rke2&#34;.
      * 
      */
     private String service;
@@ -63,7 +63,7 @@ public final class RecipeCriteria {
 
     private RecipeCriteria() {}
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;, &#34;vr200&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
      * 
      */
     public String accelerator() {
@@ -94,14 +94,14 @@ public final class RecipeCriteria {
     /**
      * @return ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
      * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
-     * kubeflow and dynamo have no recipes on lke/bcm.
+     * kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
      * 
      */
     public Optional<String> platform() {
         return Optional.ofNullable(this.platform);
     }
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;generic&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;, &#34;rke2&#34;.
      * 
      */
     public String service() {

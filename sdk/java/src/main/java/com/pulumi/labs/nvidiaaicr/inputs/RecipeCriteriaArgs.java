@@ -27,14 +27,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     public static final RecipeCriteriaArgs Empty = new RecipeCriteriaArgs();
 
     /**
-     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;, &#34;vr200&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
      * 
      */
     @Import(name="accelerator", required=true)
     private Output<String> accelerator;
 
     /**
-     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+     * @return GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;, &#34;vr200&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
      * 
      */
     public Output<String> accelerator() {
@@ -91,7 +91,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     /**
      * ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
      * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
-     * kubeflow and dynamo have no recipes on lke/bcm.
+     * kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
      * 
      */
     @Import(name="platform")
@@ -100,7 +100,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     /**
      * @return ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
      * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
-     * kubeflow and dynamo have no recipes on lke/bcm.
+     * kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
      * 
      */
     public Optional<Output<String>> platform() {
@@ -108,14 +108,14 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
     }
 
     /**
-     * Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
+     * Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;generic&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;, &#34;rke2&#34;.
      * 
      */
     @Import(name="service", required=true)
     private Output<String> service;
 
     /**
-     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
+     * @return Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;generic&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;, &#34;rke2&#34;.
      * 
      */
     public Output<String> service() {
@@ -184,7 +184,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;, &#34;vr200&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
          * 
          * @return builder
          * 
@@ -195,7 +195,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34; (eks/lke only).
+         * @param accelerator GPU accelerator type. Supported values: &#34;h100&#34;, &#34;gb200&#34;, &#34;gb300&#34;, &#34;b200&#34;, &#34;rtx-pro-6000&#34;, &#34;vr200&#34;; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
          * 
          * @return builder
          * 
@@ -272,7 +272,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         /**
          * @param platform ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
          * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
-         * kubeflow and dynamo have no recipes on lke/bcm.
+         * kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
          * 
          * @return builder
          * 
@@ -285,7 +285,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         /**
          * @param platform ML platform/framework. Supported values: &#34;kubeflow&#34; (training),
          * &#34;dynamo&#34; (inference), &#34;nim&#34; (inference, eks with h100 or rtx-pro-6000 only).
-         * kubeflow and dynamo have no recipes on lke/bcm.
+         * kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
          * 
          * @return builder
          * 
@@ -295,7 +295,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
+         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;generic&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;, &#34;rke2&#34;.
          * 
          * @return builder
          * 
@@ -306,7 +306,7 @@ public final class RecipeCriteriaArgs extends com.pulumi.resources.ResourceArgs 
         }
 
         /**
-         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;.
+         * @param service Kubernetes service. Supported values: &#34;aks&#34;, &#34;bcm&#34;, &#34;eks&#34;, &#34;generic&#34;, &#34;gke&#34;, &#34;kind&#34;, &#34;lke&#34;, &#34;oke&#34;, &#34;rke2&#34;.
          * 
          * @return builder
          * 

@@ -6,7 +6,7 @@ Thanks for your interest in contributing to the Pulumi NVIDIA AICR provider.
 
 You will need:
 
-- [Go](https://go.dev/) 1.26+
+- [Go](https://go.dev/) 1.27+
 - [Pulumi CLI](https://www.pulumi.com/docs/install/) 3.165+
 - For SDK generation/build: Node.js 18+, Python 3.9+, .NET 8+, JDK 11+
 
@@ -56,7 +56,8 @@ new upstream recipes:
    platforms), update the `supported*` allowlists, `validateCompatibility`,
    and `Annotate` descriptions in `provider/pkg/provider/clusterstack.go`,
    the README's tables, and `examples/README.md`.
-3. Update the README's "AICR Version Compatibility" table.
+3. Update the README's "AICR Version Compatibility" table with the
+   provider minor version that will ship the new SDK (see Releasing).
 4. Run `make test` — adapter resolution tests will catch most drift.
 
 Never vendor or hand-edit NVIDIA recipe YAML in this repo.
@@ -67,11 +68,19 @@ Releases are tag-driven. Pushing a `v*.*.*` tag fires
 `.github/workflows/release.yml`, which:
 
 1. Cross-compiles the provider for `linux/amd64`, `linux/arm64`,
-   `darwin/amd64`, `darwin/arm64`, and `windows/amd64`.
+   `darwin/amd64`, and `darwin/arm64`.
 2. Generates SDKs in all five languages with the tag's version baked in.
 3. Uploads provider tarballs and SDK source archives to the GitHub Release.
 4. Optionally publishes SDKs to npm/PyPI/NuGet (disabled by default;
    re-enable by removing `if: false` and setting the relevant secrets).
+
+**Version rule:** a release that bumps the AICR SDK (and therefore the
+embedded recipe data) must bump the provider's minor version, never just
+the patch. Recipe data changes what an unchanged program deploys, and the
+README's compatibility table maps provider minor versions to SDK versions,
+so a patch release with new recipe data makes that table wrong. Before
+tagging, confirm the tag's minor version matches the table's row for the
+SDK pinned in `go.mod`.
 
 ## Code style
 

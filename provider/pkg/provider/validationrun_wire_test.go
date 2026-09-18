@@ -61,10 +61,10 @@ func rigLikeInputs() property.Map {
 			"os":          property.New("ubuntu"),
 			"nodes":       property.New(1.0),
 		})),
-		// Test binaries resolve the embedded recipe-data version as
-		// "embedded"; the value still round-trips the same wire path as the
-		// live "v0.18.0".
-		"recipeDataVersion": property.New("embedded"),
+		// Whatever version this build reports (a real pin, or the
+		// "embedded" fallback when build info is incomplete) must pass
+		// Create's assertion and round-trip the wire path unchanged.
+		"recipeDataVersion": property.New(aicr.SDKVersion()),
 		"kubeconfig":        property.New("apiVersion: v1\nkind: Config\n").WithSecret(true),
 		"requireGpu":        property.New(true),
 		"triggers": property.New([]property.Value{

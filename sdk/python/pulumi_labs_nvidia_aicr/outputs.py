@@ -117,15 +117,15 @@ class RecipeCriteria(dict):
         and validation resolve the identical recipe and agree on which of its
         components are in scope.
 
-        :param _builtins.str accelerator: GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
+        :param _builtins.str accelerator: GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
         :param _builtins.str intent: Workload intent. Supported values: "training", "inference".
-        :param _builtins.str service: Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
+        :param _builtins.str service: Kubernetes service. Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke", "oke", "rke2".
         :param _builtins.int nodes: Worker-node count hint used to size the recipe.
         :param _builtins.str os: Operating system flavor of the worker nodes. Leave unset for OS-agnostic
                resolution. Supported values: "ubuntu", "cos", "ol".
         :param _builtins.str platform: ML platform/framework. Supported values: "kubeflow" (training),
                "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
-               kubeflow and dynamo have no recipes on lke/bcm.
+               kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
         :param Sequence[_builtins.str] skip_components: Recipe components the stack intentionally did not deploy (ClusterStack's
                `skipComponents`). ValidationRun treats them as out of scope rather than
                missing: checks that presuppose one of them (e.g. the gpu-operator health,
@@ -152,7 +152,7 @@ class RecipeCriteria(dict):
     @pulumi.getter
     def accelerator(self) -> _builtins.str:
         """
-        GPU accelerator type. Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only).
+        GPU accelerator type. Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2).
         """
         return pulumi.get(self, "accelerator")
 
@@ -168,7 +168,7 @@ class RecipeCriteria(dict):
     @pulumi.getter
     def service(self) -> _builtins.str:
         """
-        Kubernetes service. Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke".
+        Kubernetes service. Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke", "oke", "rke2".
         """
         return pulumi.get(self, "service")
 
@@ -195,7 +195,7 @@ class RecipeCriteria(dict):
         """
         ML platform/framework. Supported values: "kubeflow" (training),
         "dynamo" (inference), "nim" (inference, eks with h100 or rtx-pro-6000 only).
-        kubeflow and dynamo have no recipes on lke/bcm.
+        kubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2.
         """
         return pulumi.get(self, "platform")
 

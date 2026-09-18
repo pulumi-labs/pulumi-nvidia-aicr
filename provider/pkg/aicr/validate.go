@@ -170,9 +170,10 @@ type ValidationReport struct {
 }
 
 // SDKVersion reports the AICR SDK module version embedded in this build,
-// which also versions the embedded recipe data ("embedded" when build info
-// is unavailable, e.g. test binaries). Exported for the ValidationRun
-// resource's version-assertion check.
+// which also versions the embedded recipe data ("embedded" only when build
+// info is unavailable or carries no usable version, e.g. a filesystem
+// `replace` directive). Exported for the ValidationRun resource's
+// version-assertion check.
 func SDKVersion() string {
 	return sdkModuleVersion()
 }
@@ -257,19 +258,29 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 		if imgErr != nil {
 			return nil, imgErr
 		}
+		// RunID pins the snapshot half of the run to the same ID as the
+		// validator Jobs, so every cluster-side artifact carries
+		// aicr.run/run-id=<runID>. JobName is a prefix the SDK suffixes
+		// with the run ID. ServiceAccountName is deliberately left unset:
+		// the SDK treats a set name as exact-if-exists, adopting any
+		// pre-existing ServiceAccount of that name verbatim (managing no
+		// RBAC and permission-checking it against the current rule set),
+		// so a leftover account from an earlier provider version would
+		// make every run fail. Unset, the SDK derives a per-run name
+		// ("aicr-<runID>") that is never probed for existence.
 		snap, err = client.CollectSnapshot(ctx, &aicrclient.AgentConfig{
-			Kubeconfig:         opts.KubeconfigPath,
-			Namespace:          namespace,
-			Image:              image,
-			ServiceAccountName: "aicr-agent",
-			JobName:            "aicr-snapshot-" + runID,
-			ImagePullSecrets:   opts.ImagePullSecrets,
-			NodeSelector:       opts.NodeSelector,
-			Tolerations:        opts.Tolerations,
-			Privileged:         true,
-			RequireGPU:         opts.RequireGPU,
-			Cleanup:            true,
-			Timeout:            snapshotTimeout,
+			Kubeconfig:       opts.KubeconfigPath,
+			Namespace:        namespace,
+			Image:            image,
+			JobName:          "aicr-snapshot",
+			RunID:            runID,
+			ImagePullSecrets: opts.ImagePullSecrets,
+			NodeSelector:     opts.NodeSelector,
+			Tolerations:      opts.Tolerations,
+			Privileged:       true,
+			RequireGPU:       opts.RequireGPU,
+			Cleanup:          true,
+			Timeout:          snapshotTimeout,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("collecting cluster snapshot: %w", err)

@@ -90,9 +90,18 @@ published support matrix) and add adapter tests for the new combination.
   persists. `Delete` is a deliberate no-op — everything else is reaped by the
   SDK per run (including on cancellation), plus an adapter-side best-effort
   sweep of runID-labeled validator Jobs
-- The kubeconfig identity needs RBAC to create/patch Namespaces, ClusterRoles,
-  and ClusterRoleBindings (the validator uses a per-run cluster-admin binding,
-  reaped after the run)
+- The SDK pre-flight-checks the kubeconfig identity and fails closed. It
+  needs create/patch on Namespaces; create+delete on ClusterRoles and
+  ClusterRoleBindings; and in the validation namespace create+delete on
+  ServiceAccounts/Roles/RoleBindings, get on ServiceAccounts,
+  create/get/list/watch/delete on Jobs, get/list/watch on Pods, get on
+  pods/log, get/list/delete on ConfigMaps (the validator uses a per-run
+  cluster-admin binding, reaped after the run). The README's RBAC paragraph
+  is the user-facing copy of this list — keep them in sync
+- Never set `AgentConfig.ServiceAccountName`: the SDK treats it as
+  exact-if-exists and adopts a leftover account of that name verbatim,
+  failing every run's permission check; leave it unset for a per-run name
+  and pass `RunID` so snapshot and validator artifacts share one run label
 - Any input change replaces the resource (explicit `Diff`, every changed
   top-level property is `UpdateReplace`); with `strict: true` a failed run
   persists full results via `infer.ResourceInitFailedError` and re-runs on

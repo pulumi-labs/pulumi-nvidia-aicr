@@ -57,11 +57,11 @@ func TestResolveEKSH100TrainingKubeflow(t *testing.T) {
 	})
 
 	assert.Equal(t, "h100-eks-ubuntu-training-kubeflow", r.Name)
-	// Module binaries report the pinned SDK version (e.g. "v0.18.0"); test
-	// binaries carry incomplete dependency build info and land on the
-	// "embedded" fallback. Accept exactly those shapes — never "".
-	// TestSDKModuleVersion covers each path against fabricated build info,
-	// and CI asserts the shipped binary via `go version -m`.
+	// Binaries with full dependency build info report the pinned SDK
+	// version (e.g. "v0.21.1"); builds whose info carries no usable version
+	// land on the "embedded" fallback. Accept exactly those shapes — never
+	// "". TestSDKModuleVersion covers each path against fabricated build
+	// info, and CI asserts the shipped binary via `go version -m`.
 	assert.Regexp(t, `^(v\d+\.\d+\.\d+.*|embedded)$`, r.Version,
 		"recipe version must be a semver SDK version or the embedded fallback")
 
@@ -134,6 +134,75 @@ func TestResolveGB200LoadsPreManifests(t *testing.T) {
 	gpuOperator := findComponent(t, r, "gpu-operator")
 	assert.NotEmpty(t, gpuOperator.PreManifests, "gb200 gpu-operator must carry pre-manifests")
 	assert.NotEmpty(t, gpuOperator.Chart, "gpu-operator is still a Helm component")
+}
+
+// TestResolveEKSGB300 covers the gb300 leaves added in SDK v0.21.0: eks
+// carries tuned training and inference recipes (with kubeflow and dynamo
+// platform leaves) that, like gb200, attach kernel-module pre-manifests to
+// gpu-operator. gb300 has no tuned leaves on any other supported service,
+// which validateCompatibility enforces provider-side.
+func TestResolveEKSGB300(t *testing.T) {
+	cases := []struct {
+		criteria  Criteria
+		name      string
+		component string // a service/platform mixin component that must survive the gb300 leaf's inheritance chain
+	}{
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "training"}, "gb300-eks-training", "aws-efa"},
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "training", OS: "ubuntu", Platform: "kubeflow"}, "gb300-eks-ubuntu-training-kubeflow", "kubeflow-trainer"},
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "inference"}, "gb300-eks-inference", "agentgateway"},
+		{Criteria{Service: "eks", Accelerator: "gb300", Intent: "inference", OS: "ubuntu", Platform: "dynamo"}, "gb300-eks-ubuntu-inference-dynamo", "dynamo-platform"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := resolve(t, tc.criteria)
+			assert.Equal(t, tc.name, r.Name)
+			findComponent(t, r, tc.component)
+			gpuOperator := findComponent(t, r, "gpu-operator")
+			assert.NotEmpty(t, gpuOperator.PreManifests, "gb300 gpu-operator must carry pre-manifests")
+			assert.NotEmpty(t, gpuOperator.Chart, "gpu-operator is still a Helm component")
+		})
+	}
+}
+
+// TestResolveVR200RKE2 covers the Vera Rubin preview leaves added in SDK
+// v0.21.0: rke2 carries vr200 training and inference recipes (dynamo only
+// on the platform side) and, like gke, resolves only with an explicit OS.
+func TestResolveVR200RKE2(t *testing.T) {
+	_, err := Resolve(context.Background(), Criteria{Service: "rke2", Accelerator: "vr200", Intent: "training"})
+	require.Error(t, err, "rke2 leaves are OS-pinned")
+	assert.Contains(t, err.Error(), "requires os")
+	assert.Contains(t, err.Error(), "ubuntu")
+
+	cases := []struct {
+		criteria Criteria
+		name     string
+	}{
+		{Criteria{Service: "rke2", Accelerator: "vr200", Intent: "training", OS: "ubuntu"}, "vr200-rke2-ubuntu-training"},
+		{Criteria{Service: "rke2", Accelerator: "vr200", Intent: "inference", OS: "ubuntu"}, "vr200-rke2-ubuntu-inference"},
+		{Criteria{Service: "rke2", Accelerator: "vr200", Intent: "inference", OS: "ubuntu", Platform: "dynamo"}, "vr200-rke2-ubuntu-inference-dynamo"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := resolve(t, tc.criteria)
+			assert.Equal(t, tc.name, r.Name)
+			findComponent(t, r, "gpu-operator")
+		})
+	}
+}
+
+// TestResolveGB300Generic covers the self-managed bare-metal gb300 training
+// leaf: generic requires an explicit ubuntu OS and ships training only.
+func TestResolveGB300Generic(t *testing.T) {
+	_, err := Resolve(context.Background(), Criteria{Service: "generic", Accelerator: "gb300", Intent: "training"})
+	require.Error(t, err, "generic leaves are OS-pinned")
+	assert.Contains(t, err.Error(), "requires os")
+
+	r := resolve(t, Criteria{Service: "generic", Accelerator: "gb300", Intent: "training", OS: "ubuntu"})
+	assert.Equal(t, "gb300-generic-ubuntu-training", r.Name)
+	findComponent(t, r, "gpu-operator")
+
+	_, err = Resolve(context.Background(), Criteria{Service: "generic", Accelerator: "gb300", Intent: "inference", OS: "ubuntu"})
+	require.Error(t, err, "generic has no inference leaf")
 }
 
 func TestResolveManifestOnlyComponent(t *testing.T) {

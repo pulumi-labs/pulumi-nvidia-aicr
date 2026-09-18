@@ -122,11 +122,11 @@ in the recipe's dependency order.
 
 | Property | Type | Required | Description |
 |---|---|---|---|
-| `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"b200"`, `"rtx-pro-6000"` (eks/lke only — the services with rtx-pro-6000-tuned recipes in the pinned AICR data) |
-| `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"oke"`, `"kind"`, plus the cloud-neutral leaves `"bcm"` and `"lke"` (no hyperscaler CSI/EFA components; they double as stand-ins for providers without an AICR criteria value yet — e.g. CoreWeave CKS deploys the `lke` leaf) |
+| `accelerator` | `string` | Yes | GPU type: `"h100"`, `"gb200"`, `"gb300"`, `"b200"`, `"rtx-pro-6000"`, `"vr200"`. Each is admitted only on the services with its tuned recipes in the pinned AICR data; see the support matrix below |
+| `service` | `string` | Yes | Kubernetes service: `"aks"`, `"eks"`, `"gke"`, `"oke"`, `"kind"`, `"rke2"` (Rancher RKE2), `"generic"` (self-managed bare-metal), plus the cloud-neutral leaves `"bcm"` and `"lke"` (no hyperscaler CSI/EFA components; they double as stand-ins for providers without an AICR criteria value yet — e.g. CoreWeave CKS deploys the `lke` leaf) |
 | `intent` | `string` | Yes | Workload type: `"training"`, `"inference"` |
-| `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke) — the values backed by recipes in the pinned AICR data; more arrive via SDK upgrades. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`, platform recipes need `"ubuntu"`); `kind` requires it unset. |
-| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, eks with h100 or rtx-pro-6000 only). `kubeflow`/`dynamo` have no recipes on `lke`/`bcm`. Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes an inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
+| `os` | `string` | No | OS: `"ubuntu"`, `"cos"` (gke only), `"ol"` (oke) — the values backed by recipes in the pinned AICR data; more arrive via SDK upgrades. Leave unset for OS-agnostic resolution; set it when the cluster's OS is known. Some combinations require it (gke needs `"cos"`; platform recipes, `rke2` and `generic` need `"ubuntu"`); `kind` requires it unset. |
+| `platform` | `string` | No | ML platform: `"kubeflow"` (training), `"dynamo"` (inference), `"nim"` (inference, eks with h100 or rtx-pro-6000 only). `kubeflow`/`dynamo` have no recipes on `lke`/`bcm`/`generic`, and `kubeflow` has none on `rke2`. Leave unset for the base recipe without a platform-specific runtime. `intent: "inference"` always includes an inference gateway as part of the base inference stack; choosing a platform layers a runtime on top. |
 | `nodes` | `int` | No | Worker-node count hint used to size the recipe (nodes, not GPUs) |
 | `kubeconfig` | `Input<string>` | No | Kubeconfig contents (accepts outputs from cluster resources) |
 | `kubeconfigPath` | `string` | No | Path to kubeconfig file |
@@ -145,7 +145,7 @@ kubeconfig (`~/.kube/config` or `KUBECONFIG` env var) is used.
 | Property | Type | Description |
 |---|---|---|
 | `recipeName` | `string` | Resolved recipe identifier (e.g. `h100-eks-ubuntu-training-kubeflow`) |
-| `recipeVersion` | `string` | AICR SDK module version providing the recipe data (e.g. `v0.18.0`) |
+| `recipeVersion` | `string` | AICR SDK module version providing the recipe data (e.g. `v0.21.1`) |
 | `deployedComponents` | `string[]` | Names of deployed components, in deployment order |
 | `componentCount` | `int` | Number of deployed components |
 | `criteria` | `RecipeCriteria` | The canonicalized criteria the stack resolved with (`accelerator`, `service`, `intent`, `os`, `platform`, `nodes`, `skipComponents`). Wire it into `ValidationRun.criteria`. |
@@ -231,7 +231,11 @@ Wire it to a `ClusterStack` so deployment and validation share one source of tru
   its own Jobs, RBAC and ConfigMaps per run.
 - **Privilege:** the snapshot agent runs privileged (read-only node inspection ClusterRole) and
   validator Jobs run under a per-run cluster-admin ClusterRoleBinding, both removed afterwards. The
-  kubeconfig identity needs RBAC to create/patch Namespaces, ClusterRoles and ClusterRoleBindings.
+  SDK checks the kubeconfig identity's permissions up front and fails closed before creating
+  anything. It needs: create/patch on Namespaces; create and delete on ClusterRoles and
+  ClusterRoleBindings (cluster-scoped); and, in the validation namespace, create and delete on
+  ServiceAccounts, Roles and RoleBindings, get on ServiceAccounts, create/get/list/watch/delete on
+  Jobs, get/list/watch on Pods, get on `pods/log`, and get/list/delete on ConfigMaps.
 - **Duration:** a deployment + conformance run typically takes 2–10 minutes depending on the recipe
   (each check is a Job); performance checks can take much longer.
 - **Timeouts:** `timeoutMinutes` is the whole budget for a run and the only input that grants time.
@@ -640,6 +644,7 @@ See [examples/](./examples/) for prerequisites, cost estimates, and detailed ins
 | Cloud | TypeScript | Python | Go | C# | Java |
 |---|---|---|---|---|---|
 | AWS EKS (H100) | [ts](./examples/aws-eks-training-ts/) | [py](./examples/aws-eks-training-py/) | [go](./examples/aws-eks-training-go/) | [cs](./examples/aws-eks-training-cs/) | [java](./examples/aws-eks-training-java/) |
+| AWS EKS (GB300) | [ts](./examples/aws-eks-gb300-training-ts/) | | | | |
 | Azure AKS (H100) | [ts](./examples/azure-aks-training-ts/) | [py](./examples/azure-aks-training-py/) | [go](./examples/azure-aks-training-go/) | [cs](./examples/azure-aks-training-cs/) | [java](./examples/azure-aks-training-java/) |
 | GCP GKE (H100) | [ts](./examples/gcp-gke-training-ts/) | [py](./examples/gcp-gke-training-py/) | [go](./examples/gcp-gke-training-go/) | [cs](./examples/gcp-gke-training-cs/) | [java](./examples/gcp-gke-training-java/) |
 | OCI OKE (GB200) | [ts](./examples/oci-oke-training-ts/) | [py](./examples/oci-oke-training-py/) | [go](./examples/oci-oke-training-go/) | [cs](./examples/oci-oke-training-cs/) | [java](./examples/oci-oke-training-java/) |
@@ -666,14 +671,17 @@ closest base recipe):
 
 | Accelerator | Services | Intents | Platforms |
 |---|---|---|---|
-| H100 | EKS, GKE, AKS, Kind, BCM | Training, Inference | Kubeflow, Dynamo, NIM (EKS only) |
+| H100 | EKS, GKE, AKS, Kind, BCM, LKE (cloud-neutral stand-in, untuned) | Training, Inference | Kubeflow, Dynamo, NIM (EKS only) |
 | GB200 | EKS, OKE | Training, Inference | Kubeflow, Dynamo |
-| B200 | GKE | Training | Kubeflow |
+| GB300 | EKS, Generic (bare-metal, training only) | Training, Inference | Kubeflow, Dynamo |
+| B200 | GKE | Training, Inference | Kubeflow, Dynamo |
 | RTX PRO 6000 | EKS, LKE | Training, Inference | Kubeflow, Dynamo, NIM (EKS only); LKE ships base training/inference leaves |
+| VR200 (Vera Rubin) | RKE2 | Training, Inference | Dynamo; upstream marks these overlays as preview |
 
 `bcm` (NVIDIA Base Command Manager) and `lke` (Linode Kubernetes Engine) are the cloud-neutral
 leaves — no hyperscaler CSI/EFA components — and are the stand-ins for providers AICR has no
-criteria value for yet (CoreWeave CKS uses `lke`). The `kind` service overlay targets local
+criteria value for yet (CoreWeave CKS uses `lke`). `generic` is self-managed bare-metal Kubernetes
+and `rke2` is Rancher RKE2; both require `os: "ubuntu"`. The `kind` service overlay targets local
 development with [kind](https://kind.sigs.k8s.io/) clusters -- useful for exercising the
 deployment pipeline without provisioning real GPU hardware.
 
@@ -743,7 +751,8 @@ whose embedded recipe data is pinned by the SDK module version. The
 | Provider Version | AICR SDK Module Version |
 |---|---|
 | 0.1.x | v0.18.0 |
-| next release (`main`) | v0.19.0 |
+| 0.3.x | v0.19.0 |
+| 0.4.x | v0.21.1 |
 
 ## License
 

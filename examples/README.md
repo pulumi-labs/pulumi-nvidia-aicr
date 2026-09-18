@@ -8,6 +8,7 @@ languages.
 | Cloud | TypeScript | Python | Go | C# | Java |
 |---|---|---|---|---|---|
 | AWS EKS (H100) | [ts](./aws-eks-training-ts/) | [py](./aws-eks-training-py/) | [go](./aws-eks-training-go/) | [cs](./aws-eks-training-cs/) | [java](./aws-eks-training-java/) |
+| AWS EKS (GB300) | [ts](./aws-eks-gb300-training-ts/) | | | | |
 | Azure AKS (H100) | [ts](./azure-aks-training-ts/) | [py](./azure-aks-training-py/) | [go](./azure-aks-training-go/) | [cs](./azure-aks-training-cs/) | [java](./azure-aks-training-java/) |
 | GCP GKE (H100) | [ts](./gcp-gke-training-ts/) | [py](./gcp-gke-training-py/) | [go](./gcp-gke-training-go/) | [cs](./gcp-gke-training-cs/) | [java](./gcp-gke-training-java/) |
 | OCI OKE (GB200) | [ts](./oci-oke-training-ts/) | [py](./oci-oke-training-py/) | [go](./oci-oke-training-go/) | [cs](./oci-oke-training-cs/) | [java](./oci-oke-training-java/) |
@@ -42,7 +43,7 @@ pulumi config set intent training
 pulumi up
 ```
 
-**Prerequisites:** a Kubernetes cluster with NVIDIA GPU nodes (H100, GB200,
+**Prerequisites:** a Kubernetes cluster with NVIDIA GPU nodes (H100, GB200, GB300,
 or B200) reachable via your kubeconfig.
 
 ### aws-eks-training
@@ -62,6 +63,28 @@ VPCs, and EC2 instances.
 **Cost:** `p5.48xlarge` instances are roughly **$98/hr each**. The default
 node count is 2, so plan on **~$196/hr** while the cluster is up. Run
 `pulumi destroy` when you are finished.
+
+### aws-eks-gb300-training
+
+Provisions an EKS cluster (Kubernetes 1.34+) with a GB300 NVL72 managed node
+group — `p6e-gb300r.36xlarge`, 4 GPUs per node on Grace ARM64 hosts with EFA —
+then deploys the AICR `gb300-eks-ubuntu-training-kubeflow` stack. GB300
+capacity on AWS is sold through EC2 Capacity Blocks for ML; the example takes
+the reservation ID as config and pins the node group to it.
+
+```bash
+cd examples/aws-eks-gb300-training-ts
+npm install
+pulumi config set capacityReservationId cr-0123456789abcdef0
+pulumi up
+```
+
+**Prerequisites:** AWS credentials with permissions to create EKS clusters,
+VPCs, IAM roles, and EC2 instances; an active Capacity Block reservation for
+`p6e-gb300r.36xlarge` in the configured availability zone.
+
+**Cost:** Capacity Blocks are billed per reservation, not per instance-hour;
+see the EC2 Capacity Blocks pricing page for the current GB300 rate.
 
 ### azure-aks-training
 

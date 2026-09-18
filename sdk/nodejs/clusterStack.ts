@@ -101,8 +101,11 @@ export interface ClusterStackArgs {
     /**
      * GPU accelerator type. Selects the AICR recipe family.
      *
-     * Supported values: "h100", "gb200", "b200", "rtx-pro-6000" (eks/lke only —
-     * the services with rtx-pro-6000-tuned recipes in the pinned AICR data).
+     * Supported values: "h100", "gb200", "gb300", "b200", "rtx-pro-6000", "vr200".
+     * Each accelerator is admitted only on the services carrying its tuned recipes
+     * in the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the
+     * cloud-neutral lke leaf); gb200 on eks, oke; gb300 on eks, generic; b200 on
+     * gke; rtx-pro-6000 on eks, lke; vr200 (Vera Rubin, upstream preview) on rke2.
      */
     accelerator: string;
     /**
@@ -152,8 +155,9 @@ export interface ClusterStackArgs {
      * Leave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel
      * tuning, driver constraints) are skipped and the OS-agnostic recipe is used.
      * Set it when the cluster's OS is known. Some combinations require an OS
-     * (e.g. gke requires "cos"; eks platform recipes require "ubuntu") and fail
-     * with a message listing the valid values; kind recipes require it unset.
+     * (e.g. gke requires "cos"; eks platform recipes, generic and rke2 require
+     * "ubuntu") and fail with a message listing the valid values; kind recipes
+     * require it unset.
      */
     os?: string;
     /**
@@ -161,7 +165,8 @@ export interface ClusterStackArgs {
      *
      * Supported values: "kubeflow" (training), "dynamo" (inference), "nim"
      * (inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no
-     * recipes on lke/bcm in the pinned AICR data.
+     * recipes on lke, bcm or generic in the pinned AICR data, and kubeflow has none
+     * on rke2.
      *
      * Leave unset for the base recipe without a platform-specific runtime. Note
      * that intent="inference" always includes an inference gateway (part of the
@@ -173,11 +178,13 @@ export interface ClusterStackArgs {
     /**
      * Kubernetes service. Selects cloud-specific operators and storage drivers.
      *
-     * Supported values: "aks", "bcm", "eks", "gke", "kind", "lke", "oke". bcm and
-     * lke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and
-     * double as stand-ins for providers without an AICR criteria value yet (e.g.
-     * CoreWeave CKS deploys the lke leaf). Use "kind" for local
-     * hardware-free development of the deployment pipeline.
+     * Supported values: "aks", "bcm", "eks", "generic", "gke", "kind", "lke",
+     * "oke", "rke2". bcm and lke are the cloud-neutral leaves (no hyperscaler
+     * CSI/EFA components) and double as stand-ins for providers without an AICR
+     * criteria value yet (e.g. CoreWeave CKS deploys the lke leaf). generic is
+     * self-managed bare-metal Kubernetes (gb300 training) and rke2 is Rancher
+     * RKE2 (vr200); both require os "ubuntu". Use "kind" for local hardware-free
+     * development of the deployment pipeline.
      */
     service: string;
     /**

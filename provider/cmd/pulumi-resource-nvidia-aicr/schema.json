@@ -115,7 +115,7 @@
       "properties": {
         "accelerator": {
           "type": "string",
-          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\" (eks/lke only)."
+          "description": "GPU accelerator type. Supported values: \"h100\", \"gb200\", \"gb300\", \"b200\", \"rtx-pro-6000\", \"vr200\"; each is admitted only on the services with its tuned recipes (h100: aks, bcm, eks, gke, kind, lke; gb200: eks, oke; gb300: eks, generic; b200: gke; rtx-pro-6000: eks, lke; vr200: rke2)."
         },
         "intent": {
           "type": "string",
@@ -131,11 +131,11 @@
         },
         "platform": {
           "type": "string",
-          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, eks with h100 or rtx-pro-6000 only).\nkubeflow and dynamo have no recipes on lke/bcm."
+          "description": "ML platform/framework. Supported values: \"kubeflow\" (training),\n\"dynamo\" (inference), \"nim\" (inference, eks with h100 or rtx-pro-6000 only).\nkubeflow and dynamo have no recipes on lke, bcm or generic; kubeflow has none on rke2."
         },
         "service": {
           "type": "string",
-          "description": "Kubernetes service. Supported values: \"aks\", \"bcm\", \"eks\", \"gke\", \"kind\", \"lke\", \"oke\"."
+          "description": "Kubernetes service. Supported values: \"aks\", \"bcm\", \"eks\", \"generic\", \"gke\", \"kind\", \"lke\", \"oke\", \"rke2\"."
         },
         "skipComponents": {
           "type": "array",
@@ -219,7 +219,7 @@
         "accelerator": {
           "type": "string",
           "plain": true,
-          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"b200\", \"rtx-pro-6000\" (eks/lke only —\nthe services with rtx-pro-6000-tuned recipes in the pinned AICR data)."
+          "description": "GPU accelerator type. Selects the AICR recipe family.\n\nSupported values: \"h100\", \"gb200\", \"gb300\", \"b200\", \"rtx-pro-6000\", \"vr200\".\nEach accelerator is admitted only on the services carrying its tuned recipes\nin the pinned AICR data: h100 on aks, bcm, eks, gke, kind (and the\ncloud-neutral lke leaf); gb200 on eks, oke; gb300 on eks, generic; b200 on\ngke; rtx-pro-6000 on eks, lke; vr200 (Vera Rubin, upstream preview) on rke2."
         },
         "componentOverrides": {
           "type": "object",
@@ -255,17 +255,17 @@
         "os": {
           "type": "string",
           "plain": true,
-          "description": "Operating system flavor of the worker nodes.\n\nSupported values: \"ubuntu\", \"cos\" (Container-Optimized OS, GKE only), \"ol\"\n(Oracle Linux, OKE) — the values with backing recipes in this provider's\npinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive\nthrough AICR SDK upgrades.\n\nLeave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel\ntuning, driver constraints) are skipped and the OS-agnostic recipe is used.\nSet it when the cluster's OS is known. Some combinations require an OS\n(e.g. gke requires \"cos\"; eks platform recipes require \"ubuntu\") and fail\nwith a message listing the valid values; kind recipes require it unset."
+          "description": "Operating system flavor of the worker nodes.\n\nSupported values: \"ubuntu\", \"cos\" (Container-Optimized OS, GKE only), \"ol\"\n(Oracle Linux, OKE) — the values with backing recipes in this provider's\npinned AICR data. Additional OS values (rhel, amazonlinux, talos) arrive\nthrough AICR SDK upgrades.\n\nLeave unset for OS-agnostic resolution: OS-pinned recipe overlays (kernel\ntuning, driver constraints) are skipped and the OS-agnostic recipe is used.\nSet it when the cluster's OS is known. Some combinations require an OS\n(e.g. gke requires \"cos\"; eks platform recipes, generic and rke2 require\n\"ubuntu\") and fail with a message listing the valid values; kind recipes\nrequire it unset."
         },
         "platform": {
           "type": "string",
           "plain": true,
-          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\"\n(inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no\nrecipes on lke/bcm in the pinned AICR data.\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
+          "description": "ML platform/framework to layer on top of the base recipe.\n\nSupported values: \"kubeflow\" (training), \"dynamo\" (inference), \"nim\"\n(inference, eks with h100 or rtx-pro-6000 only). kubeflow and dynamo have no\nrecipes on lke, bcm or generic in the pinned AICR data, and kubeflow has none\non rke2.\n\nLeave unset for the base recipe without a platform-specific runtime. Note\nthat intent=\"inference\" always includes an inference gateway (part of the\nbase inference stack); choosing a platform layers a runtime (\"dynamo\",\n\"nim\") on top. intent=\"training\" leaves training-runtime components out\nentirely when platform is unset."
         },
         "service": {
           "type": "string",
           "plain": true,
-          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"bcm\", \"eks\", \"gke\", \"kind\", \"lke\", \"oke\". bcm and\nlke are the cloud-neutral leaves (no hyperscaler CSI/EFA components) and\ndouble as stand-ins for providers without an AICR criteria value yet (e.g.\nCoreWeave CKS deploys the lke leaf). Use \"kind\" for local\nhardware-free development of the deployment pipeline."
+          "description": "Kubernetes service. Selects cloud-specific operators and storage drivers.\n\nSupported values: \"aks\", \"bcm\", \"eks\", \"generic\", \"gke\", \"kind\", \"lke\",\n\"oke\", \"rke2\". bcm and lke are the cloud-neutral leaves (no hyperscaler\nCSI/EFA components) and double as stand-ins for providers without an AICR\ncriteria value yet (e.g. CoreWeave CKS deploys the lke leaf). generic is\nself-managed bare-metal Kubernetes (gb300 training) and rke2 is Rancher\nRKE2 (vr200); both require os \"ubuntu\". Use \"kind\" for local hardware-free\ndevelopment of the deployment pipeline."
         },
         "skipAwait": {
           "type": "boolean",

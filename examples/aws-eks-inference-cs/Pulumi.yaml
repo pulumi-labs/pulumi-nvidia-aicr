@@ -1,7 +1,0 @@
-name: aws-eks-h100-inference
-runtime: dotnet
-description: >-
-  Deploy an NVIDIA AICR-validated NIM inference stack on AWS EKS with H100 GPU nodes. COST WARNING: p5.48xlarge instances cost ~$98/hr each; this example provisions 2 nodes (~$196/hr). Destroy when done!
-config:
-  aws:region:
-    value: us-east-1

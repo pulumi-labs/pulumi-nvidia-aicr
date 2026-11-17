@@ -9,6 +9,7 @@ import com.pulumi.core.annotations.ResourceType;
 import com.pulumi.core.internal.Codegen;
 import com.pulumi.labs.nvidiaaicr.Utilities;
 import com.pulumi.labs.nvidiaaicr.ValidationRunArgs;
+import com.pulumi.labs.nvidiaaicr.outputs.AksGpuPool;
 import com.pulumi.labs.nvidiaaicr.outputs.CheckResult;
 import com.pulumi.labs.nvidiaaicr.outputs.RecipeCriteria;
 import com.pulumi.labs.nvidiaaicr.outputs.Toleration;
@@ -45,6 +46,30 @@ import javax.annotation.Nullable;
  */
 @ResourceType(type="nvidia-aicr:index:ValidationRun")
 public class ValidationRun extends com.pulumi.resources.CustomResource {
+    /**
+     * The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+     * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+     * that is an Azure management-plane property the in-cluster snapshot cannot
+     * see. List the GPU pools here (non-GPU pools may be included and are
+     * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+     * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+     * 
+     */
+    @Export(name="aksGpuPools", refs={List.class,AksGpuPool.class}, tree="[0,1]")
+    private Output</* @Nullable */ List<AksGpuPool>> aksGpuPools;
+
+    /**
+     * @return The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+     * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+     * that is an Azure management-plane property the in-cluster snapshot cannot
+     * see. List the GPU pools here (non-GPU pools may be included and are
+     * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+     * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+     * 
+     */
+    public Output<Optional<List<AksGpuPool>>> aksGpuPools() {
+        return Codegen.optional(this.aksGpuPools);
+    }
     /**
      * When the run completed, RFC 3339.
      * 

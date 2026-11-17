@@ -7,6 +7,7 @@ import com.pulumi.core.Output;
 import com.pulumi.core.annotations.Import;
 import com.pulumi.core.internal.Codegen;
 import com.pulumi.exceptions.MissingRequiredPropertyException;
+import com.pulumi.labs.nvidiaaicr.inputs.AksGpuPoolArgs;
 import com.pulumi.labs.nvidiaaicr.inputs.RecipeCriteriaArgs;
 import com.pulumi.labs.nvidiaaicr.inputs.TolerationArgs;
 import java.lang.Boolean;
@@ -23,6 +24,31 @@ import javax.annotation.Nullable;
 public final class ValidationRunArgs extends com.pulumi.resources.ResourceArgs {
 
     public static final ValidationRunArgs Empty = new ValidationRunArgs();
+
+    /**
+     * The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+     * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+     * that is an Azure management-plane property the in-cluster snapshot cannot
+     * see. List the GPU pools here (non-GPU pools may be included and are
+     * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+     * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+     * 
+     */
+    @Import(name="aksGpuPools")
+    private @Nullable Output<List<AksGpuPoolArgs>> aksGpuPools;
+
+    /**
+     * @return The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+     * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+     * that is an Azure management-plane property the in-cluster snapshot cannot
+     * see. List the GPU pools here (non-GPU pools may be included and are
+     * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+     * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+     * 
+     */
+    public Optional<Output<List<AksGpuPoolArgs>>> aksGpuPools() {
+        return Optional.ofNullable(this.aksGpuPools);
+    }
 
     /**
      * Kubeconfig context to select. Defaults to the kubeconfig&#39;s current-context.
@@ -317,6 +343,7 @@ public final class ValidationRunArgs extends com.pulumi.resources.ResourceArgs {
     private ValidationRunArgs() {}
 
     private ValidationRunArgs(ValidationRunArgs $) {
+        this.aksGpuPools = $.aksGpuPools;
         this.context = $.context;
         this.criteria = $.criteria;
         this.imagePullSecrets = $.imagePullSecrets;
@@ -351,6 +378,52 @@ public final class ValidationRunArgs extends com.pulumi.resources.ResourceArgs {
 
         public Builder(ValidationRunArgs defaults) {
             $ = new ValidationRunArgs(Objects.requireNonNull(defaults));
+        }
+
+        /**
+         * @param aksGpuPools The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+         * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+         * that is an Azure management-plane property the in-cluster snapshot cannot
+         * see. List the GPU pools here (non-GPU pools may be included and are
+         * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+         * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+         * 
+         * @return builder
+         * 
+         */
+        public Builder aksGpuPools(@Nullable Output<List<AksGpuPoolArgs>> aksGpuPools) {
+            $.aksGpuPools = aksGpuPools;
+            return this;
+        }
+
+        /**
+         * @param aksGpuPools The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+         * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+         * that is an Azure management-plane property the in-cluster snapshot cannot
+         * see. List the GPU pools here (non-GPU pools may be included and are
+         * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+         * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+         * 
+         * @return builder
+         * 
+         */
+        public Builder aksGpuPools(List<AksGpuPoolArgs> aksGpuPools) {
+            return aksGpuPools(Output.of(aksGpuPools));
+        }
+
+        /**
+         * @param aksGpuPools The cluster&#39;s AKS agent pools (service &#34;aks&#34; only). AKS recipes require
+         * knowing who installs the GPU driver — each GPU pool&#39;s `gpuProfile.driver` — and
+         * that is an Azure management-plane property the in-cluster snapshot cannot
+         * see. List the GPU pools here (non-GPU pools may be included and are
+         * ignored). Without it, validation on AKS ends with status &#34;readiness-failed&#34;
+         * (&#34;could not evaluate: K8s.aks-gpu-pools.gpu-driver&#34;).
+         * 
+         * @return builder
+         * 
+         */
+        public Builder aksGpuPools(AksGpuPoolArgs... aksGpuPools) {
+            return aksGpuPools(List.of(aksGpuPools));
         }
 
         /**

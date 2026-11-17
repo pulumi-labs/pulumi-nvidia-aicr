@@ -98,6 +98,13 @@ published support matrix) and add adapter tests for the new combination.
   pods/log, get/list/delete on ConfigMaps (the validator uses a per-run
   cluster-admin binding, reaped after the run). The README's RBAC paragraph
   is the user-facing copy of this list — keep them in sync
+- On AKS the recipe's gpuStack profile constraint
+  (`K8s.aks-gpu-pools.gpu-driver`) reads a management-plane pool property the
+  snapshot agent cannot see; the SDK takes it from an `az aks nodepool list`
+  dump via `AgentConfig.AKSGPUPoolsPath`. The `aksGpuPools` input is rendered
+  into that shape as a temp file by the adapter (`writeAKSGPUPoolsFile`); an
+  adapter test feeds that file to the SDK's own projection, so run it on every
+  SDK bump. Without the input, AKS validation is always `readiness-failed`
 - Never set `AgentConfig.ServiceAccountName`: the SDK treats it as
   exact-if-exists and adopts a leftover account of that name verbatim,
   failing every run's permission check; leave it unset for a per-run name

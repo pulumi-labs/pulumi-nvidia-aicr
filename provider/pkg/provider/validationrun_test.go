@@ -123,6 +123,36 @@ func TestValidateValidationRunArgs(t *testing.T) {
 			want: "accelerator is required",
 		},
 		{
+			name: "aksGpuPools on aks",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Service = "AKS"
+				a.AksGpuPools = []AksGpuPool{{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", GpuDriver: strPtr("Install")}}
+			},
+		},
+		{
+			name: "aksGpuPools on another service",
+			muta: func(a *ValidationRunArgs) {
+				a.AksGpuPools = []AksGpuPool{{Name: "gpu", VMSize: "Standard_NC8as_T4_v3"}}
+			},
+			want: `aksGpuPools applies only to service "aks"; got service "eks"`,
+		},
+		{
+			name: "aksGpuPools entry without a name",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Service = "aks"
+				a.AksGpuPools = []AksGpuPool{{Name: " ", VMSize: "Standard_NC8as_T4_v3"}}
+			},
+			want: "aksGpuPools[0].name must not be empty",
+		},
+		{
+			name: "aksGpuPools entry without a VM size",
+			muta: func(a *ValidationRunArgs) {
+				a.Criteria.Service = "aks"
+				a.AksGpuPools = []AksGpuPool{{Name: "gpu"}}
+			},
+			want: `aksGpuPools[0].vmSize must not be empty (pool "gpu")`,
+		},
+		{
 			name: "missing service",
 			muta: func(a *ValidationRunArgs) { a.Criteria.Service = "" },
 			want: "service is required",
@@ -532,6 +562,13 @@ func TestDiffReplacesOnAnyChange(t *testing.T) {
 				a.Strict = &strict
 			},
 			wantProp: "strict",
+		},
+		{
+			name: "aksGpuPools",
+			muta: func(a *ValidationRunArgs) {
+				a.AksGpuPools = []AksGpuPool{{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", GpuDriver: strPtr("None")}}
+			},
+			wantProp: "aksGpuPools",
 		},
 		{
 			name: "toleration nested key",
@@ -1018,4 +1055,38 @@ func TestDebugFormatArgDereferencesPointers(t *testing.T) {
 	assert.Equal(t, "&42", debugFormatArg(reflect.ValueOf(&n)))
 	assert.Equal(t, `"plain"`, debugFormatArg(reflect.ValueOf("plain")))
 	assert.NotContains(t, debugFormatArg(reflect.ValueOf(&s)), "0x")
+}
+
+// TestCreateAksGpuPoolsReachAdapter: the aksGpuPools input must arrive at the
+// adapter trimmed, with unset optional fields as "" (the SDK reads an unset
+// driver as the Azure default).
+func TestCreateAksGpuPoolsReachAdapter(t *testing.T) {
+	_, lastOpts := withValidateFake(t, func(aicr.Criteria, aicr.ValidateOptions) (*aicr.ValidationReport, error) {
+		return passedReport(), nil
+	})
+	args := baseValidationArgs()
+	args.Criteria.Service = "aks"
+	args.AksGpuPools = []AksGpuPool{
+		{Name: "system", VMSize: "Standard_D4s_v6"},
+		{Name: " gpu ", VMSize: " Standard_NC8as_T4_v3 ", GpuDriver: strPtrOf("Install"), ManagementMode: strPtrOf("Unmanaged")},
+	}
+
+	_, err := (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: args,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []aicr.AKSGPUPool{
+		{Name: "system", VMSize: "Standard_D4s_v6"},
+		{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", Driver: "Install", ManagementMode: "Unmanaged"},
+	}, lastOpts.AKSGPUPools)
+
+	// Unset stays nil so the adapter leaves the SDK field alone.
+	args.AksGpuPools = nil
+	_, err = (&ValidationRun{}).Create(context.Background(), infer.CreateRequest[ValidationRunArgs]{
+		Name:   "vr",
+		Inputs: args,
+	})
+	require.NoError(t, err)
+	assert.Nil(t, lastOpts.AKSGPUPools)
 }

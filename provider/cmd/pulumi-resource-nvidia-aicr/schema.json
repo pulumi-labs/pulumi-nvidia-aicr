@@ -61,6 +61,32 @@
   },
   "config": {},
   "types": {
+    "nvidia-aicr:index:AksGpuPool": {
+      "description": "One AKS agent pool, as the management plane describes it.",
+      "properties": {
+        "gpuDriver": {
+          "type": "string",
+          "description": "The pool's `gpuProfile.driver` setting: \"Install\" (the AKS node image installs\nthe NVIDIA driver; the Azure default) or \"None\" (the GPU Operator installs\nit). Unset is read as the Azure default, \"Install\"."
+        },
+        "managementMode": {
+          "type": "string",
+          "description": "The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:\n\"Managed\" or \"Unmanaged\". A \"Managed\" pool (AKS runs the whole GPU stack) is\noutside what AICR recipes validate and fails readiness."
+        },
+        "name": {
+          "type": "string",
+          "description": "The agent pool name."
+        },
+        "vmSize": {
+          "type": "string",
+          "description": "The pool's VM size (e.g. \"Standard_NC8as_T4_v3\"). AICR recognizes NVIDIA GPU\npools by the Standard_NC, Standard_ND and Standard_NV size families; other\npools are ignored."
+        }
+      },
+      "type": "object",
+      "required": [
+        "name",
+        "vmSize"
+      ]
+    },
     "nvidia-aicr:index:CheckResult": {
       "description": "The outcome of one validator check.",
       "properties": {
@@ -292,6 +318,13 @@
     "nvidia-aicr:index:ValidationRun": {
       "description": "Runs an AICR recipe's empirical validation (cluster snapshot +\ndeployment/conformance/performance checks) against a live cluster and\nrecords structured per-check results in Pulumi state.\n\nThe run happens at deploy time (never at preview). The validation harness\ndeploys short-lived agent and validator Jobs plus per-run RBAC on the target\ncluster and cleans them up afterward; the validation namespace (default\n\"aicr-validation\") is created on first run and deliberately persists.\n\nPrivilege level: the snapshot-agent Job runs as a privileged container\n(bound to a read-only node-inspection ClusterRole), and validator Jobs run\nunder a per-run cluster-admin ClusterRoleBinding — both removed after the\nrun, including on cancellation. The kubeconfig identity needs RBAC to\ncreate/patch Namespaces, ClusterRoles, and ClusterRoleBindings.\n\nAny input change replaces the resource, which re-runs validation (delete is\na no-op). With `strict: true`, a failed run fails the update while persisting\nfull results, and validation re-runs on every subsequent `pulumi up` until it\npasses — use `dependsOn` to gate downstream resources on it.",
       "properties": {
+        "aksGpuPools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/nvidia-aicr:index:AksGpuPool"
+          },
+          "description": "The cluster's AKS agent pools (service \"aks\" only). AKS recipes require\nknowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and\nthat is an Azure management-plane property the in-cluster snapshot cannot\nsee. List the GPU pools here (non-GPU pools may be included and are\nignored). Without it, validation on AKS ends with status \"readiness-failed\"\n(\"could not evaluate: K8s.aks-gpu-pools.gpu-driver\")."
+        },
         "completedAt": {
           "type": "string",
           "description": "When the run completed, RFC 3339."
@@ -444,6 +477,13 @@
         "recipeVersion"
       ],
       "inputProperties": {
+        "aksGpuPools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/types/nvidia-aicr:index:AksGpuPool"
+          },
+          "description": "The cluster's AKS agent pools (service \"aks\" only). AKS recipes require\nknowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and\nthat is an Azure management-plane property the in-cluster snapshot cannot\nsee. List the GPU pools here (non-GPU pools may be included and are\nignored). Without it, validation on AKS ends with status \"readiness-failed\"\n(\"could not evaluate: K8s.aks-gpu-pools.gpu-driver\")."
+        },
         "context": {
           "type": "string",
           "description": "Kubeconfig context to select. Defaults to the kubeconfig's current-context."

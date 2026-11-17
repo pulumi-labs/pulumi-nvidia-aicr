@@ -22,6 +22,7 @@ __all__ = ['ValidationRunArgs', 'ValidationRun']
 class ValidationRunArgs:
     def __init__(__self__, *,
                  criteria: pulumi.Input['RecipeCriteriaArgs'],
+                 aks_gpu_pools: Optional[pulumi.Input[Sequence[pulumi.Input['AksGpuPoolArgs']]]] = None,
                  context: Optional[pulumi.Input[_builtins.str]] = None,
                  image_pull_secrets: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  image_registry: Optional[pulumi.Input[_builtins.str]] = None,
@@ -42,6 +43,12 @@ class ValidationRunArgs:
 
         :param pulumi.Input['RecipeCriteriaArgs'] criteria: Recipe criteria. Wire a ClusterStack's `criteria` output here, or build
                the object inline.
+        :param pulumi.Input[Sequence[pulumi.Input['AksGpuPoolArgs']]] aks_gpu_pools: The cluster's AKS agent pools (service "aks" only). AKS recipes require
+               knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+               that is an Azure management-plane property the in-cluster snapshot cannot
+               see. List the GPU pools here (non-GPU pools may be included and are
+               ignored). Without it, validation on AKS ends with status "readiness-failed"
+               ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
         :param pulumi.Input[_builtins.str] context: Kubeconfig context to select. Defaults to the kubeconfig's current-context.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] image_pull_secrets: Names of image pull Secrets (in the validation namespace) for the
                validation pods.
@@ -83,6 +90,8 @@ class ValidationRunArgs:
                for re-validation cadence.
         """
         pulumi.set(__self__, "criteria", criteria)
+        if aks_gpu_pools is not None:
+            pulumi.set(__self__, "aks_gpu_pools", aks_gpu_pools)
         if context is not None:
             pulumi.set(__self__, "context", context)
         if image_pull_secrets is not None:
@@ -136,6 +145,23 @@ class ValidationRunArgs:
     @criteria.setter
     def criteria(self, value: pulumi.Input['RecipeCriteriaArgs']):
         pulumi.set(self, "criteria", value)
+
+    @_builtins.property
+    @pulumi.getter(name="aksGpuPools")
+    def aks_gpu_pools(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['AksGpuPoolArgs']]]]:
+        """
+        The cluster's AKS agent pools (service "aks" only). AKS recipes require
+        knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+        that is an Azure management-plane property the in-cluster snapshot cannot
+        see. List the GPU pools here (non-GPU pools may be included and are
+        ignored). Without it, validation on AKS ends with status "readiness-failed"
+        ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+        """
+        return pulumi.get(self, "aks_gpu_pools")
+
+    @aks_gpu_pools.setter
+    def aks_gpu_pools(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['AksGpuPoolArgs']]]]):
+        pulumi.set(self, "aks_gpu_pools", value)
 
     @_builtins.property
     @pulumi.getter
@@ -348,8 +374,9 @@ class ValidationRun(pulumi.CustomResource):
     def __init__(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
+                 aks_gpu_pools: Optional[pulumi.Input[Sequence[pulumi.Input[Union['AksGpuPoolArgs', 'AksGpuPoolArgsDict', 'outputs.AksGpuPool']]]]] = None,
                  context: Optional[pulumi.Input[_builtins.str]] = None,
-                 criteria: Optional[pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']]] = None,
+                 criteria: Optional[pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict', 'outputs.RecipeCriteria']]] = None,
                  image_pull_secrets: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  image_registry: Optional[pulumi.Input[_builtins.str]] = None,
                  include_ctrf_report: Optional[pulumi.Input[_builtins.bool]] = None,
@@ -362,7 +389,7 @@ class ValidationRun(pulumi.CustomResource):
                  require_gpu: Optional[pulumi.Input[_builtins.bool]] = None,
                  strict: Optional[pulumi.Input[_builtins.bool]] = None,
                  timeout_minutes: Optional[pulumi.Input[_builtins.int]] = None,
-                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]]] = None,
+                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict', 'outputs.Toleration']]]]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  __props__=None):
         """
@@ -386,11 +413,16 @@ class ValidationRun(pulumi.CustomResource):
         full results, and validation re-runs on every subsequent `pulumi up` until it
         passes — use `dependsOn` to gate downstream resources on it.
 
-
         :param str resource_name: The name of the resource.
         :param pulumi.ResourceOptions opts: Options for the resource.
+        :param pulumi.Input[Sequence[pulumi.Input[Union['AksGpuPoolArgs', 'AksGpuPoolArgsDict', 'outputs.AksGpuPool']]]] aks_gpu_pools: The cluster's AKS agent pools (service "aks" only). AKS recipes require
+               knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+               that is an Azure management-plane property the in-cluster snapshot cannot
+               see. List the GPU pools here (non-GPU pools may be included and are
+               ignored). Without it, validation on AKS ends with status "readiness-failed"
+               ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
         :param pulumi.Input[_builtins.str] context: Kubeconfig context to select. Defaults to the kubeconfig's current-context.
-        :param pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']] criteria: Recipe criteria. Wire a ClusterStack's `criteria` output here, or build
+        :param pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict', 'outputs.RecipeCriteria']] criteria: Recipe criteria. Wire a ClusterStack's `criteria` output here, or build
                the object inline.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] image_pull_secrets: Names of image pull Secrets (in the validation namespace) for the
                validation pods.
@@ -424,7 +456,7 @@ class ValidationRun(pulumi.CustomResource):
                validation on every subsequent `pulumi up` until it passes. Default: false —
                results are recorded and the update succeeds; read the `status` output.
         :param pulumi.Input[_builtins.int] timeout_minutes: Overall run timeout in minutes. Default: 30. Maximum: 1440 (24 hours).
-        :param pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]] tolerations: Tolerations applied to the validation workload pods (e.g. NCCL benchmark
+        :param pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict', 'outputs.Toleration']]]] tolerations: Tolerations applied to the validation workload pods (e.g. NCCL benchmark
                pods). Required in practice on tainted GPU node groups; when unset, the
                validator's default tolerate-all is kept.
         :param pulumi.Input[Sequence[Any]] triggers: Arbitrary values; changing any of them replaces the resource and re-runs
@@ -458,7 +490,6 @@ class ValidationRun(pulumi.CustomResource):
         full results, and validation re-runs on every subsequent `pulumi up` until it
         passes — use `dependsOn` to gate downstream resources on it.
 
-
         :param str resource_name: The name of the resource.
         :param ValidationRunArgs args: The arguments to use to populate this resource's properties.
         :param pulumi.ResourceOptions opts: Options for the resource.
@@ -474,8 +505,9 @@ class ValidationRun(pulumi.CustomResource):
     def _internal_init(__self__,
                  resource_name: str,
                  opts: Optional[pulumi.ResourceOptions] = None,
+                 aks_gpu_pools: Optional[pulumi.Input[Sequence[pulumi.Input[Union['AksGpuPoolArgs', 'AksGpuPoolArgsDict', 'outputs.AksGpuPool']]]]] = None,
                  context: Optional[pulumi.Input[_builtins.str]] = None,
-                 criteria: Optional[pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict']]] = None,
+                 criteria: Optional[pulumi.Input[Union['RecipeCriteriaArgs', 'RecipeCriteriaArgsDict', 'outputs.RecipeCriteria']]] = None,
                  image_pull_secrets: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  image_registry: Optional[pulumi.Input[_builtins.str]] = None,
                  include_ctrf_report: Optional[pulumi.Input[_builtins.bool]] = None,
@@ -488,7 +520,7 @@ class ValidationRun(pulumi.CustomResource):
                  require_gpu: Optional[pulumi.Input[_builtins.bool]] = None,
                  strict: Optional[pulumi.Input[_builtins.bool]] = None,
                  timeout_minutes: Optional[pulumi.Input[_builtins.int]] = None,
-                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict']]]]] = None,
+                 tolerations: Optional[pulumi.Input[Sequence[pulumi.Input[Union['TolerationArgs', 'TolerationArgsDict', 'outputs.Toleration']]]]] = None,
                  triggers: Optional[pulumi.Input[Sequence[Any]]] = None,
                  __props__=None):
         opts = pulumi.ResourceOptions.merge(_utilities.get_resource_opts_defaults(), opts)
@@ -499,6 +531,7 @@ class ValidationRun(pulumi.CustomResource):
                 raise TypeError('__props__ is only valid when passed in combination with a valid opts.id to get an existing resource')
             __props__ = ValidationRunArgs.__new__(ValidationRunArgs)
 
+            __props__.__dict__["aks_gpu_pools"] = aks_gpu_pools
             __props__.__dict__["context"] = context
             if criteria is None and not opts.urn:
                 raise TypeError("Missing required property 'criteria'")
@@ -563,6 +596,7 @@ class ValidationRun(pulumi.CustomResource):
 
         __props__ = ValidationRunArgs.__new__(ValidationRunArgs)
 
+        __props__.__dict__["aks_gpu_pools"] = None
         __props__.__dict__["completed_at"] = None
         __props__.__dict__["context"] = None
         __props__.__dict__["criteria"] = None
@@ -592,6 +626,25 @@ class ValidationRun(pulumi.CustomResource):
         __props__.__dict__["tolerations"] = None
         __props__.__dict__["triggers"] = None
         return ValidationRun(resource_name, opts=opts, __props__=__props__)
+
+    @staticmethod
+    def exists(id: pulumi.Input[str],
+            opts: Optional[pulumi.ResourceOptions] = None) -> pulumi.Output[bool]:
+        __props__: dict = {}
+        return pulumi.runtime.exists_resource(None, 'nvidia-aicr:index:ValidationRun', id, __props__, opts or pulumi.ResourceOptions())
+
+    @_builtins.property
+    @pulumi.getter(name="aksGpuPools")
+    def aks_gpu_pools(self) -> pulumi.Output[Optional[Sequence['outputs.AksGpuPool']]]:
+        """
+        The cluster's AKS agent pools (service "aks" only). AKS recipes require
+        knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+        that is an Azure management-plane property the in-cluster snapshot cannot
+        see. List the GPU pools here (non-GPU pools may be included and are
+        ignored). Without it, validation on AKS ends with status "readiness-failed"
+        ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+        """
+        return pulumi.get(self, "aks_gpu_pools")
 
     @_builtins.property
     @pulumi.getter(name="completedAt")

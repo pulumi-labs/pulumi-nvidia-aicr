@@ -40,6 +40,16 @@ export class ValidationRun extends pulumi.CustomResource {
         return new ValidationRun(name, undefined as any, { ...opts, id: id });
     }
 
+    /**
+     * Check whether an existing ValidationRun resource with the given ID exists.
+     *
+     * @param id The _unique_ provider ID of the resource to check.
+     * @param opts Optional settings to control the behavior of the CustomResource.
+     */
+    public static exists(id: pulumi.Input<string>, opts?: pulumi.CustomResourceOptions): pulumi.Output<boolean> {
+        return pulumi.runtime.existsResource("nvidia-aicr:index:ValidationRun", id, {}, { ...opts }, undefined);
+    }
+
     /** @internal */
     public static readonly __pulumiType = 'nvidia-aicr:index:ValidationRun';
 
@@ -54,6 +64,15 @@ export class ValidationRun extends pulumi.CustomResource {
         return obj['__pulumiType'] === ValidationRun.__pulumiType;
     }
 
+    /**
+     * The cluster's AKS agent pools (service "aks" only). AKS recipes require
+     * knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+     * that is an Azure management-plane property the in-cluster snapshot cannot
+     * see. List the GPU pools here (non-GPU pools may be included and are
+     * ignored). Without it, validation on AKS ends with status "readiness-failed"
+     * ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+     */
+    declare public readonly aksGpuPools: pulumi.Output<outputs.AksGpuPool[] | undefined>;
     /**
      * When the run completed, RFC 3339.
      */
@@ -210,6 +229,7 @@ export class ValidationRun extends pulumi.CustomResource {
             if (args?.criteria === undefined && !opts.urn) {
                 throw new Error("Missing required property 'criteria'");
             }
+            resourceInputs["aksGpuPools"] = args?.aksGpuPools;
             resourceInputs["context"] = args?.context;
             resourceInputs["criteria"] = args?.criteria;
             resourceInputs["imagePullSecrets"] = args?.imagePullSecrets;
@@ -239,6 +259,7 @@ export class ValidationRun extends pulumi.CustomResource {
             resourceInputs["skipped"] = undefined /*out*/;
             resourceInputs["status"] = undefined /*out*/;
         } else {
+            resourceInputs["aksGpuPools"] = undefined /*out*/;
             resourceInputs["completedAt"] = undefined /*out*/;
             resourceInputs["context"] = undefined /*out*/;
             resourceInputs["criteria"] = undefined /*out*/;
@@ -279,6 +300,15 @@ export class ValidationRun extends pulumi.CustomResource {
  * The set of arguments for constructing a ValidationRun resource.
  */
 export interface ValidationRunArgs {
+    /**
+     * The cluster's AKS agent pools (service "aks" only). AKS recipes require
+     * knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+     * that is an Azure management-plane property the in-cluster snapshot cannot
+     * see. List the GPU pools here (non-GPU pools may be included and are
+     * ignored). Without it, validation on AKS ends with status "readiness-failed"
+     * ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+     */
+    aksGpuPools?: pulumi.Input<pulumi.Input<inputs.AksGpuPoolArgs>[] | undefined>;
     /**
      * Kubeconfig context to select. Defaults to the kubeconfig's current-context.
      */

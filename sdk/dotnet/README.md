@@ -204,6 +204,7 @@ Wire it to a `ClusterStack` so deployment and validation share one source of tru
 | `phases` | `string[]` | No | Any of `"deployment"`, `"conformance"`, `"performance"`. Default `["deployment", "conformance"]` — performance (NCCL, inference benchmarks) is an explicit opt-in |
 | `strict` | `bool` | No | Default `false`: a failed validation is recorded (`status: "failed"`, plus a warning diagnostic listing the failed checks) and the update succeeds. `true`: a failed or readiness-failed run fails the update while persisting full results, and re-runs on every subsequent `pulumi up` until it passes — use `dependsOn` to gate downstream resources |
 | `requireGpu` | `bool` | No | Whether the snapshot agent requires GPU nodes (default `true`; set `false` for hardware-free clusters such as kind) |
+| `aksGpuPools` | `AksGpuPool[]` | On AKS | The cluster's agent pools: `name`, `vmSize`, and optional `gpuDriver` (`"Install"` or `"None"`; unset reads as the Azure default, `"Install"`) and `managementMode`. Required for `service: "aks"` — see [Validating on AKS](#validating-on-aks) |
 | `tolerations` | `Toleration[]` | No | Applied to validation pods; unset keeps the validator's default tolerate-all, so tainted GPU node groups need no configuration |
 | `nodeSelector` | `map<string>` | No | Node selector for validation pods |
 | `namespace` | `string` | No | Validation namespace (default `aicr-validation`); created on first run and deliberately never deleted |
@@ -245,6 +246,33 @@ Wire it to a `ClusterStack` so deployment and validation share one source of tru
   performance runs; use `customTimeouts` only to cut a run short. With `strict: true` the resource
   stays in an init-error state after a failure and every later `pulumi up` re-runs validation through
   *update*, so those repair runs are bounded by `customTimeouts.update`, not `customTimeouts.create`.
+
+### Validating on AKS
+
+AKS recipes are qualified by who installs the NVIDIA driver: the AKS node image (a GPU pool's
+`gpuProfile.driver` is `Install`, the Azure default) or the GPU Operator (`None`). That setting
+lives in the Azure management plane, so the in-cluster snapshot agent cannot see it, and AICR
+fails closed without it: the run ends with `status: "readiness-failed"` and
+`readinessMessage: "readiness check could not evaluate: K8s.aks-gpu-pools.gpu-driver"`.
+
+Pass the pools in `aksGpuPools`. Listing only the GPU pools is enough; other pools are ignored.
+
+```python
+validation = aicr.ValidationRun("nvidia-aicr-validation",
+    criteria=gpu_stack.criteria,
+    kubeconfig=kubeconfig,
+    aks_gpu_pools=[aicr.AksGpuPoolArgs(
+        name="gpunodes",
+        vm_size="Standard_ND96isr_H100_v5",
+        gpu_driver="Install",
+    )],
+)
+```
+
+The values must describe the pools as they really are — the same ones you set on the
+`ManagedCluster` or `AgentPool` resource. The default recipe profile expects `Install`; pools
+that disagree with each other, or a pool whose GPU stack is fully AKS-managed
+(`managementMode: "Managed"`), fail readiness with the observed value in the message.
 
 ### Examples
 

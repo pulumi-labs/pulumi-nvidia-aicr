@@ -13,6 +13,151 @@ import (
 
 var _ = internal.GetEnvOrDefault
 
+// One AKS agent pool, as the management plane describes it.
+type AksGpuPool struct {
+	// The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+	// the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+	// it). Unset is read as the Azure default, "Install".
+	GpuDriver *string `pulumi:"gpuDriver"`
+	// The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+	// "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+	// outside what AICR recipes validate and fails readiness.
+	ManagementMode *string `pulumi:"managementMode"`
+	// The agent pool name.
+	Name string `pulumi:"name"`
+	// The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+	// pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+	// pools are ignored.
+	VmSize string `pulumi:"vmSize"`
+}
+
+// AksGpuPoolInput is an input type that accepts AksGpuPoolArgs and AksGpuPoolOutput values.
+// You can construct a concrete instance of `AksGpuPoolInput` via:
+//
+//	AksGpuPoolArgs{...}
+type AksGpuPoolInput interface {
+	pulumi.Input
+
+	ToAksGpuPoolOutput() AksGpuPoolOutput
+	ToAksGpuPoolOutputWithContext(context.Context) AksGpuPoolOutput
+}
+
+// One AKS agent pool, as the management plane describes it.
+type AksGpuPoolArgs struct {
+	// The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+	// the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+	// it). Unset is read as the Azure default, "Install".
+	GpuDriver pulumi.StringPtrInput `pulumi:"gpuDriver"`
+	// The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+	// "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+	// outside what AICR recipes validate and fails readiness.
+	ManagementMode pulumi.StringPtrInput `pulumi:"managementMode"`
+	// The agent pool name.
+	Name pulumi.StringInput `pulumi:"name"`
+	// The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+	// pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+	// pools are ignored.
+	VmSize pulumi.StringInput `pulumi:"vmSize"`
+}
+
+func (AksGpuPoolArgs) ElementType() reflect.Type {
+	return reflect.TypeOf((*AksGpuPool)(nil)).Elem()
+}
+
+func (i AksGpuPoolArgs) ToAksGpuPoolOutput() AksGpuPoolOutput {
+	return i.ToAksGpuPoolOutputWithContext(context.Background())
+}
+
+func (i AksGpuPoolArgs) ToAksGpuPoolOutputWithContext(ctx context.Context) AksGpuPoolOutput {
+	return pulumi.ToOutputWithContext(ctx, i).(AksGpuPoolOutput)
+}
+
+// AksGpuPoolArrayInput is an input type that accepts AksGpuPoolArray and AksGpuPoolArrayOutput values.
+// You can construct a concrete instance of `AksGpuPoolArrayInput` via:
+//
+//	AksGpuPoolArray{ AksGpuPoolArgs{...} }
+type AksGpuPoolArrayInput interface {
+	pulumi.Input
+
+	ToAksGpuPoolArrayOutput() AksGpuPoolArrayOutput
+	ToAksGpuPoolArrayOutputWithContext(context.Context) AksGpuPoolArrayOutput
+}
+
+type AksGpuPoolArray []AksGpuPoolInput
+
+func (AksGpuPoolArray) ElementType() reflect.Type {
+	return reflect.TypeOf((*[]AksGpuPool)(nil)).Elem()
+}
+
+func (i AksGpuPoolArray) ToAksGpuPoolArrayOutput() AksGpuPoolArrayOutput {
+	return i.ToAksGpuPoolArrayOutputWithContext(context.Background())
+}
+
+func (i AksGpuPoolArray) ToAksGpuPoolArrayOutputWithContext(ctx context.Context) AksGpuPoolArrayOutput {
+	return pulumi.ToOutputWithContext(ctx, i).(AksGpuPoolArrayOutput)
+}
+
+// One AKS agent pool, as the management plane describes it.
+type AksGpuPoolOutput struct{ *pulumi.OutputState }
+
+func (AksGpuPoolOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*AksGpuPool)(nil)).Elem()
+}
+
+func (o AksGpuPoolOutput) ToAksGpuPoolOutput() AksGpuPoolOutput {
+	return o
+}
+
+func (o AksGpuPoolOutput) ToAksGpuPoolOutputWithContext(ctx context.Context) AksGpuPoolOutput {
+	return o
+}
+
+// The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+// the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+// it). Unset is read as the Azure default, "Install".
+func (o AksGpuPoolOutput) GpuDriver() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v AksGpuPool) *string { return v.GpuDriver }).(pulumi.StringPtrOutput)
+}
+
+// The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+// "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+// outside what AICR recipes validate and fails readiness.
+func (o AksGpuPoolOutput) ManagementMode() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v AksGpuPool) *string { return v.ManagementMode }).(pulumi.StringPtrOutput)
+}
+
+// The agent pool name.
+func (o AksGpuPoolOutput) Name() pulumi.StringOutput {
+	return o.ApplyT(func(v AksGpuPool) string { return v.Name }).(pulumi.StringOutput)
+}
+
+// The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+// pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+// pools are ignored.
+func (o AksGpuPoolOutput) VmSize() pulumi.StringOutput {
+	return o.ApplyT(func(v AksGpuPool) string { return v.VmSize }).(pulumi.StringOutput)
+}
+
+type AksGpuPoolArrayOutput struct{ *pulumi.OutputState }
+
+func (AksGpuPoolArrayOutput) ElementType() reflect.Type {
+	return reflect.TypeOf((*[]AksGpuPool)(nil)).Elem()
+}
+
+func (o AksGpuPoolArrayOutput) ToAksGpuPoolArrayOutput() AksGpuPoolArrayOutput {
+	return o
+}
+
+func (o AksGpuPoolArrayOutput) ToAksGpuPoolArrayOutputWithContext(ctx context.Context) AksGpuPoolArrayOutput {
+	return o
+}
+
+func (o AksGpuPoolArrayOutput) Index(i pulumi.IntInput) AksGpuPoolOutput {
+	return pulumi.All(o, i).ApplyT(func(vs []interface{}) AksGpuPool {
+		return vs[0].([]AksGpuPool)[vs[1].(int)]
+	}).(AksGpuPoolOutput)
+}
+
 // The outcome of one validator check.
 type CheckResult struct {
 	// The check's failure or diagnostic message, if any.
@@ -528,11 +673,15 @@ func (o TolerationArrayOutput) Index(i pulumi.IntInput) TolerationOutput {
 }
 
 func init() {
+	pulumi.RegisterInputType(reflect.TypeOf((*AksGpuPoolInput)(nil)).Elem(), AksGpuPoolArgs{})
+	pulumi.RegisterInputType(reflect.TypeOf((*AksGpuPoolArrayInput)(nil)).Elem(), AksGpuPoolArray{})
 	pulumi.RegisterInputType(reflect.TypeOf((*ComponentOverrideInput)(nil)).Elem(), ComponentOverrideArgs{})
 	pulumi.RegisterInputType(reflect.TypeOf((*ComponentOverrideMapInput)(nil)).Elem(), ComponentOverrideMap{})
 	pulumi.RegisterInputType(reflect.TypeOf((*RecipeCriteriaInput)(nil)).Elem(), RecipeCriteriaArgs{})
 	pulumi.RegisterInputType(reflect.TypeOf((*TolerationInput)(nil)).Elem(), TolerationArgs{})
 	pulumi.RegisterInputType(reflect.TypeOf((*TolerationArrayInput)(nil)).Elem(), TolerationArray{})
+	pulumi.RegisterOutputType(AksGpuPoolOutput{})
+	pulumi.RegisterOutputType(AksGpuPoolArrayOutput{})
 	pulumi.RegisterOutputType(CheckResultOutput{})
 	pulumi.RegisterOutputType(CheckResultArrayOutput{})
 	pulumi.RegisterOutputType(ComponentOverrideOutput{})

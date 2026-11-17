@@ -149,6 +149,16 @@ func main() {
 			},
 			RecipeDataVersion: gpuStack.RecipeVersion, // assert same recipe data as deployed
 			Kubeconfig: kubeconfig,
+			// AKS only: who installs the NVIDIA driver is an Azure-side pool setting the
+			// in-cluster snapshot cannot see. This pool sets no gpuProfile, so it has the
+			// Azure default, "Install" (the AKS node image installs the driver).
+			AksGpuPools: aicr.AksGpuPoolArray{
+				aicr.AksGpuPoolArgs{
+					Name:      pulumi.String("gpunodes"),
+					VmSize:    pulumi.String("Standard_ND96isr_H100_v5"),
+					GpuDriver: pulumi.StringPtr("Install"),
+				},
+			},
 			Triggers:   pulumi.Array{gpuStack.DeployedComponents}, // re-validate when the stack changes
 		})
 		if err != nil {

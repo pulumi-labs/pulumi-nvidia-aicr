@@ -35,6 +35,17 @@ namespace Pulumi.Labs.NvidiaAicr
     public partial class ValidationRun : global::Pulumi.CustomResource
     {
         /// <summary>
+        /// The cluster's AKS agent pools (service "aks" only). AKS recipes require
+        /// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+        /// that is an Azure management-plane property the in-cluster snapshot cannot
+        /// see. List the GPU pools here (non-GPU pools may be included and are
+        /// ignored). Without it, validation on AKS ends with status "readiness-failed"
+        /// ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+        /// </summary>
+        [Output("aksGpuPools")]
+        public Output<ImmutableArray<Outputs.AksGpuPool>> AksGpuPools { get; private set; } = null!;
+
+        /// <summary>
         /// When the run completed, RFC 3339.
         /// </summary>
         [Output("completedAt")]
@@ -281,6 +292,23 @@ namespace Pulumi.Labs.NvidiaAicr
 
     public sealed class ValidationRunArgs : global::Pulumi.ResourceArgs
     {
+        [Input("aksGpuPools")]
+        private InputList<Inputs.AksGpuPoolArgs>? _aksGpuPools;
+
+        /// <summary>
+        /// The cluster's AKS agent pools (service "aks" only). AKS recipes require
+        /// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+        /// that is an Azure management-plane property the in-cluster snapshot cannot
+        /// see. List the GPU pools here (non-GPU pools may be included and are
+        /// ignored). Without it, validation on AKS ends with status "readiness-failed"
+        /// ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+        /// </summary>
+        public InputList<Inputs.AksGpuPoolArgs> AksGpuPools
+        {
+            get => _aksGpuPools ?? (_aksGpuPools = new InputList<Inputs.AksGpuPoolArgs>());
+            set => _aksGpuPools = value;
+        }
+
         /// <summary>
         /// Kubeconfig context to select. Defaults to the kubeconfig's current-context.
         /// </summary>

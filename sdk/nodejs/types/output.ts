@@ -6,6 +6,34 @@ import * as inputs from "../types/input";
 import * as outputs from "../types/output";
 
 /**
+ * One AKS agent pool, as the management plane describes it.
+ */
+export interface AksGpuPool {
+    /**
+     * The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+     * the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+     * it). Unset is read as the Azure default, "Install".
+     */
+    gpuDriver?: string;
+    /**
+     * The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+     * "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+     * outside what AICR recipes validate and fails readiness.
+     */
+    managementMode?: string;
+    /**
+     * The agent pool name.
+     */
+    name: string;
+    /**
+     * The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+     * pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+     * pools are ignored.
+     */
+    vmSize: string;
+}
+
+/**
  * The outcome of one validator check.
  */
 export interface CheckResult {

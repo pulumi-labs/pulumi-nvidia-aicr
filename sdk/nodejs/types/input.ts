@@ -6,6 +6,34 @@ import * as inputs from "../types/input";
 import * as outputs from "../types/output";
 
 /**
+ * One AKS agent pool, as the management plane describes it.
+ */
+export interface AksGpuPoolArgs {
+    /**
+     * The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+     * the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+     * it). Unset is read as the Azure default, "Install".
+     */
+    gpuDriver?: pulumi.Input<string | undefined>;
+    /**
+     * The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+     * "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+     * outside what AICR recipes validate and fails readiness.
+     */
+    managementMode?: pulumi.Input<string | undefined>;
+    /**
+     * The agent pool name.
+     */
+    name: pulumi.Input<string>;
+    /**
+     * The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+     * pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+     * pools are ignored.
+     */
+    vmSize: pulumi.Input<string>;
+}
+
+/**
  * Per-component override settings. Each field is optional; only the fields
  * you set are applied on top of the recipe defaults.
  */

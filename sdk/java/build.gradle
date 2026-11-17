@@ -97,7 +97,7 @@ publishing {
                 inceptionYear = ""
                 name = "pulumi-labs-nvidia-aicr"
                 packaging = "jar"
-                description = "Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters."
+                description = $/Deploy validated NVIDIA AI Cluster Runtime (AICR) recipes for GPU-accelerated Kubernetes clusters./$
 
                 url = "https://github.com/pulumi-labs/pulumi-nvidia-aicr"
 

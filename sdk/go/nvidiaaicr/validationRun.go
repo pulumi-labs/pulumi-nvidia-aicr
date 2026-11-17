@@ -34,6 +34,13 @@ import (
 type ValidationRun struct {
 	pulumi.CustomResourceState
 
+	// The cluster's AKS agent pools (service "aks" only). AKS recipes require
+	// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+	// that is an Azure management-plane property the in-cluster snapshot cannot
+	// see. List the GPU pools here (non-GPU pools may be included and are
+	// ignored). Without it, validation on AKS ends with status "readiness-failed"
+	// ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+	AksGpuPools AksGpuPoolArrayOutput `pulumi:"aksGpuPools"`
 	// When the run completed, RFC 3339.
 	CompletedAt pulumi.StringOutput `pulumi:"completedAt"`
 	// Kubeconfig context to select. Defaults to the kubeconfig's current-context.
@@ -185,7 +192,20 @@ func (ValidationRunState) ElementType() reflect.Type {
 	return reflect.TypeOf((*validationRunState)(nil)).Elem()
 }
 
+// ValidationRunExists checks whether an existing ValidationRun resource with the given ID exists.
+func ValidationRunExists(ctx *pulumi.Context,
+	id pulumi.StringInput, state *ValidationRunState, opts ...pulumi.ResourceOption) pulumi.BoolOutput {
+	return ctx.ExistsResource("nvidia-aicr:index:ValidationRun", id, state, "", opts...)
+}
+
 type validationRunArgs struct {
+	// The cluster's AKS agent pools (service "aks" only). AKS recipes require
+	// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+	// that is an Azure management-plane property the in-cluster snapshot cannot
+	// see. List the GPU pools here (non-GPU pools may be included and are
+	// ignored). Without it, validation on AKS ends with status "readiness-failed"
+	// ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+	AksGpuPools []AksGpuPool `pulumi:"aksGpuPools"`
 	// Kubeconfig context to select. Defaults to the kubeconfig's current-context.
 	Context *string `pulumi:"context"`
 	// Recipe criteria. Wire a ClusterStack's `criteria` output here, or build
@@ -247,6 +267,13 @@ type validationRunArgs struct {
 
 // The set of arguments for constructing a ValidationRun resource.
 type ValidationRunArgs struct {
+	// The cluster's AKS agent pools (service "aks" only). AKS recipes require
+	// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+	// that is an Azure management-plane property the in-cluster snapshot cannot
+	// see. List the GPU pools here (non-GPU pools may be included and are
+	// ignored). Without it, validation on AKS ends with status "readiness-failed"
+	// ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+	AksGpuPools AksGpuPoolArrayInput
 	// Kubeconfig context to select. Defaults to the kubeconfig's current-context.
 	Context pulumi.StringPtrInput
 	// Recipe criteria. Wire a ClusterStack's `criteria` output here, or build
@@ -391,6 +418,16 @@ func (o ValidationRunOutput) ToValidationRunOutput() ValidationRunOutput {
 
 func (o ValidationRunOutput) ToValidationRunOutputWithContext(ctx context.Context) ValidationRunOutput {
 	return o
+}
+
+// The cluster's AKS agent pools (service "aks" only). AKS recipes require
+// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and
+// that is an Azure management-plane property the in-cluster snapshot cannot
+// see. List the GPU pools here (non-GPU pools may be included and are
+// ignored). Without it, validation on AKS ends with status "readiness-failed"
+// ("could not evaluate: K8s.aks-gpu-pools.gpu-driver").
+func (o ValidationRunOutput) AksGpuPools() AksGpuPoolArrayOutput {
+	return o.ApplyT(func(v *ValidationRun) AksGpuPoolArrayOutput { return v.AksGpuPools }).(AksGpuPoolArrayOutput)
 }
 
 // When the run completed, RFC 3339.

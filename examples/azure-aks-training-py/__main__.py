@@ -114,6 +114,14 @@ validation = aicr.ValidationRun("nvidia-aicr-validation",
     criteria=gpu_stack.criteria,           # same recipe as the stack -- no drift
     recipe_data_version=gpu_stack.recipe_version,      # assert same recipe data as deployed
     kubeconfig=kubeconfig,
+    # AKS only: who installs the NVIDIA driver is an Azure-side pool setting the
+    # in-cluster snapshot cannot see. This pool sets no gpuProfile, so it has the
+    # Azure default, "Install" (the AKS node image installs the driver).
+    aks_gpu_pools=[aicr.AksGpuPoolArgs(
+        name="gpunodes",
+        vm_size="Standard_ND96isr_H100_v5",
+        gpu_driver="Install",
+    )],
     triggers=[gpu_stack.deployed_components],  # re-validate when the stack changes
 )
 

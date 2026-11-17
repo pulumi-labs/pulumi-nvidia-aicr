@@ -15,12 +15,15 @@
 package aicr
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"runtime/debug"
 	"testing"
 
 	aicrclient "github.com/NVIDIA/aicr/pkg/client/v1"
+	k8scollector "github.com/NVIDIA/aicr/pkg/collector/k8s"
 	aicrerrors "github.com/NVIDIA/aicr/pkg/errors"
 	"github.com/NVIDIA/aicr/pkg/validator/ctrf"
 	"github.com/stretchr/testify/assert"
@@ -490,4 +493,106 @@ func TestValidateFailsClosedOnUnresolvableAgentImage(t *testing.T) {
 func TestSDKVersionExported(t *testing.T) {
 	withBuildInfo(t, depInfo(debug.Module{Path: aicrModulePath, Version: "v0.18.0"}), true)
 	assert.Equal(t, "v0.18.0", SDKVersion())
+}
+
+// TestAKSGPUPoolsFileProjectsThroughSDK feeds the file the adapter writes to
+// the SDK's own aks-gpu-pools projection, so a drift in the dump shape the SDK
+// decodes (it mirrors `az aks nodepool list -o json`) breaks CI rather than
+// silently turning every AKS validation into "reading unavailable".
+func TestAKSGPUPoolsFileProjectsThroughSDK(t *testing.T) {
+	cases := []struct {
+		name       string
+		pools      []AKSGPUPool
+		wantDriver string // "" means the gpu-driver key must be absent
+		wantCount  string
+	}{
+		{
+			name: "explicit Install",
+			pools: []AKSGPUPool{
+				{Name: "system", VMSize: "Standard_D4s_v6"},
+				{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", Driver: "Install"},
+			},
+			wantDriver: "Install", wantCount: "1",
+		},
+		{
+			name:       "unset driver is the Azure default, Install",
+			pools:      []AKSGPUPool{{Name: "gpu", VMSize: "Standard_ND96isr_H100_v5"}},
+			wantDriver: "Install", wantCount: "1",
+		},
+		{
+			name:       "None",
+			pools:      []AKSGPUPool{{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", Driver: "None"}},
+			wantDriver: "None", wantCount: "1",
+		},
+		{
+			name: "disagreeing pools",
+			pools: []AKSGPUPool{
+				{Name: "a", VMSize: "Standard_NC8as_T4_v3", Driver: "Install"},
+				{Name: "b", VMSize: "Standard_NC8as_T4_v3", Driver: "None"},
+			},
+			wantDriver: "Mixed", wantCount: "2",
+		},
+		{
+			name:       "AKS-managed GPU stack",
+			pools:      []AKSGPUPool{{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", Driver: "Install", ManagementMode: "Managed"}},
+			wantDriver: "Managed", wantCount: "1",
+		},
+		{
+			name:       "Unmanaged follows the driver field",
+			pools:      []AKSGPUPool{{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", Driver: "None", ManagementMode: "Unmanaged"}},
+			wantDriver: "None", wantCount: "1",
+		},
+		{
+			name:      "no GPU pools",
+			pools:     []AKSGPUPool{{Name: "system", VMSize: "Standard_D4s_v6"}},
+			wantCount: "0",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path, cleanup, err := writeAKSGPUPoolsFile(tc.pools)
+			require.NoError(t, err)
+			require.NotEmpty(t, path)
+
+			subtype, err := k8scollector.ProjectAKSGPUPools(context.Background(), path)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantCount, fmt.Sprint(subtype.Data["gpu-pool-count"].Any()))
+			driver, ok := subtype.Data["gpu-driver"]
+			if tc.wantDriver == "" {
+				assert.False(t, ok, "gpu-driver must be absent without GPU pools")
+			} else {
+				require.True(t, ok)
+				assert.Equal(t, tc.wantDriver, fmt.Sprint(driver.Any()))
+			}
+
+			cleanup()
+			_, statErr := os.Stat(path)
+			assert.True(t, os.IsNotExist(statErr), "the temp file must be removed after the run")
+		})
+	}
+}
+
+// TestAKSGPUPoolsFileUnsetWithoutPools: no pools must leave the SDK field
+// unset, not point it at an empty dump (which the SDK would project as
+// "zero GPU pools").
+func TestAKSGPUPoolsFileUnsetWithoutPools(t *testing.T) {
+	path, cleanup, err := writeAKSGPUPoolsFile(nil)
+	require.NoError(t, err)
+	assert.Empty(t, path)
+	cleanup()
+}
+
+// TestRenderAKSGPUPoolsShape pins the az-compatible encoding: a pool without
+// GPU settings carries an explicit null gpuProfile, as az prints it.
+func TestRenderAKSGPUPoolsShape(t *testing.T) {
+	raw, err := renderAKSGPUPools([]AKSGPUPool{
+		{Name: "system", VMSize: "Standard_D4s_v6"},
+		{Name: "gpu", VMSize: "Standard_NC8as_T4_v3", Driver: "Install", ManagementMode: "Unmanaged"},
+	})
+	require.NoError(t, err)
+	assert.JSONEq(t, `[
+		{"name": "system", "vmSize": "Standard_D4s_v6", "gpuProfile": null},
+		{"name": "gpu", "vmSize": "Standard_NC8as_T4_v3",
+		 "gpuProfile": {"driver": "Install", "nvidia": {"managementMode": "Unmanaged"}}}
+	]`, string(raw))
 }

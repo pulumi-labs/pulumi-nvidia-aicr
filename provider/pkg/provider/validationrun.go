@@ -165,6 +165,29 @@ func (c *CheckResult) Annotate(an infer.Annotator) {
 	an.Describe(&c.Message, `The check's failure or diagnostic message, if any.`)
 }
 
+// AksGpuPool describes one AKS agent pool for the `aksGpuPools` input.
+type AksGpuPool struct {
+	Name           string  `pulumi:"name"`
+	VMSize         string  `pulumi:"vmSize"`
+	GpuDriver      *string `pulumi:"gpuDriver,optional"`
+	ManagementMode *string `pulumi:"managementMode,optional"`
+}
+
+// Annotate populates schema metadata for AksGpuPool.
+func (a *AksGpuPool) Annotate(an infer.Annotator) {
+	an.Describe(a, `One AKS agent pool, as the management plane describes it.`)
+	an.Describe(&a.Name, `The agent pool name.`)
+	an.Describe(&a.VMSize, `The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+pools are ignored.`)
+	an.Describe(&a.GpuDriver, `The pool's `+"`gpuProfile.driver`"+` setting: "Install" (the AKS node image installs
+the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+it). Unset is read as the Azure default, "Install".`)
+	an.Describe(&a.ManagementMode, `The pool's `+"`gpuProfile.nvidia.managementMode`"+` setting, when it has one:
+"Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+outside what AICR recipes validate and fails readiness.`)
+}
+
 // ValidationRunArgs defines the inputs for the ValidationRun resource.
 type ValidationRunArgs struct {
 	// Recipe criteria; wire from a ClusterStack's `criteria` output or build inline.
@@ -187,6 +210,10 @@ type ValidationRunArgs struct {
 	// Scheduling — required in practice on tainted GPU node groups.
 	Tolerations  []Toleration      `pulumi:"tolerations,optional"`
 	NodeSelector map[string]string `pulumi:"nodeSelector,optional"`
+
+	// AKS only: the agent pools' management-plane GPU settings, which the
+	// in-cluster snapshot cannot observe.
+	AksGpuPools []AksGpuPool `pulumi:"aksGpuPools,optional"`
 
 	// Images — provider pins agent/validator defaults; overrides for air-gap.
 	ImageRegistry    *string  `pulumi:"imageRegistry,optional"`
@@ -224,6 +251,12 @@ pods). Required in practice on tainted GPU node groups; when unset, the
 validator's default tolerate-all is kept.`)
 	an.Describe(&a.NodeSelector, `Node selector applied to the validation workload pods. Use when GPU nodes
 carry non-standard labels.`)
+	an.Describe(&a.AksGpuPools, `The cluster's AKS agent pools (service "aks" only). AKS recipes require
+knowing who installs the GPU driver — each GPU pool's `+"`gpuProfile.driver`"+` — and
+that is an Azure management-plane property the in-cluster snapshot cannot
+see. List the GPU pools here (non-GPU pools may be included and are
+ignored). Without it, validation on AKS ends with status "readiness-failed"
+("could not evaluate: K8s.aks-gpu-pools.gpu-driver").`)
 	an.Describe(&a.ImageRegistry, `Registry override for the snapshot-agent and validator images (air-gapped
 mirrors). Unset keeps the default registry (ghcr.io).`)
 	an.Describe(&a.ImagePullSecrets, `Names of image pull Secrets (in the validation namespace) for the
@@ -451,6 +484,7 @@ func runValidation(ctx context.Context, name string, args ValidationRunArgs) (st
 		ImagePullSecrets: args.ImagePullSecrets,
 		Phases:           normalizePhases(args.Phases),
 		RequireGPU:       derefBool(args.RequireGpu, true),
+		AKSGPUPools:      toAdapterAKSGPUPools(args.AksGpuPools),
 		SkipComponents:   args.Criteria.SkipComponents,
 		Timeout:          time.Duration(timeoutMinutes) * time.Minute,
 	})
@@ -601,6 +635,21 @@ func validateValidationRunArgs(args *ValidationRunArgs) error {
 			return fmt.Errorf("namespace %q is reserved for Kubernetes system namespaces; "+
 				"use a dedicated namespace for the validation harness (default %q)",
 				*args.Namespace, "aicr-validation")
+		}
+	}
+	if len(args.AksGpuPools) > 0 {
+		// Only judge the service once it is known (it may be an unresolved
+		// output during preview).
+		if svc := canonical(args.Criteria.Service); svc != "" && svc != "aks" {
+			return fmt.Errorf("aksGpuPools applies only to service %q; got service %q", "aks", svc)
+		}
+		for i, pool := range args.AksGpuPools {
+			if strings.TrimSpace(pool.Name) == "" {
+				return fmt.Errorf("aksGpuPools[%d].name must not be empty", i)
+			}
+			if strings.TrimSpace(pool.VMSize) == "" {
+				return fmt.Errorf("aksGpuPools[%d].vmSize must not be empty (pool %q)", i, pool.Name)
+			}
 		}
 	}
 	if args.Version != nil && *args.Version != "" {
@@ -762,6 +811,26 @@ func writeTempKubeconfig(raw []byte) (string, func(), error) {
 		return "", noop, fmt.Errorf("closing temp kubeconfig: %w", err)
 	}
 	return path, cleanup, nil
+}
+
+// toAdapterAKSGPUPools converts the aksGpuPools input to the adapter type.
+// Values are passed through trimmed but otherwise verbatim: the SDK owns the
+// interpretation and preserves unknown driver strings so a mismatch reports
+// the observed value.
+func toAdapterAKSGPUPools(pools []AksGpuPool) []aicr.AKSGPUPool {
+	if len(pools) == 0 {
+		return nil
+	}
+	out := make([]aicr.AKSGPUPool, 0, len(pools))
+	for _, pool := range pools {
+		out = append(out, aicr.AKSGPUPool{
+			Name:           strings.TrimSpace(pool.Name),
+			VMSize:         strings.TrimSpace(pool.VMSize),
+			Driver:         strings.TrimSpace(derefString(pool.GpuDriver, "")),
+			ManagementMode: strings.TrimSpace(derefString(pool.ManagementMode, "")),
+		})
+	}
+	return out
 }
 
 // toCoreTolerations translates the provider-owned toleration shape into

@@ -15,10 +15,102 @@ else:
 from . import _utilities
 
 __all__ = [
+    'AksGpuPool',
     'CheckResult',
     'RecipeCriteria',
     'Toleration',
 ]
+
+@pulumi.output_type
+class AksGpuPool(dict):
+    """
+    One AKS agent pool, as the management plane describes it.
+    """
+    @staticmethod
+    def __key_warning(key: str):
+        suggest = None
+        if key == "vmSize":
+            suggest = "vm_size"
+        elif key == "gpuDriver":
+            suggest = "gpu_driver"
+        elif key == "managementMode":
+            suggest = "management_mode"
+
+        if suggest:
+            pulumi.log.warn(f"Key '{key}' not found in AksGpuPool. Access the value via the '{suggest}' property getter instead.")
+
+    def __getitem__(self, key: str) -> Any:
+        AksGpuPool.__key_warning(key)
+        return super().__getitem__(key)
+
+    def get(self, key: str, default = None) -> Any:
+        AksGpuPool.__key_warning(key)
+        return super().get(key, default)
+
+    def __init__(__self__, *,
+                 name: _builtins.str,
+                 vm_size: _builtins.str,
+                 gpu_driver: Optional[_builtins.str] = None,
+                 management_mode: Optional[_builtins.str] = None):
+        """
+        One AKS agent pool, as the management plane describes it.
+
+        :param _builtins.str name: The agent pool name.
+        :param _builtins.str vm_size: The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+               pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+               pools are ignored.
+        :param _builtins.str gpu_driver: The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+               the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+               it). Unset is read as the Azure default, "Install".
+        :param _builtins.str management_mode: The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+               "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+               outside what AICR recipes validate and fails readiness.
+        """
+        pulumi.set(__self__, "name", name)
+        pulumi.set(__self__, "vm_size", vm_size)
+        if gpu_driver is not None:
+            pulumi.set(__self__, "gpu_driver", gpu_driver)
+        if management_mode is not None:
+            pulumi.set(__self__, "management_mode", management_mode)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> _builtins.str:
+        """
+        The agent pool name.
+        """
+        return pulumi.get(self, "name")
+
+    @_builtins.property
+    @pulumi.getter(name="vmSize")
+    def vm_size(self) -> _builtins.str:
+        """
+        The pool's VM size (e.g. "Standard_NC8as_T4_v3"). AICR recognizes NVIDIA GPU
+        pools by the Standard_NC, Standard_ND and Standard_NV size families; other
+        pools are ignored.
+        """
+        return pulumi.get(self, "vm_size")
+
+    @_builtins.property
+    @pulumi.getter(name="gpuDriver")
+    def gpu_driver(self) -> Optional[_builtins.str]:
+        """
+        The pool's `gpuProfile.driver` setting: "Install" (the AKS node image installs
+        the NVIDIA driver; the Azure default) or "None" (the GPU Operator installs
+        it). Unset is read as the Azure default, "Install".
+        """
+        return pulumi.get(self, "gpu_driver")
+
+    @_builtins.property
+    @pulumi.getter(name="managementMode")
+    def management_mode(self) -> Optional[_builtins.str]:
+        """
+        The pool's `gpuProfile.nvidia.managementMode` setting, when it has one:
+        "Managed" or "Unmanaged". A "Managed" pool (AKS runs the whole GPU stack) is
+        outside what AICR recipes validate and fails readiness.
+        """
+        return pulumi.get(self, "management_mode")
+
 
 @pulumi.output_type
 class CheckResult(dict):

@@ -82,6 +82,23 @@ const snapshotTimeout = 10 * time.Minute
 // canceled/expired run. Fresh context: the parent is already dead.
 const sweepTimeout = 30 * time.Second
 
+// AKSGPUPool is one AKS agent pool as the SDK's aks-gpu-pools projection
+// reads it: the pool name, its VM size (the SDK identifies NVIDIA GPU pools by
+// the Standard_NC/ND/NV size families) and the management-plane
+// gpuProfile settings.
+type AKSGPUPool struct {
+	// Name is the agent pool name.
+	Name string
+	// VMSize is the pool's VM size, e.g. "Standard_NC8as_T4_v3".
+	VMSize string
+	// Driver is gpuProfile.driver: "Install" or "None". "" leaves it unset,
+	// which the SDK projects as the Azure default, Install.
+	Driver string
+	// ManagementMode is gpuProfile.nvidia.managementMode: "Managed" or
+	// "Unmanaged". "" leaves gpuProfile.nvidia unset.
+	ManagementMode string
+}
+
 // ValidateOptions carries everything beyond criteria that a validation run
 // needs. Phases is required non-empty: the SDK's default is to run ALL
 // phases including performance, which must never happen implicitly.
@@ -117,6 +134,14 @@ type ValidateOptions struct {
 	// RunID identifies the run's cluster-side artifacts. "" generates one.
 	// Always passed to WithValidationRunID.
 	RunID string
+	// AKSGPUPools describes the cluster's AKS agent pools (service "aks"
+	// only). The gpuStack profile constraint K8s.aks-gpu-pools.gpu-driver
+	// reads a management-plane property the in-cluster snapshot agent cannot
+	// see, so the SDK takes it from an `az aks nodepool list -o json` dump on
+	// the caller's filesystem; the adapter renders these entries into that
+	// shape for the duration of the run. Empty leaves the reading absent,
+	// which fails AKS readiness closed.
+	AKSGPUPools []AKSGPUPool
 	// SkipComponents names recipe components the deployment intentionally
 	// left out (ClusterStack's skipComponents). They are marked disabled on
 	// the resolved recipe and checks that presuppose them are reported
@@ -258,6 +283,11 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 		if imgErr != nil {
 			return nil, imgErr
 		}
+		aksPoolsPath, cleanupPools, poolsErr := writeAKSGPUPoolsFile(opts.AKSGPUPools)
+		if poolsErr != nil {
+			return nil, poolsErr
+		}
+		defer cleanupPools()
 		// RunID pins the snapshot half of the run to the same ID as the
 		// validator Jobs, so every cluster-side artifact carries
 		// aicr.run/run-id=<runID>. JobName is a prefix the SDK suffixes
@@ -279,6 +309,7 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 			Tolerations:      opts.Tolerations,
 			Privileged:       true,
 			RequireGPU:       opts.RequireGPU,
+			AKSGPUPoolsPath:  aksPoolsPath,
 			Cleanup:          true,
 			Timeout:          snapshotTimeout,
 		})
@@ -518,4 +549,67 @@ func generateRunID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b[:]), nil
+}
+
+// aksNodePoolJSON mirrors the slice of `az aks nodepool list -o json` the
+// SDK's aks-gpu-pools projection decodes (name, vmSize, gpuProfile).
+type aksNodePoolJSON struct {
+	Name       string             `json:"name"`
+	VMSize     string             `json:"vmSize"`
+	GPUProfile *aksGPUProfileJSON `json:"gpuProfile"`
+}
+
+type aksGPUProfileJSON struct {
+	Driver string                `json:"driver,omitempty"`
+	NVIDIA *aksNVIDIAProfileJSON `json:"nvidia,omitempty"`
+}
+
+type aksNVIDIAProfileJSON struct {
+	ManagementMode string `json:"managementMode"`
+}
+
+// renderAKSGPUPools encodes pools in the `az aks nodepool list -o json`
+// shape. A pool with neither Driver nor ManagementMode gets a null
+// gpuProfile, exactly as az prints a pool created without one.
+func renderAKSGPUPools(pools []AKSGPUPool) ([]byte, error) {
+	out := make([]aksNodePoolJSON, 0, len(pools))
+	for _, pool := range pools {
+		entry := aksNodePoolJSON{Name: pool.Name, VMSize: pool.VMSize}
+		if pool.Driver != "" || pool.ManagementMode != "" {
+			entry.GPUProfile = &aksGPUProfileJSON{Driver: pool.Driver}
+			if pool.ManagementMode != "" {
+				entry.GPUProfile.NVIDIA = &aksNVIDIAProfileJSON{ManagementMode: pool.ManagementMode}
+			}
+		}
+		out = append(out, entry)
+	}
+	return json.Marshal(out)
+}
+
+// writeAKSGPUPoolsFile materializes pools as a temp file for
+// AgentConfig.AKSGPUPoolsPath (the SDK accepts only a path). No pools returns
+// "" and a no-op cleanup, leaving the SDK field unset.
+func writeAKSGPUPoolsFile(pools []AKSGPUPool) (string, func(), error) {
+	if len(pools) == 0 {
+		return "", func() {}, nil
+	}
+	raw, err := renderAKSGPUPools(pools)
+	if err != nil {
+		return "", nil, fmt.Errorf("encoding AKS GPU pools: %w", err)
+	}
+	f, err := os.CreateTemp("", "aicr-aks-gpu-pools-*.json")
+	if err != nil {
+		return "", nil, fmt.Errorf("creating AKS GPU pools temp file: %w", err)
+	}
+	cleanup := func() { _ = os.Remove(f.Name()) }
+	if _, err := f.Write(raw); err != nil {
+		_ = f.Close()
+		cleanup()
+		return "", nil, fmt.Errorf("writing AKS GPU pools temp file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("writing AKS GPU pools temp file: %w", err)
+	}
+	return f.Name(), cleanup, nil
 }

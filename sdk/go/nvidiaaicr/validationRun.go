@@ -192,12 +192,6 @@ func (ValidationRunState) ElementType() reflect.Type {
 	return reflect.TypeOf((*validationRunState)(nil)).Elem()
 }
 
-// ValidationRunExists checks whether an existing ValidationRun resource with the given ID exists.
-func ValidationRunExists(ctx *pulumi.Context,
-	id pulumi.StringInput, state *ValidationRunState, opts ...pulumi.ResourceOption) pulumi.BoolOutput {
-	return ctx.ExistsResource("nvidia-aicr:index:ValidationRun", id, state, "", opts...)
-}
-
 type validationRunArgs struct {
 	// The cluster's AKS agent pools (service "aks" only). AKS recipes require
 	// knowing who installs the GPU driver — each GPU pool's `gpuProfile.driver` — and

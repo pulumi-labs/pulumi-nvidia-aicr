@@ -25,6 +25,7 @@ import (
 	aicrclient "github.com/NVIDIA/aicr/pkg/client/v1"
 	k8scollector "github.com/NVIDIA/aicr/pkg/collector/k8s"
 	aicrerrors "github.com/NVIDIA/aicr/pkg/errors"
+	"github.com/NVIDIA/aicr/pkg/validator/catalog"
 	"github.com/NVIDIA/aicr/pkg/validator/ctrf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -481,6 +482,8 @@ func TestAgentImage(t *testing.T) {
 func TestValidateFailsClosedOnUnresolvableAgentImage(t *testing.T) {
 	withBuildInfo(t, nil, false)
 	t.Setenv(agentImageEnvVar, "")
+	// Satisfy the validator-image pin so the agent-image check is the one hit.
+	t.Setenv(validatorImageTagEnvVar, "v0.0.0")
 	_, err := Validate(t.Context(), kindCriteria, ValidateOptions{
 		Phases: []string{"deployment"},
 	})
@@ -595,4 +598,60 @@ func TestRenderAKSGPUPoolsShape(t *testing.T) {
 		{"name": "gpu", "vmSize": "Standard_NC8as_T4_v3",
 		 "gpuProfile": {"driver": "Install", "nvidia": {"managementMode": "Unmanaged"}}}
 	]`, string(raw))
+}
+
+// TestValidatorVersionPinsCatalogImages: the validator catalog names its
+// images :latest, and the SDK only rewrites them when the client carries a
+// release version. Feed the version the adapter passes to the SDK's own
+// resolver, so both a regression here and a change in what the SDK accepts as
+// a release version break CI instead of silently validating with whatever
+// NVIDIA published last.
+func TestValidatorVersionPinsCatalogImages(t *testing.T) {
+	t.Setenv(validatorImageTagEnvVar, "")
+	withBuildInfo(t, depInfo(debug.Module{Path: aicrModulePath, Version: "v0.21.1"}), true)
+
+	version, err := validatorVersion(false)
+	require.NoError(t, err)
+	assert.Equal(t, "v0.21.1", version)
+	assert.Equal(t, "ghcr.io/nvidia/aicr-validators/conformance:v0.21.1",
+		catalog.ResolveImage("ghcr.io/nvidia/aicr-validators/conformance:latest", version, ""))
+}
+
+func TestValidatorVersionUnresolvable(t *testing.T) {
+	withBuildInfo(t, nil, false)
+
+	t.Run("real cluster fails closed", func(t *testing.T) {
+		t.Setenv(validatorImageTagEnvVar, "")
+		_, err := validatorVersion(false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot pin the validator images")
+		assert.Contains(t, err.Error(), validatorImageTagEnvVar,
+			"the fail-closed error must name the env-var escape hatch")
+	})
+	t.Run("SDK tag override is the dev escape hatch", func(t *testing.T) {
+		t.Setenv(validatorImageTagEnvVar, "v0.21.1")
+		version, err := validatorVersion(false)
+		require.NoError(t, err)
+		assert.Empty(t, version)
+	})
+	t.Run("NoCluster needs no pin", func(t *testing.T) {
+		t.Setenv(validatorImageTagEnvVar, "")
+		version, err := validatorVersion(true)
+		require.NoError(t, err)
+		assert.Empty(t, version)
+	})
+}
+
+// TestValidateFailsClosedOnUnpinnedValidatorImages: with the agent image
+// supplied explicitly (a dev build), a real-cluster run must still refuse to
+// start rather than run :latest validators.
+func TestValidateFailsClosedOnUnpinnedValidatorImages(t *testing.T) {
+	withBuildInfo(t, nil, false)
+	t.Setenv(agentImageEnvVar, "registry.dev.example/aicr-agent:pr-123")
+	t.Setenv(validatorImageTagEnvVar, "")
+	_, err := Validate(t.Context(), kindCriteria, ValidateOptions{
+		Phases: []string{"deployment"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot pin the validator images")
 }

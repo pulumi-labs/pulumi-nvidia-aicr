@@ -98,6 +98,13 @@ published support matrix) and add adapter tests for the new combination.
   pods/log, get/list/delete on ConfigMaps (the validator uses a per-run
   cluster-admin binding, reaped after the run). The README's RBAC paragraph
   is the user-facing copy of this list — keep them in sync
+- Always pass the SDK module version to the validation client
+  (`aicrclient.WithVersion`, via `validatorVersion`): the validator catalog
+  names its images `:latest` and the SDK only rewrites them to a release tag
+  when the client carries one. Unpinned, every run uses whatever NVIDIA
+  published last and checks this build's recipe data against a newer
+  release's expectations. Dev builds with an unresolvable version fail closed
+  unless `AICR_VALIDATOR_IMAGE_TAG` is set
 - On AKS the recipe's gpuStack profile constraint
   (`K8s.aks-gpu-pools.gpu-driver`) reads a management-plane pool property the
   snapshot agent cannot see; the SDK takes it from an `az aks nodepool list`

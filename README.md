@@ -237,6 +237,11 @@ Wire it to a `ClusterStack` so deployment and validation share one source of tru
   ClusterRoleBindings (cluster-scoped); and, in the validation namespace, create and delete on
   ServiceAccounts, Roles and RoleBindings, get on ServiceAccounts, create/get/list/watch/delete on
   Jobs, get/list/watch on Pods, get on `pods/log`, and get/list/delete on ConfigMaps.
+- **Pinned images:** the snapshot agent and the validator images run at the AICR release this
+  provider version embeds (see [AICR Version Compatibility](#aicr-version-compatibility)), never
+  `:latest`, so a recipe is checked by the validators of its own release and results are
+  reproducible. `AICR_VALIDATOR_IMAGE_TAG` in the environment of `pulumi up` overrides the
+  validator tag.
 - **Duration:** a deployment + conformance run typically takes 2–10 minutes depending on the recipe
   (each check is a Job); performance checks can take much longer.
 - **Timeouts:** `timeoutMinutes` is the whole budget for a run and the only input that grants time.

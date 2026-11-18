@@ -236,9 +236,19 @@ func Validate(ctx context.Context, criteria Criteria, opts ValidateOptions) (*Va
 	// requires a RecipeResult produced by the SAME client (it carries
 	// unexported internal state), so aicr.Resolve — which closes its client —
 	// cannot be reused here.
-	client, err := aicrclient.NewClient(
-		aicrclient.WithRecipeSource(aicrclient.EmbeddedSource()),
-	)
+	clientOpts := []aicrclient.Option{aicrclient.WithRecipeSource(aicrclient.EmbeddedSource())}
+	pinned, err := validatorVersion(opts.NoCluster)
+	if err != nil {
+		return nil, err
+	}
+	if pinned != "" {
+		// The validator catalog names its images :latest and the SDK rewrites
+		// them to the client's version. Without it every run would use
+		// whatever NVIDIA published last, checking this build's recipe data
+		// against a newer release's expectations.
+		clientOpts = append(clientOpts, aicrclient.WithVersion(pinned))
+	}
+	client, err := aicrclient.NewClient(clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("initializing AICR client: %w", err)
 	}
@@ -501,6 +511,31 @@ func agentImage(registryOverride string) (string, error) {
 		image = registry + strings.TrimPrefix(image, "ghcr.io")
 	}
 	return image, nil
+}
+
+// validatorImageTagEnvVar is the SDK's own override for the validator image
+// tag (it wins over the version-derived tag).
+const validatorImageTagEnvVar = "AICR_VALIDATOR_IMAGE_TAG"
+
+// validatorVersion returns the version to hand the SDK client so it pins the
+// validator images (catalog entries are :latest) to this build's AICR module
+// version, the same release the embedded recipe data and the snapshot agent
+// come from. "" means "do not set a version". When the module version is
+// unresolvable (dev builds) a real-cluster run fails closed rather than
+// floating on :latest, unless the SDK's AICR_VALIDATOR_IMAGE_TAG override
+// names a tag; NoCluster runs create no Jobs, so they need no pin.
+func validatorVersion(noCluster bool) (string, error) {
+	version := sdkModuleVersion()
+	if version != "embedded" {
+		return version, nil
+	}
+	if noCluster || os.Getenv(validatorImageTagEnvVar) != "" {
+		return "", nil
+	}
+	return "", fmt.Errorf(
+		"cannot pin the validator images: this build's AICR SDK module version is unresolvable "+
+			"(filesystem replace or missing build info), and the floating :latest tag will not be used; "+
+			"set %s to an explicit tag for dev builds", validatorImageTagEnvVar)
 }
 
 // sweepValidatorJobs best-effort deletes validator Jobs labeled with runID in
